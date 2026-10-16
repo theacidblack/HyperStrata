@@ -1,6 +1,6 @@
 <h1 align="center">HyperStrata</h1>
 
-<p align="center"><b>A personal experiment in hardware-specific inference optimization</b><br>
+<p align="center"><b>An agentic playground for inference speed</b><br>
 Qwen3.6-35B-A3B on one RTX 3070 Ti Laptop GPU + 32 GB RAM · fork of PolyStrata</p>
 
 > Translated READMEs (`.de/.es/.fr/.ja/.pt-BR/.zh-CN`) still describe upstream
@@ -10,14 +10,14 @@ Qwen3.6-35B-A3B on one RTX 3070 Ti Laptop GPU + 32 GB RAM · fork of PolyStrata<
 
 HyperStrata is a personal experimental fork of
 [PolyStrata](https://github.com/VecSzn/PolyStrata) (built on
-[Strata](https://github.com/Niko1221/Strata)). One question: how far can an
-existing inference engine be pushed for **one model on one fixed PC**? A learning
-project, done in the open — not a competing engine, product, or authorship claim.
+[Strata](https://github.com/Niko1221/Strata)). It exists for one question: how
+far can an existing inference engine be pushed for **one model on one fixed PC**?
 
-**How this project is run:** all cooking happens in the private
-`HyperStrata-Dev` repo (`dev` → `main` for prep and testing). This public repo
-holds only `main`, updated on releases — a new version lands here only with
-measured results, and only when a record falls.
+It is a purely agentic project: AI agents write the code, run the benchmarks,
+and iterate — and I am learning inference engines by watching and steering them.
+All cooking happens in the private `HyperStrata-Dev` repo. This public repo
+holds only `main` and gets periodic pushes whenever something is found that
+makes inference faster. I try all my "what ifs" here, just for the love of the game.
 
 ## 2. Why this experiment exists
 
@@ -32,7 +32,7 @@ do. This repo collects those numbers and the small changes they justify.
 - [PolyStrata](https://github.com/VecSzn/PolyStrata) — the `strata-poly` GGUF
   engine this fork derives from, plus its docs and benchmarks.
 
-Upstream did the engineering; this fork experiments on top. No approval,
+Upstream did the engineering; agents experiment on top of it here. No approval,
 support, or endorsement by them is implied. Upstream improvements are merged in
 (see section 10), never silently dropped.
 
@@ -54,12 +54,16 @@ included), via `setup.py --family qwen36`. Tested context **131072**, KV fp16
 (engine default). Weights are reused locally (`--gguf-dir`), never committed;
 check the model card before redistributing any.
 
-## 6. Objectives and non-goals
+## 6. Method and non-goals
 
-Max practical tok/s for the above on the above; predictable VRAM/RAM peaks;
-reliable long-context runs; honest same-day baselines. Not goals: general engine
-work, other GPUs, rewrites for their own sake, universal-gain claims. A change
-that helps this laptop but hurts the general case stays a local experiment.
+The loop: hypothesis → try different flags or agent-written code changes →
+benchmark against a same-day unmodified baseline → keep it if faster, revert and
+record it if it regresses. Precise compatibility wins (exact GPU, exact RAM,
+exact model) over portable ones. Crazy ideas welcome; unmeasured ones don't ship.
+
+Not goals: general engine work, other GPUs, rewrites for their own sake,
+universal-gain claims. A change that helps this laptop but hurts the general
+case stays a local experiment, documented as such.
 
 ## 7. Verified results
 
@@ -94,11 +98,11 @@ criteria, validation). Read it before assuming any file differs on purpose.
 
 MIT, copyright (c) 2026 Niko1221 and the Strata contributors — [`LICENSE`](LICENSE)
 retained verbatim, never replaced. `third_party/ggml` and the font/projection
-assets keep their own licenses. Our additions claim no upstream ownership. No
-legal review performed — open an issue if anything looks wrong.
+assets keep their own licenses. Agent-written additions claim no upstream
+ownership. No legal review performed — open an issue if anything looks wrong.
 
 ## 12. Disclaimer
 
-Independent personal work. Not affiliated with Strata or PolyStrata; no
-endorsement implied. Performance statements cover only the measured hardware,
-model, and configuration.
+Independent personal work, built with AI agents. Not affiliated with Strata or
+PolyStrata; no endorsement implied. Performance statements cover only the
+measured hardware, model, and configuration.

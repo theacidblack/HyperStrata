@@ -1,8 +1,8 @@
 # Upstream Divergence Registry — internal
 
 Tracks every substantial difference between this fork (`theacidblack/HyperStrata`)
-and upstream (`VecSzn/PolyStrata`). Internal document: it lives on `dev` for now
-and reaches `preview`/`main` only through the normal promotion pipeline.
+and upstream (`VecSzn/PolyStrata`). Internal document: it lives in the private
+`HyperStrata-Dev` repo and reaches the public repo's `main` only with releases.
 
 It must always answer, per divergence: what changed, why, what upstream code it
 touches, whether it is still necessary, whether upstream now does it better, what

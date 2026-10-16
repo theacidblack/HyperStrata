@@ -3,145 +3,102 @@
 <p align="center"><b>A personal experiment in hardware-specific inference optimization</b><br>
 Qwen3.6-35B-A3B on one RTX 3070 Ti Laptop GPU + 32 GB RAM · fork of PolyStrata</p>
 
-> The translated READMEs ([简体中文](README.zh-CN.md) · [日本語](README.ja.md) ·
-> [Deutsch](README.de.md) · [Français](README.fr.md) · [Español](README.es.md) ·
-> [Português](README.pt-BR.md)) still describe upstream PolyStrata and lag behind
-> this file. English here is authoritative for this fork.
+> Translated READMEs (`.de/.es/.fr/.ja/.pt-BR/.zh-CN`) still describe upstream
+> PolyStrata and lag behind. English here is authoritative.
 
 ## 1. Introduction
 
 HyperStrata is a personal experimental fork of
-[PolyStrata](https://github.com/VecSzn/PolyStrata) (itself built on
-[Strata](https://github.com/Niko1221/Strata)). It exists to answer one question:
-how far can an existing inference engine be pushed for **one model on one fixed
-PC** — a laptop with an 8 GB card and 32 GB of RAM?
+[PolyStrata](https://github.com/VecSzn/PolyStrata) (built on
+[Strata](https://github.com/Niko1221/Strata)). One question: how far can an
+existing inference engine be pushed for **one model on one fixed PC**? A learning
+project, done in the open — not a competing engine, product, or authorship claim.
 
-It is a learning project: hardware tuning, benchmarking, upstream
-synchronization, and release maintenance, done in the open. It is not a competing
-engine, not a product, and not a claim of authorship over upstream work.
+**How this project is run:** all cooking happens in the private
+`HyperStrata-Dev` repo (`dev` → `main` for prep and testing). This public repo
+holds only `main`, updated on releases — a new version lands here only with
+measured results, and only when a record falls.
 
 ## 2. Why this experiment exists
 
-Running 35B-parameter mixture-of-experts models on an 8 GB laptop GPU means most
-of the weights live in system RAM and stream to the card on demand. Throughput
-then depends on quantization choice, KV-cache format, context length, and OS
-memory behavior — all measurable, all specific to the machine. General advice
-does not transfer; only numbers from this exact configuration count. This repo
-collects those numbers and the small changes they justify.
+On an 8 GB laptop GPU, 35B-MoE weights live in RAM and stream to the card.
+Throughput then depends on quant, KV format, context, and OS memory behavior —
+measurable only on this exact machine. General advice doesn't transfer; numbers
+do. This repo collects those numbers and the small changes they justify.
 
-## 3. Upstream projects and acknowledgments
+## 3. Upstream and acknowledgments
 
-- [Strata](https://github.com/Niko1221/Strata) by Niko1221 — the original engine,
-  server, and web app. The Qwen engine, installer, server, and web UI in this
-  repo are Strata's work, unchanged.
-- [PolyStrata](https://github.com/VecSzn/PolyStrata) — the fork this repo derives
-  from: the `strata-poly` engine that runs GLM/Qwen3.6/Ornith/Gemma/Tiel/MiniCPM-V
-  and DeepSeek/LFM models from GGUF files, plus its docs and benchmarks.
+- [Strata](https://github.com/Niko1221/Strata) — original engine, server, web app.
+- [PolyStrata](https://github.com/VecSzn/PolyStrata) — the `strata-poly` GGUF
+  engine this fork derives from, plus its docs and benchmarks.
 
-The upstream authors did the engineering; this fork runs experiments on top of
-it. Nothing here implies their approval, support, or endorsement. Upstream
-improvements are merged back in (see section 10), never silently dropped.
+Upstream did the engineering; this fork experiments on top. No approval,
+support, or endorsement by them is implied. Upstream improvements are merged in
+(see section 10), never silently dropped.
 
-## 4. Target hardware (verified on this machine)
+## 4. Target hardware (verified)
 
-| Part | Value | How verified |
-| --- | --- | --- |
-| GPU | NVIDIA GeForce RTX 3070 Ti Laptop GPU, 8 GB VRAM (Ampere SM86) | `nvidia-smi` |
-| System RAM | 32 GB (2×16 GB), 4800 MT/s | `Win32_PhysicalMemory` (2 sticks, configured 4800) |
-| OS | Windows 10/11, x86-64 | test machine |
+| Part | Value |
+| --- | --- |
+| GPU | NVIDIA RTX 3070 Ti Laptop, 8 GB VRAM (Ampere SM86) |
+| RAM | 32 GB (2×16 GB) DDR5-4800 |
+| OS | Windows 10/11, x86-64 |
 
-Do not assume all 8 GB of VRAM or all 32 GB of RAM are usable — the OS, drivers,
-and background load take their share. Every result below is tied to this box.
+Assume neither the full 8 GB nor the full 32 GB is usable. Every result is tied
+to this box.
 
-## 5. Target model and tested configuration
+## 5. Target model and configuration
 
-- Model: **Qwen3.6-35B-A3B** (MoE), Unsloth quant **`UD-Q4_K_M`**, single GGUF
-  file of ~22.6 GB. The file already contains the draft (MTP) block, so
-  speculative decoding needs no extra download.
-- Runtime: `strata-poly` engine via `setup.py --family qwen36 --model UD-Q4_K_M`.
-- Tested context: **131072** tokens (inside the trained 262144, no RoPE rescaling).
-- KV cache: fp16 (engine default; setup takes no KV setting for this family).
-  `--kv q8_0` in the engine args halves KV VRAM at slightly different answers —
-  comparison runs only.
-- The GGUF is reused from a local copy (`--gguf-dir`); weights are never committed
-  to this repo. Check the model card's license before redistributing any weights.
+**Qwen3.6-35B-A3B**, Unsloth **`UD-Q4_K_M`** GGUF (~22.6 GB, draft block
+included), via `setup.py --family qwen36`. Tested context **131072**, KV fp16
+(engine default). Weights are reused locally (`--gguf-dir`), never committed;
+check the model card before redistributing any.
 
 ## 6. Objectives and non-goals
 
-Objectives: maximal practical tokens/s (prompt intake and generation) for the
-above model/config on the above hardware; predictable VRAM/RAM peaks; reliable
-long-context runs; honest numbers with same-day unmodified baselines.
+Max practical tok/s for the above on the above; predictable VRAM/RAM peaks;
+reliable long-context runs; honest same-day baselines. Not goals: general engine
+work, other GPUs, rewrites for their own sake, universal-gain claims. A change
+that helps this laptop but hurts the general case stays a local experiment.
 
-Non-goals: general-purpose engine improvements, other GPUs, other models beyond
-smoke tests, code rewrites for their own sake, and any claim of universal gains.
-A change that helps this laptop but hurts the general case stays a local
-experiment, documented as such.
+## 7. Verified results
 
-## 7. Current implementation and verified results
+No fork measurements published yet — this section fills in when the first
+battery completes, with model, quant, context, workload, and baseline per number.
+Upstream's tables in their docs are theirs: cited, not claimed. Failures get
+listed too, not buried.
 
-Status: the fork's history is currently identical to upstream — no engine changes
-yet, so there are **no fork-specific measurements to report**. The numbers in
-upstream's docs (including the speed tables below in the original README text)
-are upstream's, measured on their machines — cited, not claimed.
-
-What works here today is upstream's stack, installed by its installer and run
-with the configuration in section 5. First local benchmarks will appear here
-with model, quant, context, workload, and baseline once they exist. Failed
-experiments will be listed too, not buried.
-
-## 8. Installation and reproduction
-
-Standard path (unchanged upstream installer):
+## 8. Installation
 
 ```
-Windows:  START-HERE.bat --yes --family qwen36 --model UD-Q4_K_M --context 131072 --gguf-dir <folder-with-the-gguf> --no-start
-Linux:    ./setup.sh     --yes --family qwen36 --model UD-Q4_K_M --context 131072 --gguf-dir <folder-with-the-gguf> --no-start
+START-HERE.bat --yes --family qwen36 --model UD-Q4_K_M --context 131072 --gguf-dir <folder-with-the-gguf> --no-start
 ```
 
-`--gguf-dir` reuses a file you already have instead of downloading (~22.6 GB).
-Setup writes a `run-*.bat`/`run-*.sh` starter plus `strata-*.json` config (both
-git-ignored, machine-local). Then start the generated script and open
-`http://127.0.0.1:8080`. Full installer docs: `docs/INSTALL.md`, `docs/AI_SETUP.md`.
+Then run the generated `run-*.bat`, open `http://127.0.0.1:8080`. Details:
+`docs/INSTALL.md`, `docs/AI_SETUP.md`. `UD-Q4_K_M` wants ~27 GB RAM beside 8 GB
+VRAM — tight on 32 GB; `UD-Q2_K_XL` if setup warns.
 
-Note: `UD-Q4_K_M` wants roughly 27 GB of RAM beside an 8 GB card — tight on
-32 GB. If setup warns, use the smaller `UD-Q2_K_XL` instead.
+## 9. Limitations
 
-## 9. Known limitations and failed experiments
+No fork experiments published yet. Windows + NVIDIA only here; Linux/AMD/multi-GPU
+paths are upstream's, untested in this fork. Long contexts on 32 GB may fail —
+physics, not a bug.
 
-- No fork experiments have run yet, so there is no failure list — this section
-  stays honest rather than full.
-- Tight memory headroom (above): long contexts + large quant may fail on 32 GB;
-  that is expected physics, not a bug.
-- Tested on Windows + NVIDIA only. Linux, AMD, and multi-GPU paths are upstream's
-  and untested here.
-- Translated READMEs lag behind this file (see top note).
+## 10. Divergence tracking
 
-## 10. Upstream divergence tracking
+Substantial fork-vs-upstream differences live in
+[`UPSTREAM_DIVERGENCE.md`](UPSTREAM_DIVERGENCE.md) (reason, evidence, removal
+criteria, validation). Read it before assuming any file differs on purpose.
 
-Every substantial fork-vs-upstream difference is recorded in
-[`UPSTREAM_DIVERGENCE.md`](UPSTREAM_DIVERGENCE.md) with reason, evidence,
-upstream status, removal criteria, and validation steps. The sync procedure
-(merge upstream, adapt patches, re-measure) is kept with it. Read it before
-assuming any file here differs from upstream on purpose.
+## 11. Licensing and attribution
 
-## 11. Licensing and third-party attribution
-
-- Engine and docs: **MIT License**, copyright (c) 2026 Niko1221 and the Strata
-  contributors — see [`LICENSE`](LICENSE), retained verbatim from upstream as the
-  license requires. No new license file replaces it.
-- `third_party/ggml` keeps its own license (see `third_party/ggml/LICENSE`); the
-  font and the experimental speed-projection vector keep theirs (per upstream).
-- Our original contributions (this README, future `DIV-*` patches) fall under the
-  same MIT terms via the fork; they claim no ownership over upstream code.
-- Model weights are downloaded at setup time, not shipped. The GGUF quant used
-  here comes from the Unsloth quant family referenced in upstream's
-  `docs/BACKENDS.md`; consult the model card for weight licensing before
-  redistributing anything. No legal review has been performed — open an issue if
-  anything here looks wrong.
+MIT, copyright (c) 2026 Niko1221 and the Strata contributors — [`LICENSE`](LICENSE)
+retained verbatim, never replaced. `third_party/ggml` and the font/projection
+assets keep their own licenses. Our additions claim no upstream ownership. No
+legal review performed — open an issue if anything looks wrong.
 
 ## 12. Disclaimer
 
-HyperStrata is independent personal experimentation. It does not compete with,
-impersonate, or represent Strata or PolyStrata, and no endorsement by their
-authors is implied or claimed. All performance statements are limited to the
-hardware, model, and configuration they were measured on.
+Independent personal work. Not affiliated with Strata or PolyStrata; no
+endorsement implied. Performance statements cover only the measured hardware,
+model, and configuration.

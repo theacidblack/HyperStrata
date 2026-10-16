@@ -3,9 +3,6 @@
 <p align="center"><b>An agentic playground for inference speed</b><br>
 Qwen3.6-35B-A3B on one RTX 3070 Ti Laptop GPU + 32 GB RAM · fork of PolyStrata</p>
 
-> Translated READMEs (`.de/.es/.fr/.ja/.pt-BR/.zh-CN`) still describe upstream
-> PolyStrata and lag behind. English here is authoritative.
-
 ## 1. Introduction
 
 HyperStrata is a personal experimental fork of

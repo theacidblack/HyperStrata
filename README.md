@@ -36,11 +36,9 @@ per-request breakdown is kept in the private dev repo's test ledger.
 
 ## 3. How a baseline is made
 
-**Engine.** Built once with this repo's installer (`START-HERE.bat --yes
---family qwen36 --model UD-Q4_K_M --context 131072 --gguf-dir
-<folder-with-the-gguf> --no-start`), reusing a locally stored model file. The
-generated `run-*.bat` starts `strata-poly` on `127.0.0.1:8080` (OpenAI- and
-Anthropic-compatible APIs).
+**Engine.** Built once with this repo's installer (full command in section 6),
+reusing a locally stored model file. The generated `run-*.bat` starts
+`strata-poly` on `127.0.0.1:8080` (OpenAI- and Anthropic-compatible APIs).
 
 **Launcher.** At launch, a temporary config is derived from the untouched source
 config, injecting `"sampling": {"temperature": 0.6}` and

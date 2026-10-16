@@ -60,7 +60,9 @@ and background load take their share. Every result below is tied to this box.
   speculative decoding needs no extra download.
 - Runtime: `strata-poly` engine via `setup.py --family qwen36 --model UD-Q4_K_M`.
 - Tested context: **131072** tokens (inside the trained 262144, no RoPE rescaling).
-- KV cache: `q4_0` (half the memory of default `int8`) for long contexts on 8 GB.
+- KV cache: fp16 (engine default; setup takes no KV setting for this family).
+  `--kv q8_0` in the engine args halves KV VRAM at slightly different answers —
+  comparison runs only.
 - The GGUF is reused from a local copy (`--gguf-dir`); weights are never committed
   to this repo. Check the model card's license before redistributing any weights.
 
@@ -92,8 +94,8 @@ experiments will be listed too, not buried.
 Standard path (unchanged upstream installer):
 
 ```
-Windows:  START-HERE.bat --yes --family qwen36 --model UD-Q4_K_M --context 131072 --kv q4_0 --gguf-dir <folder-with-the-gguf> --no-start
-Linux:    ./setup.sh     --yes --family qwen36 --model UD-Q4_K_M --context 131072 --kv q4_0 --gguf-dir <folder-with-the-gguf> --no-start
+Windows:  START-HERE.bat --yes --family qwen36 --model UD-Q4_K_M --context 131072 --gguf-dir <folder-with-the-gguf> --no-start
+Linux:    ./setup.sh     --yes --family qwen36 --model UD-Q4_K_M --context 131072 --gguf-dir <folder-with-the-gguf> --no-start
 ```
 
 `--gguf-dir` reuses a file you already have instead of downloading (~22.6 GB).

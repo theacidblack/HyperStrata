@@ -594,15 +594,26 @@ struct Slot {
     Clock::time_point t0;
 };
 
-int serve(Session& ss) {
+// INFO's kv= and draft_kv=: the caches' formats as --kv and --draft-kv spell them (fp16 when omitted).
+const char* kv_flag_name(KvFmt f) {
+    switch (f) {
+        case KvFmt::kFp16: return "fp16";
+        case KvFmt::kQ8_0: return "q8_0";
+        case KvFmt::kQ4_0: return "q4_0";
+    }
+    return "fp16";   // unreachable; keeps -Wreturn-type quiet on every compiler
+}
+
+int serve(Session& ss, const Options& o) {
     Engine& engine = ss.engine;
     std::vector<Slot> slots((size_t) engine.sequences() - 1);
     std::printf("INFO context=%d expert_slots=%d expert_cache_mib=%lld pool_workers=%d conversation_cache_mib=%lld "
                 "conversation_cache_slots=%d conversation_cache_min_free_mib=%lld vram_free_mib=%lld vram_elastic=1 "
-                "batch_slots=%d engine=" STRATA_VERSION "\n",
+                "batch_slots=%d kv=%s draft_kv=%s engine=" STRATA_VERSION "\n",
                 engine.max_context(), engine.cached_experts(), (long long) (engine.cached_gib() * 1024.0),
                 engine.threads(), (long long) ss.flags.o.park_mib, ss.flags.o.park_slots, ss.flags.min_free_mib,
-                (long long) engine.vram_free_mib(), (int) slots.size());
+                (long long) engine.vram_free_mib(), (int) slots.size(), kv_flag_name(o.kv_format),
+                kv_flag_name(o.draft_kv_format));
     std::printf("READY %d stop\n", engine.max_context());
     std::fflush(stdout);
 
@@ -1041,14 +1052,16 @@ void usage() {
                  "  --no-draft             do not run the block that guesses ahead\n"
                  "  --draft-model FILE     a file of the same model to take that block from, when --model has none;\n"
                  "                         for Gemma 4, its draft model (a gemma4-assistant file)\n"
-                 "  --draft-vocab N        the block guesses among the vocabulary's first N tokens (default:\n"
+                  "  --draft-vocab N        the block guesses among the vocabulary's first N tokens (default:\n"
                  "                         131072 for Qwen3.6, Ornith and Tiel, all of it for the others; 0 = all)\n"
+                 "  --draft-kv fmt         the draft block's K and V caches' format: fp16 (default, unchanged),\n"
+                 "                         q8_0 or q4_0 (as --kv, independent of it); opt-in\n"
                  "  --no-graphs            launch a token's kernels one by one (default: a layer's are recorded once\n"
                  "                         as a CUDA graph and replayed)\n"
                  "  --kv-whole             give the attention caches VRAM for the whole context at load (default: as\n"
                  "                         the conversation grows, the expert cache having the rest until then)\n"
-                 "  --kv fmt               the K and V attention caches' format: fp16 (default, unchanged) or q8_0\n"
-                 "                         (ggml Q8_0 blocks: half the KV VRAM, slightly different answers); opt-in\n"
+                 "  --kv fmt               the K and V attention caches' format: fp16 (default, unchanged), q8_0\n"
+                 "                         or q4_0 (ggml blocks: less KV VRAM, slightly different answers); opt-in\n"
                  "  --expert-swaps N       while an answer is written, up to N experts it keeps using are on their way\n"
                  "                         into VRAM, in place of cached ones it uses less (default 64, 0 = the cache\n"
                  "                         stays as it was loaded)\n"
@@ -1132,21 +1145,26 @@ int main(int argc, char** argv) {
         else if (a == "--any-node") o.stay_near = false;
         else if (a == "--no-graphs") o.graphs = false;
         else if (a == "--kv-whole") o.kv_grow = false;
-        else if (a == "--kv") {
+        else if (a == "--kv" || a == "--draft-kv") {
             const std::string fmt = val();
-            if (fmt == "fp16") o.kv_format = KvFmt::kFp16;
-            else if (fmt == "q8_0") {
+            KvFmt f = KvFmt::kFp16;
+            if (fmt == "fp16") f = KvFmt::kFp16;
+            else if (fmt == "q8_0" || fmt == "q4_0") {
 #ifdef STRATA_USE_HIP
-                std::fprintf(stderr, "strata-poly: --kv q8_0 is not supported on this backend (CUDA only)\n");
+                std::fprintf(stderr, "strata-poly: %s %s is not supported on this backend (CUDA only)\n",
+                             a.c_str(), fmt.c_str());
                 std::exit(2);
 #else
-                o.kv_format = KvFmt::kQ8_0;
+                f = fmt == "q8_0" ? KvFmt::kQ8_0 : KvFmt::kQ4_0;
 #endif
             }
             else {
-                std::fprintf(stderr, "strata-poly: --kv %s: unknown format (use fp16 or q8_0)\n", fmt.c_str());
+                std::fprintf(stderr, "strata-poly: %s %s: unknown format (use fp16, q8_0 or q4_0)\n",
+                             a.c_str(), fmt.c_str());
                 std::exit(2);
             }
+            if (a == "--kv") o.kv_format = f;
+            else o.draft_kv_format = f;
         }
         else if (a == "--window") o.window = std::atoi(val());
         else if (a == "--lookup") lookup = std::atoi(val());
@@ -1240,7 +1258,7 @@ int main(int argc, char** argv) {
         Session ss(engine, eos, cache, lookup);
         int rc = 0;
         if (want_serve) {
-            rc = serve(ss);
+            rc = serve(ss, o);
         } else if ((long long) ids.size() + max_new > engine.max_context()) {
             throw std::runtime_error("the prompt and --max-new together exceed --max-context");
         } else if (check > 0) {

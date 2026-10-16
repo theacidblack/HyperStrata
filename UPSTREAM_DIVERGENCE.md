@@ -23,9 +23,29 @@ breaks if removed, and how to validate removal. Unknowns are marked, never guess
 
 ## Registry
 
-No substantial divergences as of the baseline above. The fork is byte-identical
-in history to upstream; mechanical state (worktrees, remotes, launchers outside
-the repo) is not a divergence.
+### Baseline entries
+
+## DIV-001 — Repository identity and README
+
+- **Category:** other (docs/identity, no engine behavior change)
+- **Status:** active
+- **Location:** `README.md` (English only; the six translated READMEs still describe upstream and lag — see README top note)
+- **Origin:** fork design decision 2026-10-16 (identity task)
+- **Reason:** the fork needs a public identity that states what it is (personal
+  hardware-optimization experiment on fixed hardware) without claiming upstream
+  authorship, endorsement, or universal gains.
+- **Behavioral difference:** documentation only. Engine code, server, installer,
+  and in-code `PolyStrata` naming are untouched; no runtime behavior differs.
+- **Hardware relevance:** no code effect; documents the 8 GB VRAM / 32 GB RAM target.
+- **Evidence:** `git diff upstream/main -- README.md`; `LICENSE` byte-identical to upstream.
+- **Dependencies:** none
+- **Upstream status:** no equivalent (upstream describes the general engine, correctly)
+- **Maintenance cost:** low — English README must be kept true as experiments land;
+  translations lag by design until content stabilizes.
+- **Removal criteria:** never (a fork always needs its own identity statement);
+  content evolves with results.
+- **Validation procedure:** re-read against the identity task's definition of done;
+  confirm no authorship/endorsement/universal-gain claims and no invented benchmarks.
 
 Use the next free `DIV-00N` id for each new entry. One entry per coherent problem,
 not one per edit. Trivial edits (formatting, lockfile noise, generated files) get

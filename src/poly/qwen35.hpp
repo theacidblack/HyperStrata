@@ -58,8 +58,9 @@ private:
         Dev wq, wk, wv, q_norm, k_norm;
         uint16_t* keys = nullptr;   ///< max_context * n_kv * head_dim, fp16
         uint16_t* vals = nullptr;
-        // q8_0 cache (opt-in): codes are n_kv*head_dim int8 a row; scales are one fp16 per 32-value block
-        // (n_kv*(head_dim/32) a row).  Used instead of keys/vals when Options::kv_format == kQ8_0.
+        // q8_0 cache (opt-in per knob): codes are n_kv*head_dim int8 a row; scales are one fp16 per 32-value block
+        // (n_kv*(head_dim/32) a row).  Used instead of keys/vals for a block whose knob is kQ8_0
+        // (Options::kv_format, or Options::draft_kv_format for the draft block).
         int8_t*   k_codes  = nullptr;
         uint16_t* k_scales = nullptr;
         int8_t*   v_codes  = nullptr;
@@ -68,6 +69,11 @@ private:
     };
 
     void gdn(Block& B, int n);
+    /// Phase 1a: this block's KV format — the draft block (il == n_layer_) follows Options::draft_kv_format,
+    /// target layers follow Options::kv_format.  A pure function of the block index and the two
+    /// process-static knobs, deliberately NOT per-sequence state, so the batch-slot path (bind/step,
+    /// which replays the same alloc order per sequence) needs no second knob dimension.
+    KvFmt block_kv(int il) const;
     void attn(Block& B, int64_t pos, int n);
     void attn_rows(Block& B, int n);
     void attn_store(Block& B, int64_t pos, int n);

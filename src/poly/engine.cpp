@@ -907,11 +907,26 @@ void Engine::load_moe(int il, bool shared) {
 
 // The engine for a model file: its general.architecture says which.
 std::unique_ptr<Engine> Engine::open(const Options& o) {
+    // Phase 1a: kQ4_0 selects but has no kernels until Phase 2 — reject on either knob, before the model
+    // file is even mapped.  Phase 2 removes these two throws and adds the kernels; the gate strings below
+    // keep the plan §3 terse shape.  (The CUDA-only gate lives in main.cpp's --kv/--draft-kv parsing.)
+    if (o.kv_format == KvFmt::kQ4_0)
+        throw std::runtime_error("--kv q4_0 is not supported yet (q4_0 KV kernels land in Phase 2; use fp16 or q8_0)");
+    if (o.draft_kv_format == KvFmt::kQ4_0)
+        throw std::runtime_error("--draft-kv q4_0 is not supported yet (q4_0 KV kernels land in Phase 2; use fp16 "
+                                 "or q8_0)");
     const Shards file(o.model);
     const MetaValue* arch = file.get("general.architecture");
     const std::string name = arch ? arch->s : std::string();
-    if (o.kv_format == KvFmt::kQ8_0 && name != "qwen35moe")
-        throw std::runtime_error("--kv q8_0 is only supported for qwen35moe models in v1; this is a '" + name + "' model");
+    // Per-knob arch gate (Phase 1a): a non-fp16 knob needs qwen35moe, named per knob.  The kv_format message
+    // is unchanged from before for q8_0.
+    auto kv_name = [](KvFmt f) { return f == KvFmt::kQ8_0 ? "q8_0" : f == KvFmt::kQ4_0 ? "q4_0" : "fp16"; };
+    if (o.kv_format != KvFmt::kFp16 && name != "qwen35moe")
+        throw std::runtime_error("--kv " + std::string(kv_name(o.kv_format)) +
+                                 " is only supported for qwen35moe models in v1; this is a '" + name + "' model");
+    if (o.draft_kv_format != KvFmt::kFp16 && name != "qwen35moe")
+        throw std::runtime_error("--draft-kv " + std::string(kv_name(o.draft_kv_format)) +
+                                 " is only supported for qwen35moe models in v1; this is a '" + name + "' model");
     const auto make = [&]() -> std::unique_ptr<Engine> {
         if (name == "glm5-next" || name == "glm5next") return std::make_unique<Glm5Next>();   // Unsloth: no hyphen
         if (name == "qwen35moe") return std::make_unique<Qwen35>();
@@ -1870,6 +1885,15 @@ void Engine::load_state(const uint8_t* src, int64_t pos) {
 }
 
 void Engine::save_rows(int64_t first, int64_t n, uint8_t* dst) {
+    // Phase 1a checkpoint, plan §2 open question — ANSWER: parked-row blobs EXIST in the poly path.
+    // Evidence: Conversations<Engine> in main.cpp's serve loop parks rows via save_rows() into host-RAM
+    // blobs (conversations.hpp park(), sized by row_bytes(); --conversation-cache-mib/slots/min-tokens).
+    // Prompt-cache checkpoints are recurrent state only (save_state), hence format-free.
+    // Invalidation keyed on BOTH knobs, by construction: blobs never cross processes, both knobs are fixed
+    // at load, and Qwen35 writes per-block runs in per-block formats with card_row_bytes() summing them —
+    // so a blob written under one knob pair is only ever read under the same pair.  A knob change needs a
+    // new process, which starts with an empty conversation cache.  No version tag needed while knobs stay
+    // process-static; revisit if row blobs ever cross processes.
     OnCard here(device_, split_);
     save_card_rows(first, n, dst);
     if (next_) next_->save_rows(first, n, dst + (size_t) n * card_row_bytes());

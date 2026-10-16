@@ -16,24 +16,56 @@ All cooking happens in the private `HyperStrata-Dev` repo. This public repo
 holds only `main` and gets periodic pushes whenever something is found that
 makes inference faster. I try all my "what ifs" here, just for the love of the game.
 
-## 2. Why this experiment exists
+## 2. Verified results
+
+Two same-day baselines, identical config except KV format — ctx 131072,
+temperature 0.6, thinking cap 4096, 256 MiB VRAM reserve, Pi agent building a
+playable browser RTS to completion (2026-10-16, recipe in section 3):
+
+| Metric | fp16 KV (engine default) | q8_0 KV |
+| --- | --- | --- |
+| Generation | 91.9 max / 55.4 low / ~61.5 avg tok/s (41 turns) | 86.5 max / 56.3 low / ~61.4 avg tok/s (48 turns) |
+| Prompt intake, fresh reads | ~1.4K tok/s (17.3K tokens / ~12 s) | ~1.4K tok/s (17.0K tokens / ~12 s) |
+| Thinking cap 4096 | hit once, wrapped cleanly, run finished | never hit |
+
+Averages are identical — no measurable KV effect on sustained decode here. The
+fp16 max is ~6% higher, but those are single-turn peaks on two different agent
+trajectories, so that gap is variance, not a claim. Speed falls as context
+grows — that curve is still the record to beat. No loops, no crashes, no
+cancellations. Failures get listed here too, not buried. Full per-request
+breakdown lives in the private dev repo's test ledger.
+
+## 3. How a baseline is made
+
+Every number in section 2 comes from the same recipe:
+
+**Engine.** Built once with the repo installer (`START-HERE.bat --yes
+--family qwen36 --model UD-Q4_K_M --context 131072 --gguf-dir
+<folder-with-the-gguf> --no-start`), reusing a local GGUF file. The generated
+`run-*.bat` starts `strata-poly` on `127.0.0.1:8080` (OpenAI- and
+Anthropic-compatible APIs).
+
+**Launcher.** At launch, a temporary config is derived from the untouched source
+config, injecting `"sampling": {"temperature": 0.6}` and
+`"reasoning_budget_tokens": 4096`, plus `--vram-reserve-mib 256`. The default
+run uses engine-default fp16 KV (no `--kv` flag); the comparison run adds only
+`--kv q8_0`. KV format is the only variable between runs.
+
+**Test.** Same day, same machine, same model file. A Pi agent session builds a
+small browser game start to finish with zero mid-run interaction. All metrics —
+gen max/low/avg, prefill, TTFT where present, totals, VRAM peaks — come from
+the server log only, never estimated or invented. The 4096 thinking cap exists
+because an uncapped run once looped dead at ~35% context on a ~16k thinking
+sink.
+
+## 4. Why this experiment exists
 
 On an 8 GB laptop GPU, 35B-MoE weights live in RAM and stream to the card.
 Throughput then depends on quant, KV format, context, and OS memory behavior —
 measurable only on this exact machine. General advice doesn't transfer; numbers
 do. This repo collects those numbers and the small changes they justify.
 
-## 3. Upstream and acknowledgments
-
-- [Strata](https://github.com/Niko1221/Strata) — original engine, server, web app.
-- [PolyStrata](https://github.com/VecSzn/PolyStrata) — the `strata-poly` GGUF
-  engine this fork derives from, plus its docs and benchmarks.
-
-Upstream did the engineering; agents experiment on top of it here. No approval,
-support, or endorsement by them is implied. Upstream improvements are merged in
-(see section 10), never silently dropped.
-
-## 4. Target hardware (verified)
+## 5. Target hardware (verified)
 
 | Part | Value |
 | --- | --- |
@@ -44,14 +76,14 @@ support, or endorsement by them is implied. Upstream improvements are merged in
 Assume neither the full 8 GB nor the full 32 GB is usable. Every result is tied
 to this box.
 
-## 5. Target model and configuration
+## 6. Target model and configuration
 
 **Qwen3.6-35B-A3B**, Unsloth **`UD-Q4_K_M`** GGUF (~22.6 GB, draft block
 included), via `setup.py --family qwen36`. Tested context **131072**, KV fp16
-(engine default). Weights are reused locally (`--gguf-dir`), never committed;
+(engine default) with q8_0 compared same-day. Weights are reused locally (`--gguf-dir`), never committed;
 check the model card before redistributing any.
 
-## 6. Method and non-goals
+## 7. Method and non-goals
 
 The loop: hypothesis → try different flags or agent-written code changes →
 benchmark against a same-day unmodified baseline → keep it if faster, revert and
@@ -61,25 +93,6 @@ exact model) over portable ones. Crazy ideas welcome; unmeasured ones don't ship
 Not goals: general engine work, other GPUs, rewrites for their own sake,
 universal-gain claims. A change that helps this laptop but hurts the general
 case stays a local experiment, documented as such.
-
-## 7. Verified results
-
-Baseline (fp16 KV, ctx 131072, UD-Q4_K_M, RTX 3070 Ti Laptop + 32 GB, Pi agent
-session, 2026-10-17, 31 requests, context 12.7K → 60.9K):
-
-| Metric | Value |
-| --- | --- |
-| Generation | 89.2 max / 35.9 low / ~60.0 avg tok/s |
-| Early session (12–19K ctx) | 65–91 tok/s |
-| Late session (34–61K ctx) | 36–53 tok/s |
-| Prompt intake, fresh reads | ~1.4–6.4K tok/s |
-| Prompt intake, cached re-reads | ~1 s regardless of size |
-
-Speed falls as context grows — that curve is the record to beat. One request
-burned its full 16384-token thinking budget with no answer: agent sessions must
-set `reasoning_budget_tokens`. No crashes, no cancellations. Failures get listed
-here too, not buried. Full per-request breakdown lives in the private dev repo's
-test ledger.
 
 ## 8. Installation
 

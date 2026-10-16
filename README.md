@@ -64,10 +64,22 @@ case stays a local experiment, documented as such.
 
 ## 7. Verified results
 
-No fork measurements published yet — this section fills in when the first
-battery completes, with model, quant, context, workload, and baseline per number.
-Upstream's tables in their docs are theirs: cited, not claimed. Failures get
-listed too, not buried.
+Baseline (fp16 KV, ctx 131072, UD-Q4_K_M, RTX 3070 Ti Laptop + 32 GB, Pi agent
+session, 2026-10-17, 31 requests, context 12.7K → 60.9K):
+
+| Metric | Value |
+| --- | --- |
+| Generation | 89.2 max / 35.9 low / ~60.0 avg tok/s |
+| Early session (12–19K ctx) | 65–91 tok/s |
+| Late session (34–61K ctx) | 36–53 tok/s |
+| Prompt intake, fresh reads | ~1.4–6.4K tok/s |
+| Prompt intake, cached re-reads | ~1 s regardless of size |
+
+Speed falls as context grows — that curve is the record to beat. One request
+burned its full 16384-token thinking budget with no answer: agent sessions must
+set `reasoning_budget_tokens`. No crashes, no cancellations. Failures get listed
+here too, not buried. Full per-request breakdown lives in the private dev repo's
+test ledger.
 
 ## 8. Installation
 

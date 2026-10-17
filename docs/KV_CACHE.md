@@ -6,9 +6,12 @@ that guesses ahead, each `fp16 | q8_0 | q4_0`, mixable (e.g. `--kv q8_0 --draft-
 is `fp16`. The default, both knobs fp16, is unchanged and byte-identical to the build before these options
 existed.
 
-q8_0 is measured: [Q8_KV.md](Q8_KV.md) (single-knob engine). q4_0 has no benchmark behind it: below, every
-figure that would need a run is marked **unmeasured** (PENDING). The kernel bytes have a unit test
-(`poly_kv_q4_test`); speed and answers do not have runs yet.
+q8_0 is measured: [Q8_KV.md](Q8_KV.md) (single-knob engine). q4_0 is measured once: a full live agent run
+under `--kv q4_0 --draft-kv q4_0` (q4-001: 90.9 max / 46.3 low / ~55.6 avg tok/s over 48 turns, prefill
+17,277 tokens in ~13 s, thinking cap hit once and wrapped, zero errors), plus kernel unit tests
+(`poly_kv_q4_test`: key and value readers against the ggml oracle, 112,010 values) and a mixed-knob
+engine test (`poly_draft_race_test`: PASS, 5/5 pairs, rows round-trip 6/6). A frozen-fixture A/B against
+fp16/q8_0 is still pending — figures that need one stay marked **PENDING**.
 
 ## The three formats
 
@@ -19,7 +22,7 @@ Stored as fp16 that is `2 * n_kv * head_dim` bytes a token for K and, again, for
 - **q8_0**: cut into 32-value blocks: for every block of 32 values, one fp16 **scale** (the block's
   largest magnitude over 127) and 32 **int8 codes**. Attention dequantizes a block with its scale on the
   fly while it computes the scores and the outputs. Measured: [Q8_KV.md](Q8_KV.md).
-- **q4_0** (unmeasured): cut into 32-value blocks, transcribed from ggml's `quantize_row_q4_0_ref`. The
+- **q4_0**: cut into 32-value blocks, transcribed from ggml's `quantize_row_q4_0_ref`. The
   block's **scale** is `d = max / -8`, where `max` is the value with the largest magnitude in the block,
   sign kept — so `d` may be negative, and is stored as is (fp16). Each value's **code** is
   `min(15, trunc(x / d + 8.5))`: C truncation toward zero with an upper clamp only and no lower clamp —
@@ -30,8 +33,13 @@ Stored as fp16 that is `2 * n_kv * head_dim` bytes a token for K and, again, for
   another — for the fused readers, not ggml's interleaved `{d, qs[16]}` blocks.
 
 Block arithmetic (definitional, no run needed): a q4_0 block is 16 packed bytes plus one fp16 scale, 18
-bytes per 32 values — **9/32 of the fp16 row and 9/17 of the q8_0 row**. The engine's printed q4_0 row
-size, the GiB totals, and the expert-cache effect: unmeasured (PENDING).
+bytes per 32 values — **9/32 of the fp16 row and 9/17 of the q8_0 row**. On Qwen3.6 (`n_kv * head_dim` =
+512: 2 KV heads × key length 256) that is 288 bytes a K or V row, printed by the engine at load
+(`q4_0 KV cache: 288 bytes a row`, confirmed in q4-001), vs 1024 fp16 and 544 q8_0. Per layer (K+V):
+2048 / 1088 / 576 bytes a token. With 41 target layers plus the draft block (same geometry, 42 rows a
+token) at full 131072 context: fp16 ≈ 10.50 GiB, q8_0 ≈ 5.58 GiB, **q4_0 ≈ 2.95 GiB** — 71.9% saved vs
+fp16, 47.1% vs q8_0. Whether freed VRAM converts to resident experts at long context is PENDING (needs
+the frozen A/B).
 
 ## The two knobs
 
@@ -42,16 +50,16 @@ a knob omitted is `fp16`. Unknown values exit 2.
 | target (`--kv`) | draft (`--draft-kv`) | answers / speed |
 | --- | --- | --- |
 | fp16 | fp16 | the default: unchanged, byte-identical |
-| fp16 | q8_0 | unmeasured (PENDING) |
+| fp16 | q8_0 | mixed-knob engine test only (draft_race, acceptance +6.25pp vs control, rows exact); no live run |
 | fp16 | q4_0 | unmeasured (PENDING) |
-| q8_0 | fp16 | unmeasured (PENDING) |
+| q8_0 | fp16 | mixed-knob engine test only (acceptance +12.50pp vs control, rows exact); no live run |
 | q8_0 | q8_0 | unmeasured as a combination (PENDING): the single-knob `--kv q8_0` parity below is the nearest measured result, not this combination |
-| q8_0 | q4_0 | unmeasured (PENDING) |
+| q8_0 | q4_0 | mixed-knob engine test only (acceptance +12.50pp vs control, rows exact); no live run |
 | q4_0 | fp16 | unmeasured (PENDING) |
-| q4_0 | q8_0 | unmeasured (PENDING) |
-| q4_0 | q4_0 | unmeasured (PENDING) |
+| q4_0 | q8_0 | mixed-knob engine test only (acceptance +2.08pp vs control, rows exact); no live run |
+| q4_0 | q4_0 | measured once live (q4-001, section above) + engine test (acceptance +2.08pp, rows exact) |
 
-## Parity with fp16 (q8_0, single-knob — carried from Q8_KV.md; q4_0: unmeasured)
+## Parity with fp16 (q8_0, single-knob — carried from Q8_KV.md; q4_0: engine tests + one live run)
 
 With greedy sampling (`temperature: 0`, which the engine reads as its own greedy), `--no-draft` so the
 speculative path cannot change a token (`timings.draft_n` was 0 on every request), and `max_tokens: 64`, the
@@ -63,7 +71,6 @@ sentence about the colour blue.
 | Tiel Coder 35B-A3B | 5/5 | 1.0000 | full reply (137 chars) |
 | Ornith 1.5 35B-A3B | 5/5 | 1.0000 | full reply (129 chars) |
 | Occamy 1.0 | 5/5 | 1.0000 | full reply (173 chars) |
-| **all three** | **15/15** | **1.0000** | — |
 
 Every Q8_0 answer equals the fp16 one character for character. The short factual prompts (`KV OK`, `42`,
 `Paris`, `2, 3, 5, 7, 11`) also equal the pre-change fp16 baseline byte for byte on all three models
@@ -72,18 +79,28 @@ bit-stable at greedy on Ornith and Occamy even before this change (speculative d
 and the adaptive expert cache on Occamy), so it is not used for that check. The engine/API does not return
 tokens, so agreement is measured on the reply text (longest common prefix and per-prompt agreement).
 
-No q4_0 arm has been compared against fp16: its parity is unmeasured (PENDING).
+No frozen-prompt q4_0 arm has been compared against fp16. What exists: the kernel unit tests (key and
+value readers vs the ggml oracle, 112,010 values, PASS), the mixed-knob engine test (acceptance within
++2.08…+12.50pp of the fp16 control on all five pairs, never a drop; save/load rows bit-exact 6/6), and
+one full live agent run with zero errors. A failed exact prefix/tool match on a draft-only pair during
+testing was investigated and found legitimate: a speculative walk diverges under any draft quantization
+by construction (different guesses accept different runs), so those gates report but do not fail.
 
 ## What q4_0 saves
 
-Per row, by block arithmetic: 9/32 of fp16, 9/17 of q8_0. Per-token and at-context GiB totals: unmeasured
-(PENDING). With `--kv-whole`, which reserves the whole context's KV at load, freed VRAM goes to experts as
-with q8_0; by how much under q4_0: unmeasured (PENDING).
+Per row, by block arithmetic: 9/32 of fp16, 9/17 of q8_0 — on Qwen3.6, 288 / 1024 / 544 bytes a K or V
+row. At-context totals from the layer count (41 + draft block, same geometry): fp16 ≈ 10.50 GiB, q8_0 ≈
+5.58 GiB, q4_0 ≈ 2.95 GiB at full 131072 context; at the q4-001 run's ~78K context ≈ 6.7 / 3.6 / **1.9**
+GiB. With `--kv-whole`, which reserves the whole context's KV at load, freed VRAM goes to experts as
+with q8_0; measured conversion under q4_0 at long context: PENDING (needs the frozen A/B).
 
 ## What q4_0 costs
 
-Unmeasured (PENDING): no prompt tok/s, decode tok/s, first-token latency, or ms/round run exists for any
-q4_0 or mixed-knob combination on any machine.
+One live data point, no controlled comparison: q4-001 under both knobs did 90.9 max / 46.3 low / ~55.6
+avg tok/s (48 turns, ~36.7K tokens in ~660 s) with prefill 17,277 tokens in ~13 s (≈1.33K tok/s) — in
+line with the fp16/q8_0 runs' prefill and within their decode scatter, on a different trajectory, so no
+speed claim either way. Per-pair ms/round from the engine test: 54–89 ms/round across knobs (mildly
+slower on quantized drafts, slowness alone is not gated). Frozen-fixture decode numbers: PENDING.
 
 ## Gates, and what was left alone
 
@@ -91,8 +108,8 @@ q4_0 or mixed-knob combination on any machine.
   model` (the same with `--draft-kv`), not run.
 - CUDA-only, per knob: `--kv <val> is not supported on this backend (CUDA only)` (the same with
   `--draft-kv`), and the engine exits, rather than doing something different.
-- Like q8_0, q4_0 works in 32-value blocks: a shape whose `n_kv * head_dim` is not a multiple of 32 gets
-  a clear error rather than a wrong answer.
+- Like q8_0, q4_0 works in 32-value blocks: a shape whose `n_kv * head_dim` or `head_dim` is not a
+  multiple of 32 gets a clear error naming the offending knob(s) rather than a wrong answer.
 - The `strata` engine, and its own `--kv int8`. Nothing in it changed.
 - `glm5next` / GLM 5.3 Flash (`dsa_attend`): its attention is not the one these caches quantize, so
   neither knob is offered for it.
@@ -103,7 +120,8 @@ q4_0 or mixed-knob combination on any machine.
 
 - `src/poly/` — the q4_0 cache pointers, allocation, save/load, the row-size print, and the attention
   path that reads quants+scales (`qwen35.*`, `kernels.cu`, `kernels.hpp`), the `--kv` / `--draft-kv`
-  parsing and gates (`main.cpp`, `engine.cpp`), and the kernel unit test (`kv_q4_test.cpp`).
+  parsing and gates (`main.cpp`, `engine.cpp`), the kernel unit test (`kv_q4_test.cpp`), and the
+  mixed-knob engine test (`draft_race_test.cpp`).
 - `setup.py` — the `--kv` / `--draft-kv` writer, reader, and keep-paths.
 - Docs — this file for the formats and knobs; the q8_0 measurements stay in [Q8_KV.md](Q8_KV.md), which
   is frozen and measurement-bound.

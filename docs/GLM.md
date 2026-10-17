@@ -109,7 +109,9 @@ draft block, 2.8 GB, once for every size that needs it. The web app is at
 - You already have the GGUF: `./setup.sh --family glm --gguf-dir /folder/with/the/file`.
 - The other options are the README's: `--context`, `--port`, `--host`, `--api-key`, `--gpu`, `--gpus`,
   `--layer-split`, `--yes`, `--no-start`.
-  The ones for the Qwen engine (`--kv`, `--vision`, `--low-ram`, `--parallel`, ...) are named and left out.
+  The ones for the Qwen engine (`--vision`, `--low-ram`, `--parallel`, ...) are named and left out.
+  (Its `--kv int8…` is the strata engine's own, unrelated to strata-poly's `--kv fp16|q8_0|q4_0` and
+  `--draft-kv` documented above.)
 
 On the test machine, with the file already on the disk, this took about five minutes.
 
@@ -258,8 +260,8 @@ goes on from where it stopped, and an edit goes back to the nearest checkpoint.
 | `--draft-model FILE.gguf` | | a file of the same model to take that block from, when `--model` has none; setup passes the one it downloaded |
 | `--draft-vocab N` | 131072 for Qwen3.6, Ornith and Tiel Coder, all of it for the others | the block guesses among the vocabulary's first N tokens; 0 = all |
 | `--kv-whole` | on an AMD card | give the attention caches VRAM for the whole context at load, not as the conversation grows; setup writes it for an AMD card, where ROCm keeps the VRAM the expert cache gives back ([AMD_HIP.md](AMD_HIP.md#strata-poly-on-amd-beta)) |
-| `--kv fmt` | fp16 | the target model's K and V attention caches' format: `fp16` (default, unchanged), `q8_0` (ggml Q8_0 blocks: one fp16 scale a 32-value block of int8 codes) or `q4_0` (ggml Q4_0 blocks, unmeasured): q8_0 halves the KV VRAM with the same answers on the tested models ([Q8_KV.md](Q8_KV.md)); q4_0 is pending ([KV_CACHE.md](KV_CACHE.md)) |
-| `--draft-kv fmt` | fp16 | the guessing (draft) block's KV format, independent of `--kv`: `fp16`, `q8_0` or `q4_0`; omitted is `fp16`. Unmeasured ([KV_CACHE.md](KV_CACHE.md)) |
+| `--kv fmt` | fp16 | the target model's K and V attention caches' format: `fp16` (default, unchanged), `q8_0` (ggml Q8_0 blocks: one fp16 scale a 32-value block of int8 codes) or `q4_0` (ggml Q4_0 blocks, measured once live: [KV_CACHE.md](KV_CACHE.md)): q8_0 halves the KV VRAM with the same answers on the tested models ([Q8_KV.md](Q8_KV.md)) |
+| `--draft-kv fmt` | fp16 | the guessing (draft) block's KV format, independent of `--kv`: `fp16`, `q8_0` or `q4_0`; omitted is `fp16`. Measured once live under both knobs q4_0 ([KV_CACHE.md](KV_CACHE.md)); frozen-fixture A/B pending |
 | `--prompt-batch N` | 1024 | prompt tokens read at a time, 1 to 4096; about 1.4 MiB of VRAM each |
 | `--stage-mib N` | 2048 | VRAM the experts outside the cache pass through while a prompt is read |
 | `--stage-ahead N` | 1024 | from N tokens, a batch copies those experts before the layer has chosen, as does every batch of a prompt of N tokens or more that is read several at a time; 0 = never |
@@ -280,8 +282,8 @@ goes on from where it stopped, and an edit goes back to the nearest checkpoint.
 fp16↔q8_0 parity on Tiel, Ornith and Occamy, and what was left alone (the `strata` engine, `glm5next`, Gemma 4,
 the default path). `--kv q4_0` and `--draft-kv fmt` are newer: the draft block's cache format is its own knob
 and may differ from the target model's (e.g. `--kv q8_0 --draft-kv q4_0`), opt-in for the `qwen35moe` models,
-CUDA only. No benchmark has run on q4_0 or on mixed knobs yet: [KV_CACHE.md](KV_CACHE.md) has the formats and
-marks every pending number unmeasured.
+CUDA only. One live run exists under both knobs q4_0 plus engine tests; frozen-fixture numbers are pending:
+[KV_CACHE.md](KV_CACHE.md) has the formats and marks what is still unmeasured.
 
 ## What is missing
 

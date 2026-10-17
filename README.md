@@ -11,9 +11,9 @@ claims about other hardware — just measure, change one thing, measure again,
 and keep whatever survives contact with the numbers.
 
 The work is done by AI agents. I supervise: every number below was checked
-before it shipped, and negative results get published, not buried.
-Development happens in the private `HyperStrata-Dev` repo; this public repo
-holds only `main` and moves when something is found that actually helps.
+before it shipped, and negative results get published, not buried. This
+public repo holds only `main` and moves when something is found that actually
+helps.
 
 ## What we've measured
 
@@ -32,11 +32,11 @@ Read it straight: quantization buys **no decode speed here**. The maxima are
 single-turn peaks within noise, and the averages come from different agent
 trajectories, so don't compare them turn-for-turn. What q4_0 buys is
 **room** — 288 bytes a row (28% of fp16, 53% of q8_0), so at ~78K context the
-KV cache holds ≈1.9 GiB instead of ≈6.7 (fp16) or ≈3.6 (q8_0). On an 8 GB
-card, that room is the difference between experts staying in VRAM and
-spilling to CPU. That last claim still needs a frozen-fixture A/B before it
-counts as a result — until then q4_0 stays opt-in and the default is
-untouched.
+KV cache holds ≈1.9 GiB instead of ≈6.7 (fp16) or ≈3.6 (q8_0); the layer math
+is in `docs/KV_CACHE.md`. On an 8 GB card, that room is the difference between
+experts staying in VRAM and spilling to CPU. That last claim still needs a
+frozen-fixture A/B before it counts as a result — until then q4_0 stays
+opt-in and the default is untouched.
 
 ## How a number gets here
 
@@ -62,9 +62,10 @@ regresses. Nothing ships unmeasured.
 One engine change so far: a **q4_0 KV cache for the poly engine plus an
 independent `--draft-kv` knob** for the draft block (upstream strata-poly has
 neither — fp16 or q8_0, one knob for everything). The quantization is a
-straight transcription of ggml's `quantize_row_q4_0`, covered by a
-round-trip test against the ggml oracle (101,770 values) and one full live
-run with zero errors. Details in [`UPSTREAM_DIVERGENCE.md`](UPSTREAM_DIVERGENCE.md)
+line-for-line transcription of ggml's `quantize_row_q4_0` (the planes are the
+engine's own split layout, for the fused readers), covered by round-trip tests
+against the ggml oracle (112,010 values, key and value readers) and one full
+live run with zero errors. Details in [`UPSTREAM_DIVERGENCE.md`](UPSTREAM_DIVERGENCE.md)
 (DIV-002) and `docs/KV_CACHE.md`.
 
 ## Hardware (everything is tied to this box)
@@ -84,9 +85,9 @@ claims to generalize.
 START-HERE.bat --yes --family qwen36 --model UD-Q4_K_M --context 131072 --gguf-dir <folder-with-the-gguf> --no-start
 ```
 
-Then run the generated `run-*.bat` and open `http://127.0.0.1:8080`.
-Details: `docs/INSTALL.md`, `docs/AI_SETUP.md`. `UD-Q4_K_M` wants ~27 GB RAM
-beside 8 GB VRAM — tight on 32 GB; use `UD-Q2_K_XL` if setup warns.
+Then run the generated `run-*.bat` and open `http://127.0.0.1:8080`. Details:
+`docs/INSTALL.md`, `docs/AI_SETUP.md`. `UD-Q4_K_M` is tight on 32 GB beside
+8 GB VRAM; use `UD-Q2_K_XL` if setup warns.
 
 ## Where things come from
 
@@ -95,9 +96,12 @@ beside 8 GB VRAM — tight on 32 GB; use `UD-Q2_K_XL` if setup warns.
   Upstream did the engineering; agents experiment on top here. No approval,
   support, or endorsement by them is implied. Upstream improvements are merged
   in, never silently dropped — see [`UPSTREAM_DIVERGENCE.md`](UPSTREAM_DIVERGENCE.md).
-- Model weights: Unsloth **`UD-Q4_K_M`** GGUF of **Qwen3.6-35B-A3B** (~22.6 GB),
-  stored locally and reused — never committed anywhere. Check the model card
-  before redistributing.
+- Model weights: Unsloth **`UD-Q4_K_M`** GGUF of **Qwen3.6-35B-A3B**, stored
+  locally and reused — never committed anywhere. This repo ships no weights:
+  get the file yourself from Hugging Face. What the installer downloads, and
+  any model-install code inherited from PolyStrata/Strata, is outside what
+  this fork has audited — fetch and run weights at your own risk, under their
+  licenses. Check the model card before redistributing.
 - Test workload: the agent builds its own small browser game from locally
   available libraries. No benchmark data ships with this repo.
 

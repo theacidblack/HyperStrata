@@ -1,7 +1,3 @@
----
-layout: default
-title: HyperStrata - the details
----
 
 ← [Prev](BACKENDS.md) · [Index](INDEX.md) · [Next](BENCHMARKS.md) →
 

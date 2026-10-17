@@ -1,7 +1,3 @@
----
-layout: default
-title: Docs index
----
 
 ← [Prev](../README.md) · [Index](INDEX.md) · [Next](HOW-TO-INSTALL.md) →
 

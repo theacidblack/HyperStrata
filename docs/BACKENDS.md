@@ -1,7 +1,3 @@
----
-layout: default
-title: Models and backends
----
 
 ← [Prev](KV_CACHE.md) · [Index](INDEX.md) · [Next](DETAILS.md) →
 

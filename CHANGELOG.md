@@ -1,7 +1,3 @@
----
-layout: default
-title: Changelog - HyperStrata
----
 
 ← [Prev](--help.md) · [Index](docs/INDEX.md) · [Next](UPSTREAM_DIVERGENCE.md) →
 

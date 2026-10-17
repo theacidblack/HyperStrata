@@ -1,7 +1,3 @@
----
-layout: default
-title: How to install HyperStrata
----
 
 ← [Prev](../README.md) · [Index](INDEX.md) · [Next](MODELS.md) →
 

@@ -1,7 +1,3 @@
----
-layout: default
-title: Third-party attributions
----
 
 ← [Index](docs/INDEX.md) →
 

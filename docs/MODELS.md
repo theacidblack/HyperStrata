@@ -1,7 +1,3 @@
----
-layout: default
-title: Which model fits 8 GB VRAM + 32 GB RAM
----
 
 ← [Prev](HOW-TO-INSTALL.md) · [Index](INDEX.md) · [Next](KV_CACHE.md) →
 

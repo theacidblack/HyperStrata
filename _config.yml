@@ -1,4 +1,4 @@
-# GitHub Pages build for HyperStrata (experiment branch).
+# GitHub Pages build for HyperStrata.
 # Safe mode: no custom plugins, no _plugins directory.
 title: HyperStrata
 description: Experimental local inference for the 8 GB VRAM + 32 GB RAM tier.
@@ -9,7 +9,16 @@ kramdown:
   input: GFM
   syntax_highlighter: rouge
 
-# Keep experiment scratch out of the built site.
+# Layout for every page WITHOUT per-file front matter (front matter renders
+# as a table on github.com — never put it in content files).
+defaults:
+  - scope:
+      path: ""
+      type: "pages"
+    values:
+      layout: "default"
+
+# Keep build scratch out of the built site.
 exclude:
   - Gemfile
   - Gemfile.lock
@@ -18,4 +27,3 @@ exclude:
   - vendor/cache/
   - vendor/gems/
   - vendor/ruby/
-  - site-exp-NOTES.md

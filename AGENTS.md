@@ -1,7 +1,3 @@
----
-layout: default
-title: AGENTS.md
----
 
 # AGENTS.md
 

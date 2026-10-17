@@ -1,7 +1,3 @@
----
-layout: default
-title: Benchmarks
----
 
 ← [Prev](DETAILS.md) · [Index](INDEX.md) · [Next](TROUBLESHOOTING.md) →
 

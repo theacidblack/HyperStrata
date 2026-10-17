@@ -1,7 +1,3 @@
----
-layout: default
-title: The KV cache formats
----
 
 ← [Prev](MODELS.md) · [Index](INDEX.md) · [Next](BACKENDS.md) →
 

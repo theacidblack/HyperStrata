@@ -1,19 +1,46 @@
 <h1 align="center">HyperStrata</h1>
 
-<p align="center"><b>How fast can one model go on one fixed laptop?</b><br>
+<p align="center"><b>The inference engine for the 8 GB VRAM + 32 GB RAM tier.</b><br>
 Qwen3.6-35B-A3B on a single RTX 3070 Ti (8 GB) + 32 GB RAM · fork of PolyStrata</p>
 
-## The idea
+Where owners of 8 GB cards are told to drop to q2/q3 quants, HyperStrata runs
+q4–q6 quants fast — same model, same box, measured every step. No new
+architecture, no claims about other hardware: measure, change one thing,
+measure again, and keep whatever survives contact with the numbers.
 
-HyperStrata is a personal experiment: take an existing inference engine and
-squeeze it for exactly one model on exactly one PC. No new architecture, no
-claims about other hardware — just measure, change one thing, measure again,
-and keep whatever survives contact with the numbers.
+## Model coverage
 
-The work is done by AI agents. I supervise: every number below was checked
-before it shipped, and negative results get published, not buried. This
-public repo holds only `main` and moves when something is found that actually
-helps.
+Header probe of every Unsloth Qwen3.6-35B-A3B weight file (2026-10-17, source:
+`ud_probe.py` + `ud_inventory.json`): **40/40 UD GGUF files load** — every
+tensor in every file uses an already-supported type id (44/44 including the
+two `MXFP4_MOE` and two `Q8_0` files). Decode coverage is done; fast paths are
+not (see status). Rule of thumb: the MTP draft head costs VRAM, so MTP
+coverage stops at Q5; without the MTP head the weight budget stretches to Q6.
+Full matrix: [`docs/COVERAGE.md`](docs/COVERAGE.md).
+
+## Status
+
+**DONE** (all on the reference rig: RTX 3070 Ti Laptop 8 GB + 32 GB DDR5-4800,
+ctx 131072, temp 0.6, thinking cap 4096):
+
+- q4_0 KV cache for the poly engine + independent `--draft-kv` knob, shipped
+  in [`v0.1.44.1.1`](CHANGELOG.md). See
+  [`UPSTREAM_DIVERGENCE.md`](UPSTREAM_DIVERGENCE.md) (DIV-002).
+- Oracle suite green: `poly_kv_q4_test` (112,010 values vs the ggml oracle),
+  `poly_kv_q8_test`, `poly_attend_test`, `poly_draft_race_test`.
+- q4-001 live run, zero errors: 90.9 max / 46.3 low / ~55.6 avg tok/s over
+  48 turns; prefill ~1.33K tok/s (17.3K tokens / ~13 s).
+
+**IN PROGRESS** (honest, no dates promised):
+
+- Fast paths: grouped expert kernels for Q2_K/Q3_K and asymmetric quant
+  pairs — files load, some experts take slower kernel paths.
+- Cross-product oracle matrix (weights × KV formats × target/draft ×
+  decode/batch) so every quant is pinned by a CI-cheap test.
+- Formal live runs: UD-Q5_K_M **with** MTP, UD-Q6_K **without** MTP, plus the
+  per-quant VRAM budget table. Until those runs land, only UD-Q4_K_M has live
+  numbers.
+- Vision: separate job, starts after the text ladder is green.
 
 ## What we've measured
 
@@ -56,6 +83,11 @@ uncapped run once looped dead at ~35% context on a 16K thinking sink.
 **Policy.** Hypothesis → change flags or code → benchmark against a same-day
 unmodified baseline → keep it if faster, revert and record it if it
 regresses. Nothing ships unmeasured.
+
+The work is done by AI agents under supervision: every number above was
+checked before it shipped, and negative results get published, not buried.
+This public repo holds only `main` and moves when something is found that
+actually helps. Release history: [`CHANGELOG.md`](CHANGELOG.md).
 
 ## What's ours
 
@@ -108,9 +140,10 @@ Then run the generated `run-*.bat` and open `http://127.0.0.1:8080`. Details:
 ## Limitations
 
 Our q4_0 work is unit-tested and live-run once; the frozen-fixture A/B is
-still pending, so treat it as experimental. Windows + NVIDIA only here;
-Linux, AMD, and multi-GPU paths are upstream's and untested in this fork.
-Long contexts on 32 GB may fail — physics, not a bug.
+still pending, so treat it as experimental. Only UD-Q4_K_M has live numbers —
+every other quant is loader-verified, not speed-tested. Windows + NVIDIA only
+here; Linux, AMD, and multi-GPU paths are upstream's and untested in this
+fork. Long contexts on 32 GB may fail — physics, not a bug.
 
 ## License and disclaimer
 

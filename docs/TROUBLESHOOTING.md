@@ -33,7 +33,7 @@ Only an address that is really taken says "already in use". Any other reason (Wi
 the config's `"host"` is not an address of this PC) is printed as what the OS said, with what to change (#769).
 
 **"Windows blocked the HyperStrata engine (or the image encoder) ... Smart App Control".**
-On a clean Windows 11, Smart App Control refuses programs that are not signed, and HyperStrata's `strata.exe` and
+On a clean Windows 11, Smart App Control refuses programs that are not signed, and HyperStrata's `hyper.exe` and
 `hyper-vision.exe` are not (#735). Turn it off (Windows Security > App & browser control > Smart App Control
 settings; it cannot be turned back on without a reset of Windows), or, if only the image encoder is blocked, run
 `START-HERE.bat --setup --vision no`.
@@ -158,7 +158,7 @@ The engine was compiled for another card (for example after moving the HyperStra
 Two things in your environment can cause it, and the server now repairs both before it starts the engine (it says so in
 the log): `HIP_PATH`, `HIP_DEVICE_LIB_PATH` or `LLVM_PATH` naming a ROCm folder that no longer exists (a deleted build),
 and a `TEMP`/`TMP` folder the engine cannot create files in (AMD's runtime compiles its first kernels through temporary
-files). If you start `strata.exe` by hand, fix them yourself: `set HIP_PATH=`, and point `TEMP` and `TMP` at a normal
+files). If you start `hyper.exe` by hand, fix them yourself: `set HIP_PATH=`, and point `TEMP` and `TMP` at a normal
 folder such as `C:\Temp`.
 
 **Windows AMD: the driver resets (VIDEO_ENGINE_TIMEOUT_DETECTED / screen flicker / the engine dies mid-answer).**
@@ -240,7 +240,7 @@ Upstream, the new engine needs an RTX 20 series card or newer — untested in th
 
 ### Can you add Bonsai, LFM2.5, Ling or DeepSeek V4 Flash?
 
-This engine helps MoE models that don't fit in VRAM. A dense model like Bonsai uses all its weights for every token, so there are no experts to split, and the 1-bit Bonsai models already fit on a small card. LFM2.5-8B-A1B fits whole on an 8 GB card, so plain llama.cpp is fine there. LFM2.5-24B-A2B, the larger one, runs now (`--family lfm25`). Bigger MoEs are the good fit. DeepSeek V4 Flash runs now (`--family deepseek`). Ling-2.6-flash (104B, 7.4B active) is on the list.
+This engine helps MoE models that don't fit in VRAM. A dense model like Bonsai uses all its weights for every token, so there are no experts to split, and the 1-bit Bonsai models already fit on a small card. LFM2.5-8B-A1B fitting whole on an 8 GB card, so plain llama.cpp is fine there, is PENDING — untested here, no provenance. LFM2.5-24B-A2B, the larger one, runs now (`--family lfm25`). Bigger MoEs are the good fit. DeepSeek V4 Flash runs now (`--family deepseek`). Ling-2.6-flash (104B, 7.4B active) is on the list.
 
 ### Can I run a fine-tune, or another model with the same architecture?
 

@@ -452,9 +452,7 @@ over both files, taken from a sample of their pages, and said 99%. The block's e
 before the swaps' one pass and the picks were measured that way; the ones in the table, and the builds they
 are compared with from there on, were not.
 
-llama.cpp (Unsloth's fork at 86ebfef) with every layer on the same card writes about 180 tokens/s with Qwen3.6
-and Ornith and 165 with Gemma 4, and reads prompts at 6000 to 9000. It cannot do that on a card the model does
-not fit, which is the case this engine is for.
+llama.cpp (Unsloth's fork at 86ebfef) with every layer on the same card is REPORTED at about 180 tokens/s with Qwen3.6 and Ornith and 165 with Gemma 4, reading prompts at 6000 to 9000 — REPORTED, no same-day/same-rig log on file. It cannot do that on a card the model does not fit, which is the case this engine is for.
 
 ### With 8 GB of VRAM
 
@@ -621,7 +619,7 @@ batch of work handed to the CPU's threads. The build before came out about 2% fa
 3.0bit, in turn, it did not ([Benchmark](#benchmark)).
 
 The pass before those, with the engine of the ready-made release (f48fe541a646), came to 29,154 to 31,352 tokens,
-set up as for the last table below. Qwen3.6 UD-Q3_K_M and Gemma 4 UD-Q3_K_M have the better of two such passes 16
+set up as for the last table below. Qwen3.6 UD-Q3_K_M and Gemma 4 UD-Q3_K_M have the higher of two such passes 16
 and 22 minutes apart. In the other they wrote the short chat at 370 to 380 and 321 to 339 tokens/s and read the
 prompt at 5,934 to 6,109 and 7,236 to 8,135.
 
@@ -695,7 +693,7 @@ the draft block, which the other two files carry.
 | GLM 5.3 Flash UD-IQ2_XXS | 32 GB | 28,354 and 29,156 | 27.8 | 1,027 to 1,029 | 40 to 44 | 37 to 39 | 49% to 52% |
 | GLM 5.3 Flash REAP50-Q3_K_M | 32 GB | 28,354 | 22.7 | 1,252 | 56 to 62 | 50 to 51 | 57% to 64% |
 
-Each figure is the better of two passes on this machine, and a row's two prompt lengths are theirs: the prompt's
+Each figure is the higher of two passes on this machine, and a row's two prompt lengths are theirs: the prompt's
 text is this repository's documents, which changed between them. The first pass, of 2026-10-07, is what the next
 paragraphs are about. The second, of 2026-10-10, is of the build with the laptop's changes in
 [What was tuned](#what-was-tuned) and that day's two fixes, the first build with them on Linux. With the whole

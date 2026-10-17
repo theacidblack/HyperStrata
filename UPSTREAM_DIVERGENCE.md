@@ -9,7 +9,7 @@ and upstream (`VecSzn/PolyStrata`). It ships with the repo so every change can
 be checked against its reason.
 
 It must always answer, per divergence: what changed, why, what upstream code it
-touches, whether it is still necessary, whether upstream now does it better, what
+touches, whether it is still necessary, whether upstream now covers it, what
 breaks if removed, and how to validate removal. Unknowns are marked, never guessed.
 
 ## Comparison baseline (established 2026-10-16, re-baselined 2026-10-16)

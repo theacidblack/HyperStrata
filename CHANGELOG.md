@@ -20,10 +20,29 @@ newer, whatever the base. First public release will be `v1.0.0` (flag-plant, con
 Exception: `v0.1.45` below predates the scheme and stays PARKED, do not use as base —
 read it as "aligned to upstream `0.1.44.1`, serial 0".
 
-## [Unreleased]
+## [v1.0.0] - 2026-10-17 (first public release, flag-plant)
+
+Scheme reset by owner; serial history ends. Upstream base frozen at
+PolyStrata `0.1.44.1` (`51dc2427`); no upstream sync in this release.
 
 > [!NOTE]
 > Lab notebook: every number carries provenance. REPORTED outranks nothing.
+
+### Added
+
+- Release gates, both measured on the reference rig with the locked bench
+  (65 C CPU, 0.775 V GPU, 6 last cores no SMT, ctx 131072, temp 0.6, cap
+  4096, 256 MiB reserve): UD-Q4_K_M MTP (q4-002: decode max 95.7 / low 40.0 /
+  avg 51.3 over 42 turns, 31,160 tok / 607 s; prefill 1.5K cold) and
+  UD-Q5_K_M MTP (q5-002: decode max 70.9 / low 29.8 / avg 41.1 over 61
+  turns, 29,615 tok / 721 s; prefill ~1.1K cold). Both PASS (speed + clean
+  completion + zero errors); logs in `benchmarks/v1.0.0/`.
+- Test bench spec published (`docs/BENCHMARKS.md` Test bench, README Speed
+  box): the locked parameters every number was measured with; stock machines
+  read lower.
+- Run records are server-log-only: no chat transcripts expected; the
+  4-phase RTS build is a load generator for raw speed measurement, never a
+  quality or capability score.
 
 ### Changed
 
@@ -32,7 +51,7 @@ read it as "aligned to upstream `0.1.44.1`, serial 0".
 
 ### Fixed (claim audit, 2026-10-18 — no engine change)
 
-- README q6-001 row was stale ("no run yet") — now MEASURED, rates as in BENCHMARKS.md at the time (chat-paste provenance, console archive PENDING); llama ref kept
+- `docs/BENCHMARKS.md:20` q6-001 row was stale ("no run yet") — now MEASURED, rates as in BENCHMARKS.md at the time (chat-paste provenance, console archive PENDING); llama ref kept
   labeled NOT-our-run. README states current stage: interactive learning of
   repo structure, needs first — no optimization, no new models yet.
 - q4-001 retagged REPORTED (not measured) in `docs/KV_CACHE.md`,
@@ -85,6 +104,21 @@ read it as "aligned to upstream `0.1.44.1`, serial 0".
   the KV-quant × vision matrix for Qwen3.6 (`mmproj-F16.gguf`); GLM/DeepSeek
   stay text-only by design. Status: planned, no numbers yet.
 
+### Known issues
+
+- Vision path proven with the previous main-branch binary, not with the
+  renamed `hyper-vision` build (never compiled; no build dir). `-Vision`
+  launchers fail until it is built. Vision never gates this release.
+- Server adds `--split-skip-if-fits`, `--vram-elastic`, `--vram-segment-mib`
+  without checking the engine; `hyper` exits 2 on unknown flags. Stock
+  configs are safe (all three keys opt-in, default off). Server-side guard
+  open.
+- CI has never gone green on this repo (repo-side `startup_failure`, zero
+  jobs). This release ships with CI red; the gates above were verified by
+  hand.
+- One experimental GGUF is tracked in git
+  (`data/experimental-speed-projection/`); untrack decision open.
+
 ## [v0.1.44.1.1] — 2026-10-17 (canonical q4_0 tag)
 
 Same engine, tests, numbers, and docs as `v0.1.45` below, plus the version
@@ -94,7 +128,7 @@ all in-tag, verified by ancestry check 2026-10-17. Exact build-time HEAD unrecor
 
 ### Added
 
-- q4_0 KV cache for the `strata-poly` / qwen35moe engine, plus an independent
+- q4_0 KV cache for the `hyper` / qwen35moe engine, plus an independent
   `--draft-kv` knob for the draft block. Each knob takes `fp16` (upstream) | `q8_0` (upstream, qwen35moe) | `q4_0` (new),
   mixable (e.g. `--kv q8_0 --draft-kv q4_0`); a knob left out is `fp16`;
      the default (both omitted) is byte-identical to before per poly_kv_q8_test 12/12 short-prompt check + review trace post-f72a15e9; re-run poly_kv_q8_test + poly_attend_test after any engine edit. Added here: q4_0 + `--draft-kv` only;

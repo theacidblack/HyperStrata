@@ -8,9 +8,11 @@
 The one install page. Two ways to the same end: a built engine, a working
 launcher, the server up, one agent chatting with it.
 
-> **Guarantee rule (both methods):** only house-model UD-Q4_K_M with MTP is expected to run. Rest of coverage list
+> **Guarantee rule (both methods):** only house-model UD-Q4_K_M with MTP and UD-Q5_K_M with MTP are expected to run. Rest of coverage list
 > (`docs/MODELS.md` §§1–3) is oracle-only/occasional, never gating. Anything else is untested here, not guaranteed —
 > engine changes can break what upstream once supported.
+>
+> v1.0.0 gates: UD-Q4_K_M MTP and UD-Q5_K_M MTP on the reference rig, each with max/min/avg decode + prefill, log + verdict. Q5 on `hyper` is PENDING (owner running it).
 
 ## What you need in hand (both methods)
 
@@ -331,8 +333,8 @@ engine.
 ### Setup's questions
 
 - **Which model and size?** See `docs/MODELS.md` (sizes) with verdicts in
-  `docs/MODELS.md` §§1–3. This fork expects UD-Q4_K_M with MTP (guarantee
-  rule, top).
+   `docs/MODELS.md` §§1–3. This fork expects UD-Q4_K_M with MTP or UD-Q5_K_M with MTP (guarantee
+   rule, top).
 - **How much context?** Tokens kept in mind at once (setup suggests one for
   the card). 384K/512K (experimental) extend past the trained 262K by rope
   scaling — setup turns it on itself (`--rope-scaling`/`--rope-scale`
@@ -470,7 +472,7 @@ Two directions — don't mix them:
   API below. The agent brings its own tools; the model calls them, the
   agent runs them, the agent sends results back.
 - **Managing (the other direction):** your own assistant installs/starts
-  this software through `tools/strata_mcp.py` — that is
+  this software through `tools/strata_mcp.py` (on-disk tool name, not the engine) — that is
   `docs/DETAILS.md` (MCP assistant control), not this section.
 
 ### Addresses to paste where
@@ -496,7 +498,7 @@ Two directions — don't mix them:
 - Only expose beyond this PC (`--host 0.0.0.0`) **together with** a key.
   Read the key from `strata-<model>.json` — never invent one; none there
   means the client uses `none`. `strata_connect_info`
-  (`tools/strata_mcp.py`) prints the same URLs plus key state.
+  (`tools/strata_mcp.py`, both on-disk tool names, not the engine) prints the same URLs plus key state.
 
 ### Model id (not the filename)
 

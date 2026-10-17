@@ -7,11 +7,14 @@
 
 Reference rig and fixed config for every number on this page: see [BENCHMARKS.md](BENCHMARKS.md).
 
-## House file
+## House files
+
+v1.0.0 gates: UD-Q4_K_M MTP and UD-Q5_K_M MTP on the reference rig, each with max/min/avg decode + prefill, log + verdict. Q5 on `hyper` MEASURED 2026-10-17 (q5-002, both gates closed).
 
 | File | Download | Setup RAM beside 8 GB card | Status |
 | --- | ---: | ---: | --- |
 | `unsloth/Qwen3.6-35B-A3B-MTP-GGUF` · `UD-Q4_K_M.gguf` (753 tensors, MTP draft head in file) | 22.7 GB | about 27 GB | LOADS ([Coverage](#coverage)); live runs in [BENCHMARKS.md](BENCHMARKS.md) fp16-001, q8-001, q4-001 (q4-001 REPORTED, log PENDING) |
+| `unsloth/Qwen3.6-35B-A3B-MTP-GGUF` · `UD-Q5_K_M.gguf` (753 tensors, MTP draft head in file) | PENDING | PENDING | LOADS ([Coverage](#coverage)); q5-001 MEASURED 2026-10-18 on the previous engine, q5-002 MEASURED 2026-10-17 on `hyper` (70.9 max / 29.8 low / 41.1 avg; numbers in [BENCHMARKS.md](BENCHMARKS.md)) |
 
 ## Ladder rungs and VRAM
 
@@ -26,7 +29,7 @@ Setup rungs on the MTP page (LOADS per [Coverage](#coverage); per-rung resident-
 | `UD-Q2_K_XL.gguf` | 12.6 GB | about 17 GB | LOADS; grouped kernels PENDING ([Coverage](#coverage)) |
 | `UD-Q3_K_M.gguf` | 17.1 GB | about 21 GB | LOADS; grouped kernels PENDING ([Coverage](#coverage)) |
 | `UD-Q4_K_M.gguf` (house) | 22.7 GB | about 27 GB | LOADS; live runs in [BENCHMARKS.md](BENCHMARKS.md) |
-| `UD-Q5_K_M.gguf` | PENDING | PENDING | LOADS; q5-001 MEASURED 2026-10-18, previous engine, hyper re-run PENDING ([Coverage](#coverage)) |
+| `UD-Q5_K_M.gguf` (house) | PENDING | PENDING | LOADS; q5-001 MEASURED 2026-10-18 (previous engine), q5-002 MEASURED 2026-10-17 on `hyper` ([Coverage](#coverage)) |
 | `UD-Q6_K.gguf` and larger | PENDING | PENDING | MTP page stops at Q5 (draft-head VRAM cost); Q6 on base page only ([Coverage](#coverage)) |
 
 Full ladder: 19 UD files on the MTP page + 21 on the base page, every file LOADS per header probe; per-file decode/expert/KV-oracle verdicts in [Coverage](#coverage). Measured gen/prefill rates only in [BENCHMARKS.md](BENCHMARKS.md); averages across rows are different trajectories, not rankings.
@@ -66,7 +69,7 @@ The MTP draft head costs VRAM, so MTP coverage stops at Q5; without the draft he
 | `UD-Q4_K_M.gguf` | Q4_K asymmetric pair — PENDING 228-cell oracle; q4_0 KV pinned by `poly_kv_q4_test` (112,010 values) + q4-001 REPORTED run | q4_0 DONE (q4-001); rest PENDING |
 | `UD-Q4_K_S.gguf` | Q4_K asymmetric pair — PENDING 228-cell oracle | PENDING |
 | `UD-Q4_K_XL.gguf` | Q4_K asymmetric pair — PENDING 228-cell oracle | PENDING |
-| `UD-Q5_K_M.gguf` | Q5_K grouped present; Q5_1 asymmetric where hit — IN PROGRESS; live file q5-001, hyper re-run PENDING | PENDING |
+| `UD-Q5_K_M.gguf` | Q5_K grouped present; Q5_1 asymmetric where hit — IN PROGRESS; live files q5-001 (previous engine) + q5-002 MEASURED 2026-10-17 on `hyper` | PENDING |
 | `UD-Q5_K_S.gguf` | Q5_K grouped present; Q5_1 asymmetric where hit — IN PROGRESS | PENDING |
 | `UD-Q5_K_XL.gguf` | Q5_K grouped present; Q5_1 asymmetric where hit — IN PROGRESS | PENDING |
 | `UD-Q6_K.gguf` | Q6_K grouped via `STRATA_Q6K_EXPERTS=ON` (confirmed ON) | PENDING |
@@ -121,8 +124,9 @@ Measured target: sm_86 (reference rig, see [BENCHMARKS.md](BENCHMARKS.md)). Turi
 ### Runs
 
 - q4-001: UD-Q4_K_M, `--kv q4_0 --draft-kv q4_0` — REPORTED (not log-verified); numbers in [BENCHMARKS.md](BENCHMARKS.md).
-- q4-002: formal UD-Q4_K_M MTP run on `hyper` — PENDING.
-- q5-001: UD-Q5_K_M with MTP — MEASURED 2026-10-18 on the previous engine; re-run on `hyper` PENDING.
+- q4-002: UD-Q4_K_M MTP run on `hyper` — PASS 2026-10-17, 95.7 max / 40.0 low / 51.3 avg tok/s (42 turns, 31,160 tokens / 607 s; console log measured, server log only); numbers in [BENCHMARKS.md](BENCHMARKS.md).
+- q5-001: UD-Q5_K_M with MTP — MEASURED 2026-10-18 on the previous engine; `hyper` re-run DONE as q5-002 below.
+- q5-002: UD-Q5_K_M with MTP — MEASURED 2026-10-17 on `hyper` (70.9 max / 29.8 low / 41.1 avg tok/s, 61 turns; console log measured, server log only); numbers in [BENCHMARKS.md](BENCHMARKS.md).
 - q6-001: UD-Q6_K without MTP — MEASURED 2026-10-18 on the previous engine; re-run on `hyper` PENDING.
 - Vision: functional on Q6_K (base) and Q4_K_M (MTP) through the mmproj-Q8_0 CPU encoder; cross-quant function is inferred from the shared encoder path, per-quant vision runs PENDING (low priority).
 - Reference: about 30 tok/s (llama.cpp, same file and context) is not our run; never presented as an engine result.

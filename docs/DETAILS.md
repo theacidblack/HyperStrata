@@ -99,7 +99,7 @@ Details: [`bench/results/2026-09-27-kv-q4`](../bench/results/2026-09-27-kv-q4/RE
 the keys at 8 bits and stores the values as rotated 4-bit: 23% less KV memory than 8-bit, so more experts fit in
 VRAM. RTX 3090, the Coder at 198K context: 99 instead of 85 tokens/s output, the same needle results, prompts 2-5%
 slower. It streams its KV cache like the other formats (`--kv-resident N`): on an RTX 2060 SUPER 8 GB at 128K with
-20,480 resident cells, +780 expert slots over resident K8V4, and it scores better than 4-bit KV on long documents.
+20,480 resident cells, +780 expert slots over resident K8V4, and its long-document scores are higher than 4-bit KV in the linked report.
 
 **Reproducible greedy output (0.1.30, opt-in, `STRATA_IQ_MT_MIN=1`):** with the IQ models, the CPU computes an
 expert for one token with ggml's dot product and for several tokens with HyperStrata's multi-token kernels, which round
@@ -371,13 +371,15 @@ base's, then the rest.)
 
 ## Which model?
 
+These Qwen3.8 paths are upstream-only and untested here. The fork's expected paths are UD-Q4_K_M with MTP and UD-Q5_K_M with MTP (see [HOW-TO-INSTALL.md:11-13](HOW-TO-INSTALL.md)); Q5 on `hyper` is PENDING.
+
 All three are [ISTA-DASLab's GSQ-RCO quantizations](https://huggingface.co/ISTA-DASLab/Qwen3.8-Flash-Next-GSQ-RCO-GGUF)
 of [Qwen3.8-Flash-Next](https://huggingface.co/Qwen/Qwen3.8-Flash-Next).
 
 | Model | Download | RAM it uses | Speed | Quality |
 | --- | ---: | ---: | --- | --- |
 | **Q2_0** | 66 GB | ~34 GB experts + ~6 GB | fastest | good |
-| **IQ2_XS** | 68 GB | ~36 GB experts + ~6 GB | close to Q2_0 | a bit better |
+| **IQ2_XS** | 68 GB | ~36 GB experts + ~6 GB | close to Q2_0 | slightly higher quality (upstream description, untested here) |
 | **IQ3_XXS** | 76 GB | ~43 GB experts + ~6 GB | slower (more CPU work) | best |
 
 With 64 GB of RAM all three fit (close the browser for IQ3_XXS, and keep its context at 128K or less). With 48 GB only Q2_0 / IQ2_XS may fit. With 32 GB: the Coder (below).
@@ -462,7 +464,7 @@ Windows, `build-essential` + CUDA on Ubuntu) and compiles the engine for your GP
 
 Install procedure: [HOW-TO-INSTALL.md](HOW-TO-INSTALL.md).
 
-**The first time** it asks four questions and does the rest:
+**The first time** it asks four questions and does the rest. These model-choice steps are upstream-only and untested here; the fork's expected paths are UD-Q4_K_M with MTP and UD-Q5_K_M with MTP (see [HOW-TO-INSTALL.md:11-13](HOW-TO-INSTALL.md)):
 
 1. **Which model?** Qwen3.8-Flash-Next (the original) or Swift 1.5 (the fine-tune that thinks shorter).
 2. **Which size?** Q2_0, IQ2_XS or IQ3_XXS (it recommends one for your RAM).

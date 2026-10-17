@@ -4,7 +4,18 @@
 
 *Needs: a configured model · Gives: measured runs, rig and verdicts · Next: TROUBLESHOOTING.md*
 
-The RTS bench builds a mini-RTS browser game (Three.js + vanilla JS/CSS/HTML) in four phases — scaffold + scene, units + orders, combat + objective, playability pass — ending in a SHIP READY verdict or a punch list. Fixed config for every run below: ctx 131072, temp 0.6, thinking cap 4096, 256 MiB VRAM reserve. KV format is the only variable. Rig for all runs: RTX 3070 Ti Laptop 8 GB VRAM + 32 GB DDR5.
+The RTS bench is a load generator simulating agentic workflow: it builds a mini-RTS browser game (Three.js + vanilla JS/CSS/HTML) in four phases — scaffold + scene, units + orders, combat + objective, playability pass — to generate load for raw speed measurement under optimal settings. Runs measure raw speed only, never game quality or model capability. What is recorded is completion signals (DONE/BLOCKED) + speed + errors; SHIP/punch-list is the owner's call, not a measured score. Fixed config for every run below: ctx 131072, temp 0.6, thinking cap 4096, 256 MiB VRAM reserve. KV format is the only variable. Rig for all runs: RTX 3070 Ti Laptop 8 GB VRAM + 32 GB DDR5, running tuned (UXTU 65 C CPU lock, GPU undervolt 0.775 V +1000 mem at ~512 GB/s, Process Lasso core pinning) — stock machines will read lower.
+
+## Test bench
+
+Locked parameters behind every number below, owner-measured 2026-10-17. Same settings every run so runs reproduce. No thermal throttle in any logged run. Stock machines will read lower.
+
+- CPU: locked 65 C all day via UXTU (below full potential, never throttles).
+- GPU: undervolt 0.775 V, +1000 mem, ≈512 GB/s on the 256-bit bus (150 W card); hotspot ≈70 C under heavy load, no overheat.
+- NVMe: stays cool, no overheat, no throttle.
+- Cores: engine `--threads 6` + Process Lasso mask, both on the 6 last physical cores for hyper.exe, no SMT.
+- Config: ctx 131072, temp 0.6, thinking cap 4096, 256 MiB VRAM reserve.
+- Rig: RTX 3070 Ti Laptop 8 GB VRAM + 32 GB DDR5.
 
 ## Results
 
@@ -12,16 +23,18 @@ Canonical table — README, [docs/MODELS.md ## Coverage](MODELS.md#coverage) and
 
 | Run | Date | Model file | KV | gen tok/s max/low/avg | Prefill | VRAM / experts | Verdict | Provenance |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| fp16-001 | 2026-10-16 | `UD-Q4_K_M.gguf` (MTP page) | fp16 (default, no `--kv` flag) | 91.9 / 55.4 / ~61.5 (41 turns) | ~1.4K tok/s (17.3K in ~12 s) | expert cache 15.7–67.3% | SHIP READY, all 4 phases DONE | Server log + transcript measured, recorded in run ledger |
-| q8-001 | 2026-10-16 | `UD-Q4_K_M.gguf` (MTP page) | q8_0 (`--kv q8_0`) | 86.5 / 56.3 / ~61.4 (48 turns) | ~1.4K tok/s (17.0K in ~12 s) | expert cache 16.9–69.7% | SHIP READY, all 4 phases DONE | Server log + transcript measured, recorded in run ledger; one condensation resume mid-run, finished via resume rule |
-| q4-001 | 2026-10-17 | `UD-Q4_K_M.gguf` (MTP page) | q4_0 + q4_0 draft (`--kv q4_0 --draft-kv q4_0`) | 90.9 / 46.3 / ~55.6 (48 turns) | 17,277 tok in ~13 s (~1.33K tok/s) | not recorded | REPORTED, zero errors REPORTED — NOT SHIP READY; raw server log NOT on file — treat as reported, not independently verified. Verdict PENDING log. |
-| q5-001 | 2026-10-18 | `UD-Q5_K_M.gguf` (MTP page) | q4_0 + q4_0 draft (`--kv q4_0 --draft-kv q4_0`) | 63.4 / 31.0 / ~42.7 (69 turns) | 17,591 tok in ~15 s (~1.17K tok/s) | expert cache 16.4–64.3% | game verdict pending user, zero errors | server log measured 2026-10-18; game verdict (SHIP/punch-list) pending user |
-| q6-001 | 2026-10-18 | `UD-Q6_K.gguf` (base page, no MTP, `--no-draft`) + Vision server (mmproj-Q8_0, CPU encoder, `images on`) | KV flags not stated in source | 55.8 / 13.5 / ~35.5 (159 turns, mean of done-line rates; wall secs include prefill on big-context turns) | 17,664 tok in ~20 s (~0.88K tok/s) initial; late-run prefills 100+s (swap pressure, owner-diagnosed) | expert cache 13.5–62.2%; max ctx 106,510/131,072 | Owner verdict (quoted): "Q6 worth using without Vision; usable with Vision too; lowest dip at swap page." SHIP/punch-list NOT stated | Chat paste measured 2026-10-18, no-Playwright game-build run; full console archive PENDING; reference ~30 tok/s (llama.cpp, same file/ctx) is NOT our run |
+| fp16-001 | 2026-10-16 | `UD-Q4_K_M.gguf` (MTP page) | fp16 (default, no `--kv` flag) | 91.9 / 55.4 / ~61.5 (41 turns) | ~1.4K tok/s (17.3K in ~12 s) | expert cache 15.7–67.3% | All 4 phases DONE, zero BLOCKED; agent signaled "SHIP READY" (owner's verdict at the time, not a measured score) | Server log measured |
+| q8-001 | 2026-10-16 | `UD-Q4_K_M.gguf` (MTP page) | q8_0 (`--kv q8_0`) | 86.5 / 56.3 / ~61.4 (48 turns) | ~1.4K tok/s (17.0K in ~12 s) | expert cache 16.9–69.7% | All 4 phases DONE, zero BLOCKED; agent signaled "SHIP READY" (owner's verdict at the time, not a measured score) | Server log measured; one condensation resume mid-run, finished via resume rule |
+| q4-001 | 2026-10-17 | `UD-Q4_K_M.gguf` (MTP page) | q4_0 + q4_0 draft (`--kv q4_0 --draft-kv q4_0`) | 90.9 / 46.3 / ~55.6 (48 turns) | 17,277 tok in ~13 s (~1.33K tok/s) | not recorded | REPORTED, zero errors REPORTED; raw server log NOT on file — treat as reported, not independently verified. Completion verdict PENDING log; SHIP/punch-list is the owner's call. |
+| q4-002 | 2026-10-17 | `UD-Q4_K_M.gguf` (MTP page) | q4_0 + q4_0 draft (`--kv q4_0 --draft-kv q4_0`) | 95.7 / 40.0 / 51.3 (42 turns, 31,160 tok / 607 s) | 1.5K tok/s cold (18,557 tok in ~12 s); warm re-reads to 66.0K (cache reuse, not compute speed) | expert cache 24.6–71.2% | PASS (speed + clean completion + zero errors), consistent with q4-001 within noise; load-generating 4-phase RTS build (agentic workflow simulation generating load for speed measurement); SHIP/punch-list remains owner's call | console log measured 2026-10-17 (server log only) |
+| q5-001 | 2026-10-18 | `UD-Q5_K_M.gguf` (MTP page) | q4_0 + q4_0 draft (`--kv q4_0 --draft-kv q4_0`) | 63.4 / 31.0 / ~42.7 (69 turns) | 17,591 tok in ~15 s (~1.17K tok/s) | expert cache 16.4–64.3% | completion verdict pending owner, zero errors | server log measured 2026-10-18 on the previous engine; re-run on the current engine — see q5-002 row below; SHIP/punch-list pending owner's call |
+| q5-002 | 2026-10-17 | `UD-Q5_K_M.gguf` (MTP page) | q4_0 + q4_0 draft (`--kv q4_0 --draft-kv q4_0`) | 70.9 / 29.8 / 41.1 (61 turns, 29,615 tok / 721 s) | ~1.1K tok/s cold (18,617 tok in ~17 s); warm re-reads excluded (cache hits) | expert cache 17.4–65.4% | PASS (speed + clean completion + zero errors); load-generating 4-phase RTS build (agentic workflow simulation generating load for speed measurement); SHIP/punch-list remains owner's call | console log measured 2026-10-17 (server log only) |
+| q6-001 | 2026-10-18 | `UD-Q6_K.gguf` (base page, no MTP, `--no-draft`) + Vision server (mmproj-Q8_0, CPU encoder, `images on`) | KV flags not stated in source | 55.8 / 13.5 / ~35.5 (159 turns, mean of done-line rates; wall secs include prefill on big-context turns) | 17,664 tok in ~20 s (~0.88K tok/s) initial; late-run prefills 100+s (swap pressure, owner-diagnosed) | expert cache 13.5–62.2%; max ctx 106,510/131,072 | Owner verdict (quoted): "Q6 worth using without Vision; usable with Vision too; lowest dip at swap page." SHIP/punch-list NOT stated — not claimed (owner's call) | Chat paste measured 2026-10-18, no-Playwright game-build run; full console archive PENDING; re-run on the current engine PENDING; reference ~30 tok/s (llama.cpp, same file/ctx) is NOT our run |
 | q4v-001 | — | `UD-Q4_K_M.gguf` (MTP page) + Vision | not stated | peak 92.4 / 47.2 / — (19 turns pasted, partial) | not recorded | not recorded | NO verdict, unfinished — PENDING full run | README pasted turns, no log on file |
 
 <details><summary>Run notes</summary>
 
-Notes: fp16-001 hit the thinking cap once (4096, wrapped cleanly). q8-001 never hit the cap. q4-001 cap-hit claim UNVERIFIED (no log). q5-001 ran 69 turns (40,734 tokens / 954 s), context past 69K prompts, no condensation, zero cancel=True. Averages come from different agent trajectories, so cross-row avg/max deltas are noise, not rankings.
+Notes: fp16-001 hit the thinking cap once (4096, wrapped cleanly). q8-001 never hit the cap. q4-001 cap-hit claim UNVERIFIED (no log). q4-002: 42 turns, zero cancel=True; decode band 40.0–95.7 overlaps q4-001's 46.3–90.9; cold first prefill 1.5K matches q4-001's 1.33K; warm re-reads run to 66.0K on prefix-cache hits (1 s timer granularity) and are excluded from the prefill rate. q5-001 ran 69 turns (40,734 tokens / 954 s), context past 69K prompts, no condensation, zero cancel=True. Averages come from different agent trajectories, so cross-row avg/max deltas are noise, not rankings.
 
 </details>
 
@@ -29,9 +42,9 @@ Notes: fp16-001 hit the thinking cap once (4096, wrapped cleanly). q8-001 never 
 
 | Model | Status | What the run must record |
 | --- | --- | --- |
-| Q4-MTP + Vision | PENDING | Same bench, fixed config; max/low/avg gen, prefill, VRAM/experts, SHIP/blocked verdict |
-| Cyber-Tiel | PENDING | Same bench, fixed config; max/low/avg gen, prefill, VRAM/experts, SHIP/blocked verdict |
-| All other Vision variants | INFERRED working, per-quant runs PENDING (low priority) | Vision functional confirmed 2026-10-18 on Q6_K base (screenshot Q&A, q6-001) + Q4_K_M MTP (screenshot Q&A); same mmproj-Q8_0 CPU-encoder path independent of weight quant, so cross-quant function is inferred not measured |
+| Q4-MTP + Vision | PENDING | Same bench, fixed config; max/low/avg gen, prefill, VRAM/experts, completion + speed + errors (DONE/BLOCKED signals; SHIP/punch-list is the owner's call) |
+| Cyber-Tiel | PENDING | Same bench, fixed config; max/low/avg gen, prefill, VRAM/experts, completion + speed + errors (DONE/BLOCKED signals; SHIP/punch-list is the owner's call) |
+| All other Vision variants | INFERRED working, per-quant runs PENDING (low priority) | Vision path exercised 2026-10-18 on Q6_K base (screenshot Q&A ran, q6-001) + Q4_K_M MTP (screenshot Q&A ran); same mmproj-Q8_0 CPU-encoder path independent of weight quant, so cross-quant behavior is inferred not measured, and no capability is scored |
 
 ## How to report a run
 

@@ -67,7 +67,7 @@ straight to it. GLM 5.3 Flash and DeepSeek V4 Flash, the two large ones, have th
 | | | Q6_K | 28.5 GB | about 31 GB |
 
 A family's first size is the one setup takes. On a PC with less RAM than that wants it takes the second, the
-smallest, and the third is by name: `--model UD-Q4_K_M`, `--model APEX-I-QUALITY`, `--model UD-Q4_K_XL`. The
+smallest, and the third is by name (`--model <size>`, e.g. `--model UD-Q4_K_M` on the fork's qwen36 path; other families' sizes are upstream-only, untested here). The
 sizes differ in their routed experts. UD-Q2_K_XL has them as IQ2_XS and IQ3_XXS, for Gemma 4 as IQ2_XS and
 IQ4_NL; UD-Q4_K_M as Q4_K with Q5_K and Q6_K where they write, for Gemma 4 Q4_K and Q5_1; I-Mini as Q3_K in half
 its layers and IQ2_S in the other half; I-Quality as IQ4_XS, Q5_K and Q6_K. Tiel Coder is Ornith 1.5 quantized by
@@ -101,7 +101,7 @@ Each install is a model of its own: `--list-models`, `/model` and the web page's
 The five new models read pictures. Say yes to setup's question about images, or pass `--vision yes`:
 
 ```bash
-./setup.sh --family gemma4 --vision yes
+./setup.sh --family qwen36 --vision yes
 ```
 
 Setup then downloads the model's image encoder too (0.9 GB, Gemma 4's 1.2 GB), compiles `hyper-vision` beside

@@ -371,7 +371,7 @@ base's, then the rest.)
 
 ## Which model?
 
-These Qwen3.8 paths are upstream-only and untested here. The fork's expected paths are UD-Q4_K_M with MTP and UD-Q5_K_M with MTP (see [HOW-TO-INSTALL.md:11-13](HOW-TO-INSTALL.md)); Q5 on `hyper` is PENDING.
+These Qwen3.8 paths are upstream-only and untested here. The fork's expected paths are UD-Q4_K_M with MTP and UD-Q5_K_M with MTP (see [HOW-TO-INSTALL.md:11-13](HOW-TO-INSTALL.md)); Q5 on `hyper` MEASURED 2026-10-17 (q5-002, both gates closed, PASS).
 
 All three are [ISTA-DASLab's GSQ-RCO quantizations](https://huggingface.co/ISTA-DASLab/Qwen3.8-Flash-Next-GSQ-RCO-GGUF)
 of [Qwen3.8-Flash-Next](https://huggingface.co/Qwen/Qwen3.8-Flash-Next).
@@ -382,7 +382,7 @@ of [Qwen3.8-Flash-Next](https://huggingface.co/Qwen/Qwen3.8-Flash-Next).
 | **IQ2_XS** | 68 GB | ~36 GB experts + ~6 GB | close to Q2_0 | slightly higher quality (upstream description, untested here) |
 | **IQ3_XXS** | 76 GB | ~43 GB experts + ~6 GB | slower (more CPU work) | best |
 
-With 64 GB of RAM all three fit (close the browser for IQ3_XXS, and keep its context at 128K or less). With 48 GB only Q2_0 / IQ2_XS may fit. With 32 GB: the Coder (below).
+Upstream sizing for those three Qwen3.8 paths (untested here): with 64 GB of RAM all three fit upstream (close the browser for IQ3_XXS, and keep its context at 128K or less); with 48 GB only Q2_0 / IQ2_XS; the 32 GB Coder path is below (also upstream-only).
 
 ### Or: the Coder (half the experts, for code)
 
@@ -397,11 +397,7 @@ the shipped ranking mapped onto the kept experts through the release's `rco-allo
 reads hit the GPU on a 12 GB card). Images work; the experimental speed projection loads and runs on it (it was made
 for the full model).
 
-```
-START-HERE.bat --setup --family coder
-```
-
-Install steps: [HOW-TO-INSTALL.md](HOW-TO-INSTALL.md).
+Upstream-only path, untested in this fork — no fork install command is documented here. The fork's expected paths are UD-Q4_K_M / UD-Q5_K_M with MTP (above).
 
 ### Or: Swift 1.5 (a fine-tune that thinks shorter)
 
@@ -417,18 +413,11 @@ Our small check (8 reasoning questions, default thinking, IQ2_XS): both models g
 output tokens in 28 s, the original **2,682** in 46 s - most of the difference from one question the original
 thought about for 1,524 tokens. Not a benchmark, but consistent with the claim.
 
-```
-START-HERE.bat --setup --family swift --model IQ2_XS
-```
-
-Install steps: [HOW-TO-INSTALL.md](HOW-TO-INSTALL.md).
+Upstream-only path, untested in this fork — no fork install command is documented here. The fork's expected paths are UD-Q4_K_M / UD-Q5_K_M with MTP (above).
 
 ### Experimental: Unsloth's UD-Q4_K_XL
 
-A 4-bit quantization of the same model (111 GB, 72 GiB of experts). Setup offers it from engine 0.1.32
-(`--family unsloth --model UD-Q4_K_XL`: a RAM budget of your RAM less 24 GB, the rest read from the SSD). On a 64 GB PC with a 12 GB RTX 5070 it writes 7-8.5
-tokens/s, most experts read from the SSD; it picks the same tokens as llama.cpp on the same file at 97.5-99% of
-the positions of short greedy answers, 90-91% after a 16K prompt, differing mostly at near-ties.
+Upstream-only experimental path (a 4-bit quantization of the Qwen3.8 model, 111 GB with 72 GiB of experts, needing a 64 GB PC), untested in this fork — no fork install command is documented here. The fork's expected paths are UD-Q4_K_M / UD-Q5_K_M with MTP (above).
 
 ## Before you start
 
@@ -489,8 +478,8 @@ downloaded again. Closing the window stops the model.
 ```
 START-HERE.bat --setup                          install another model, or change context / images
 SETUP.bat                                       the same (double-click it)
-START-HERE.bat --model IQ2_XS --context 32768 --vision yes --yes     no questions
-START-HERE.bat --gguf-dir D:\models\IQ2_XS       use GGUF files you already have
+START-HERE.bat --model UD-Q4_K_M --context 131072 --vision yes --yes     no questions
+START-HERE.bat --gguf-dir D:\models\UD-Q4_K_M       use GGUF files you already have
 START-HERE.bat --data-dir E:\HyperStrata-data         keep the model files somewhere else
 START-HERE.bat --port 8081                      another port
 START-HERE.bat --gpu 1                          another GPU (numbered as nvidia-smi; setup picks the one with the most VRAM)
@@ -569,7 +558,7 @@ slowly, the engine prints a hint under its `loaded ... GiB at ...` line naming t
 
 The same questions, the same automatic install (it uses `sudo apt` for Python and, only if it has to compile,
 for the build tools), and the same start: `http://127.0.0.1:8080`. Later runs of `./setup.sh` (or `./run-<model>.sh`)
-start the model directly. Options as on Windows (`./setup.sh --setup`, `--model Q2_0 --yes`, `--gguf-dir /data/Q2_0`).
+start the model directly. Options as on Windows (`./setup.sh --setup`, `--model UD-Q4_K_M --yes`, `--gguf-dir /data/UD-Q4_K_M`).
 Terminal chat: `.venv/bin/python chat.py`.
 
 - **Updating:** `git pull`, then `./setup.sh`: it compiles the engine again when its source changed (a minute or
@@ -1439,7 +1428,7 @@ it needs, prefer read-only tools, and don't add servers you don't trust. The too
 page itself (a request with another site's Origin or without a JSON content type is refused); if HyperStrata is reachable
 from other devices, set an API key.
 
-**Context extension past 262K (rope scaling, EXPERIMENTAL, off unless you pick it).** The model was trained on
+**Context extension past 262K (rope scaling, EXPERIMENTAL, upstream-only, untested here).** The fork's measured context is 131072 (see [BENCHMARKS.md](BENCHMARKS.md)). The model was trained on
 262,144 positions (rotary base 1e7). Rope scaling rescales the rotation angles so that longer contexts stay usable,
 with llama.cpp's types and flag names. `linear` is Position Interpolation: every angle is shrunk by the factor.
 `yarn` keeps the high-frequency angles, interpolates the low-frequency ones, and adds the magnitude correction
@@ -1489,8 +1478,8 @@ speed-test HyperStrata. It is one Python file that uses only the standard librar
 In Claude Code, add it with (add `--scope user` to have it in every project; `/mcp` shows it is connected):
 
 ```bash
-claude mcp add strata -- python <HyperStrata folder>\tools\hyper_mcp.py        # Windows
-claude mcp add strata -- python3 <HyperStrata folder>/tools/hyper_mcp.py      # Linux
+claude mcp add hyper -- python <HyperStrata folder>\tools\hyper_mcp.py        # Windows
+claude mcp add hyper -- python3 <HyperStrata folder>/tools/hyper_mcp.py      # Linux
 ```
 
 The same server works in Claude Desktop (`claude_desktop_config.json`), Cursor, VS Code (`.vscode/mcp.json`) and Codex
@@ -1506,7 +1495,7 @@ one-line `summary`.
 - **Install** runs `setup.py --yes` in the background, after showing the plan (the download size, the free disk space
   and the exact command) and waiting for `confirm: true`. Calling it again shows the step (1-7) or the download
   percentage; a finished step is skipped on the next run and downloads resume. The output goes to `.hyper-mcp/setup.log`.
-- **Start** runs the same command as the `run-<model>` script (`serve/server.py --engine strata --config strata-<model>.json
+- **Start** runs the same command as the `run-<model>` script (`serve/server.py --engine hyper --config strata-<model>.json
   --port N`), without a browser and without a console window, then polls `GET /health` until the model answers (loading
   takes 1-3 minutes). The output goes to `.hyper-mcp/server.log`.
 - **Stop** sends `POST /unload`, then ends the server it started (on Windows its job object ends the vision encoder and
@@ -2038,9 +2027,9 @@ the document, +0.4% on the chat. Details: `bench/results/2026-09-27-esp/`.
 | The first start takes minutes | It is reading 34-55 GB into RAM; the second start is faster while the files are in the OS cache. |
 | The PC freezes for a few minutes at the start | Normal, most of all the first time (the server window says when it happens): the engine loads the experts into RAM, pins part of it for the GPU and sizes the expert cache. Wait; don't close the window. Still frozen after 10 minutes: restart the PC, close other programs, try again, or pick a smaller size. |
 | `the engine stopped unexpectedly (exit code ...)` | The engine process ended mid-answer - usually out of RAM (Linux ends the biggest program: `sudo dmesg \| grep -i 'killed process'`). The next request starts it again by itself. If it repeats: close other programs or pick a smaller size. The server also warns at start when the model's experts leave less than ~6 GB of RAM for everything else. |
-| Slow output, disk light busy | Not enough free RAM: close other programs, or choose Q2_0 / IQ2_XS. |
+| Slow output, disk light busy | Not enough free RAM: close other programs, or choose UD-Q3_K_M / UD-Q2_K_XL. |
 | `prompt ... exceeds the context` | The request is longer than the context you chose: run setup again with a bigger `--context`. |
-| `the setup refuses --rope-scaling none for a past-trained context` | A context past the trained 262,144 needs the rotary angles rescaled (experimental rope scaling), and the setup will not configure one with the stock angles there. Let it pick (`START-HERE.bat --setup --context 393216` adds yarn and a covering factor), or pass `--rope-scaling linear` or `yarn` yourself. |
+| `the setup refuses --rope-scaling none for a past-trained context` | A context past the trained 262,144 needs the rotary angles rescaled (experimental rope scaling, upstream-only, untested here; the fork's measured context is 131072), and the setup will not configure one with the stock angles there. Let it pick (`START-HERE.bat --setup --context 393216` adds yarn and a covering factor), or pass `--rope-scaling linear` or `yarn` yourself. |
 | Slower than the tables | The monitor plugged into the GPU and other GPU programs take VRAM from the expert cache; RAM running below its rated speed (enable EXPO/XMP in the BIOS) slows the CPU half. |
 | `this server was started without the vision encoder` | The model was set up for text only: run setup again with `--vision gpu`. |
 | Setup puts the model on an old drive after you moved or reinstalled HyperStrata (#1070) | Setup remembers the data folder you used last in its settings file (`%APPDATA%\HyperStrata\settings.json` on Windows, `~/.config/hyperstrata/settings.json` on Linux; the `data_dir` entry) and uses it again. Choose another place with `--data-dir DIR` (model files, packs, MTP layer) or `--models-dir DIR` (the GGUF files only), or delete the `data_dir` line; `--gguf-dir DIR` uses GGUF files you already have without copying. To move a model, copy its folder and run setup with the new `--data-dir`. |

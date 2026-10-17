@@ -82,27 +82,10 @@ PolyStrata `0.1.44.1` (`51dc2427`); no upstream sync in this release.
   (`7×F32 + 8×Q8_0 + 2–3×recipe + 2×BF16`) covered by `load_drafter`,
   `block_kv`, and the draft-KV knob.
 
-### In progress
-
-- Fast-path gaps (no known wrong-answer failure via oracle arms on post-f72a15e9 rebuild; slower where noted, PENDING re-test after any engine edit):
-  - Grouped expert kernels missing for Q2_K / Q3_K (single-MMVQ only).
-  - Q4_1 wiring to land (decode + fixture + parity row).
-  - Cross-product oracle test in build: 228 cells
-    (19 weights × 3 KV × target/draft × decode/batch; integer tiers exact,
-    IQ tiers epsilon; synthetic, no model file). Status: PENDING.
-- Asymmetric expert pairs: no wrong-answer failure observed via oracle arms; slower than symmetric — PENDING 228-cell oracle.
-  (Q5_1, Q4_K, IQ4_NL, IQ2_XXS/XS, IQ3_XXS/S, IQ2_S, IQ1_M). PENDING fast paths.
-
 ### Docs
 
 - `docs/KV_CACHE.md` figures corrected 2026-10-18: sizes live in `docs/KV_CACHE.md`. At-run-context GiB figures
   withdrawn to PENDING (no q4-001 log on file).
-
-### Planned
-
-- Vision support (after the text ladder is green): a nine-step job covering
-  the KV-quant × vision matrix for Qwen3.6 (`mmproj-F16.gguf`); GLM/DeepSeek
-  stay text-only by design. Status: planned, no numbers yet.
 
 ### Known issues
 

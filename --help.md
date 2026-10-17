@@ -386,7 +386,7 @@ python setup.py --family qwen36 --model UD-Q4_K_M --context 131072 --vision yes
 | Flag | What it does | When to touch it |
 | --- | --- | --- |
 | `--family qwen\|swift\|coder\|unsloth\|nvfp4\|glm\|deepseek\|lfm25\|qwen36\|ornith\|gemma4\|...` (`setup.py:6912-6917`) | Model line. This fork's verified path is `--family qwen36` (Qwen3.6-35B-A3B on hyper). | Every fresh install names one. |
-| `--model Q2_0\|IQ2_XS\|...\|UD-Q4_K_M\|...` (`setup.py:6918-6920`; sizes `setup.py:268-356,539-610`) | Quant size. Small = less RAM/VRAM, weaker; big = reverse. | Every fresh install (or accept setup's recommendation). |
+| `--model UD-Q4_K_M\|UD-Q5_K_M\|...` (`setup.py:6918-6920` lists every family's sizes; sizes `setup.py:268-356,539-610`) | Quant size. Small = less RAM/VRAM, weaker; big = reverse. Only the qwen36 UD sizes have fork coverage (see docs/MODELS.md); other families' sizes are upstream-only, untested here. | Every fresh install (or accept setup's recommendation). |
 | `--context N` (`setup.py:6921`; choices `setup.py:428`; trained length `262144`) | Context to serve. Past trained length auto-adds yarn scaling (factor = final/262144). | Only for longer chats with the RAM/VRAM to hold them. |
 | `--rope-scaling none\|linear\|yarn` / `--rope-scale F` (`setup.py:6922-6928`) | Extension past `262144`. Omitted = yarn; `none` refused there. | Usually never. |
 | `--kv int8\|q4_0\|k8v4` (Strata engine) or `fp16\|q8_0\|q4_0` (hyper `qwen35moe`: qwen36/ornith/tiel/...) (`setup.py:6929-6934`; formats `setup.py:770`) | KV precision. `q4_0` halves KV memory, slightly less precise; `k8v4` hybrid on the old engine. Defaults: `int8` (old engine), `fp16` (hyper). | Only to fit longer context. Usually never. |

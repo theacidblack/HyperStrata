@@ -17,8 +17,8 @@ error messages, with the older engine fixes, is in the [details](DETAILS.md#trou
 That's normal while it starts, most of all the first time. HyperStrata loads 35-55 GB into your RAM, locks part of it for
 the graphics card, and works out how much of the model fits on your GPU. The mouse can freeze for a few minutes.
 **Wait, and don't close the window.** The next starts are much faster. Still frozen after 10 minutes? Restart the
-PC, close other programs (browsers use a lot of RAM) and try again. If it keeps happening, pick a smaller size (Q2_0
-or IQ2_XS).
+PC, close other programs (browsers use a lot of RAM) and try again. If it keeps happening, pick a smaller size (UD-Q3_K_M
+or UD-Q2_K_XL).
 
 **It stopped while downloading or installing.**
 Run `START-HERE.bat` (Linux: `./setup.sh`) again. It continues where it stopped.
@@ -80,7 +80,7 @@ Setup checks the downloaded ready-made engine against the SHA-256 GitHub publish
 ## While it answers
 
 **It's very slow and the disk light keeps blinking.**
-Your PC is out of free RAM. Close other programs, or pick a smaller size (Q2_0 or IQ2_XS).
+Your PC is out of free RAM. Close other programs, or pick a smaller size (UD-Q3_K_M or UD-Q2_K_XL).
 
 **An answer stopped with "the engine stopped unexpectedly".**
 Usually not enough RAM (on Linux the system then stops the engine). Just send your message again: HyperStrata starts the
@@ -240,7 +240,7 @@ Upstream, the new engine needs an RTX 20 series card or newer — untested in th
 
 ### Can you add Bonsai, LFM2.5, Ling or DeepSeek V4 Flash?
 
-This engine helps MoE models that don't fit in VRAM. A dense model like Bonsai uses all its weights for every token, so there are no experts to split, and the 1-bit Bonsai models already fit on a small card. LFM2.5-8B-A1B fitting whole on an 8 GB card, so plain llama.cpp is fine there, is PENDING — untested here, no provenance. LFM2.5-24B-A2B, the larger one, runs now (`--family lfm25`). Bigger MoEs are the good fit. DeepSeek V4 Flash runs now (`--family deepseek`). Ling-2.6-flash (104B, 7.4B active) is on the list.
+This engine helps MoE models that don't fit in VRAM. A dense model like Bonsai uses all its weights for every token, so there are no experts to split, and the 1-bit Bonsai models already fit on a small card. LFM2.5-8B-A1B fitting whole on an 8 GB card, so plain llama.cpp is fine there, is PENDING — untested here, no provenance. LFM2.5-24B-A2B, the larger one, is an upstream-only setup option (`--family lfm25`), untested here. Bigger MoEs are the good fit. DeepSeek V4 Flash is an upstream-only setup option (`--family deepseek`), untested here. Ling-2.6-flash (104B, 7.4B active) is on the list.
 
 ### Can I run a fine-tune, or another model with the same architecture?
 
@@ -248,13 +248,13 @@ People have, on their own PCs. On Reddit, one ran HauhauCS's uncensored Qwen3.6-
 
 ### Can I use any GLM 5.3 Flash GGUF?
 
-The installer offers three files, and those are the ones that were run: neuralll's 3.0bit (114 GB), Unsloth's UD-IQ2_XXS (102 GB) and patrickbdevaney's REAP50-Q3_K_M (79 GB, half of the routed experts removed). Other GGUFs from the same converters should load, but they haven't been run. If you already have one: `./setup.sh --family glm --gguf-dir /folder/with/the/file`.
+Upstream-only path, untested in this fork. The installer offers three files, and those are the ones that were run upstream: neuralll's 3.0bit (114 GB), Unsloth's UD-IQ2_XXS (102 GB) and patrickbdevaney's REAP50-Q3_K_M (79 GB, half of the routed experts removed). Other GGUFs from the same converters should load, but they haven't been run. If you already have one, upstream setup takes `./setup.sh --family glm --gguf-dir /folder/with/the/file` (upstream-only, untested here).
 
 GLM needs a lot of RAM: beside a 32 GB card, 96 GB for the 3.0bit file, 82 GB for UD-IQ2_XXS and 60 GB for REAP50. So far it has run on Linux only.
 
 ### Why Q3 and Q2 by default on the smaller models? Isn't that a big quality loss?
 
-A 4-bit size is there for all four smaller models: `--model UD-Q4_K_M`, for Ornith `APEX-I-QUALITY` and for Tiel Coder `UD-Q4_K_XL`. The installer picks UD-Q3_K_M because on an 8 GB card more of its experts fit and its file is lighter on 32 GB of RAM. Upstream laptop report: Q3 94-100 vs Q4 84-85 tokens/s short-chat — that rig only; PENDING on the reference rig. It only takes Q2 when the RAM is too small for Q3. No same-day same-file A/B on file — no general claim. Take Q4 if you have the memory.
+A 4-bit size for the fork's house path is `--model UD-Q4_K_M` (other families' 4-bit files are upstream-only, untested here). The installer picks UD-Q3_K_M because on an 8 GB card more of its experts fit and its file is lighter on 32 GB of RAM. Upstream laptop report: Q3 94-100 vs Q4 84-85 tokens/s short-chat — that rig only; PENDING on the reference rig. It only takes Q2 when the RAM is too small for Q3. No same-day same-file A/B on file — no general claim. Take Q4 if you have the memory.
 
 ### What about NVFP4?
 
@@ -262,7 +262,7 @@ HyperStrata reads GGUF weight types only, so no NVFP4 for now. For GLM, NVFP4 wo
 
 ### Does it work on Windows?
 
-The four smaller models (Qwen3.6, Ornith 1.5, Gemma 4, Tiel Coder) and Qwen3.8-Flash-Next do. Setup downloads the new engine ready-made from the latest release, built for RTX 20 to RTX 50 cards (upstream build coverage; tested/supported in this fork: reference rig ([BENCHMARKS.md](BENCHMARKS.md)) only). On a processor without AVX2, or when the engine's code changed after that release, it compiles the engine instead with Visual Studio's build tools and the CUDA toolkit, and offers to install them. GLM 5.3 Flash has only run on Linux.
+The four smaller models (Qwen3.6, Ornith 1.5, Gemma 4, Tiel Coder) and Qwen3.8-Flash-Next do. The fork measures Qwen3.6-35B-A3B only, on the reference rig ([BENCHMARKS.md](BENCHMARKS.md)); the other families are upstream-only, untested here. Setup downloads the new engine ready-made from the latest release, built for RTX 20 to RTX 50 cards (upstream build coverage; tested/supported in this fork: reference rig ([BENCHMARKS.md](BENCHMARKS.md)) only). On a processor without AVX2, or when the engine's code changed after that release, it compiles the engine instead with Visual Studio's build tools and the CUDA toolkit, and offers to install them. GLM 5.3 Flash has only run on Linux.
 
 ### Can I use it with Claude Code, Codex or other apps?
 

@@ -409,9 +409,11 @@ function projectionText(c) {
          "describes the vector as a refusal-direction projection; measure the speed yourself";
 }
 function renderAbout(eng, hw, st) {
-  const kvName = (v) => ({int8: "8-bit", q8_0: "8-bit (ggml Q8_0)", q4_0: "4-bit (Hadamard-rotated)", fp16: "16-bit"}[v] || v);
+  // q4_0 means different things per engine (Hadamard-rotated on the main strata engine, ggml Q4_0 on
+  // strata-poly), so the shared label stays neutral; the precise semantics live in --help and the docs.
+  const kvName = (v) => ({int8: "8-bit", q8_0: "8-bit (ggml Q8_0)", q4_0: "4-bit (Q4_0)", fp16: "16-bit"}[v] || v);
   const kv = kvName(eng.kv);
-  const draftKv = eng.draft_kv ? kvName(eng.draft_kv) : null;
+  const draftKv = eng.draft_kv && eng.draft_kv !== "fp16" ? kvName(eng.draft_kv) : null;
   facts($("facts-engine"), [
     ["Model", eng.model],
     ["Engine", eng.version ? `v${eng.version}` : "built from source"],

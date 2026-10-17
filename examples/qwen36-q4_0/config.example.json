@@ -1,0 +1,34 @@
+{
+  "exe": "<REPO_ROOT>\\engine-poly\\strata-poly.exe",
+  "args": [
+    "--model",
+    "<MODEL_FILE>",
+    "--max-context",
+    "131072",
+    "--expert-profile",
+    "<PACKS_DIR>\\expert-profile.txt",
+    "--tail-skip",
+    "6",
+    "--kv",
+    "q4_0",
+    "--draft-kv",
+    "q4_0",
+    "--vram-reserve-mib",
+    "256"
+  ],
+  "cwd": "<REPO_ROOT>",
+  "tokenizer": "<PACKS_DIR>\\tokenizer",
+  "model_name": "qwen3.6-35b-a3b-ud-q4_k_m",
+  "display_name": "Qwen3.6-35B-A3B UD-Q4_K_M",
+  "log": "<REPO_ROOT>\\strata-qwen36-ud-q4_k_m-q4_0.log",
+  "lib_dirs": [
+    "<CUDA_LIB_DIR>"
+  ],
+  "port": 8080,
+  "gpu": 0,
+  "gpus_asked": true,
+  "sampling": {
+    "temperature": 0.6
+  },
+  "reasoning_budget_tokens": 4096
+}

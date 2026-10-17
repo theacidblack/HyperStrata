@@ -60,6 +60,12 @@ build-vision-cuda12.bat
 *.done
 /third_party/*.zip
 
+# fork-local: never commit
+HyperStrata-data/
+.env
+*.pem
+*.key
+
 # IDEs
 .vscode/
 .idea/

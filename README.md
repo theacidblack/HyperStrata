@@ -24,11 +24,12 @@ The goal is fast answers on one cheap card.
 
 ## v1.0.0 runs
 
-- Q4_K_M MTP: 95.7 / 40.0 / 51.3 tok/s, 42 turns, 31160 tok in 607s, prefill 1.5K cold, PASS. Log on file, LEDGER q4-002.
-- Q5_K_M MTP: 70.9 / 29.8 / 41.1 tok/s, 61 turns, 29615 tok in 721s, prefill 1.1K cold, PASS. Log on file, LEDGER q5-002.
+- Q4_K_M MTP: 95.7 / 40.0 / 51.3 tok/s, 42 turns, 31160 tok in 607s, prefill 1.5K cold, PASS.
+- Q5_K_M MTP: 70.9 / 29.8 / 41.1 tok/s, 61 turns, 29615 tok in 721s, prefill 1.1K cold, PASS.
+- Real change here: q4_0 KV cache + draft KV knob, pinned 112010 values test. Both Q4/Q5 numbers measured with --kv q4_0.
 - Rig: ctx 131072, temp 0.6, cap 4096, reserve 256, 65C, 0.775V, 6 last cores.
-- Full table in docs/BENCHMARKS.md. Logs on file.
-- Q6_K base REPORTED PENDING, no log. Vision 19 turns NO VERDICT PENDING.
+- Full table in docs/BENCHMARKS.md.
+- Q6_K base PENDING, no run. Vision 19 turns PENDING.
 
 ## Roadmap
 
@@ -46,7 +47,7 @@ The goal is fast answers on one cheap card.
 ## Reports
 
 - Public issues off. Talk in Dev discussions or owner Threads.
-- Bring rig + server log. Fake numbers close the report.
+- Bring rig + server output. Fake numbers close the report.
 
 ## License
 

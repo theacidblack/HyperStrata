@@ -1,6 +1,8 @@
 # HyperStrata
 
-My public notes while I learn how engines work.
+My experimental fork to learn how engines work and tune them for my exact rig.
+Code fits all RTX by design, without testing. Focus is my RTX 3070 Ti 8GB + 32GB only.
+Just having fun with my rig and this fork, in public to gain skills.
 
 ## Models we cover
 

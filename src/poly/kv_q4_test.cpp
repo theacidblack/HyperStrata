@@ -140,7 +140,14 @@ void round_trip(int rows, int n, std::mt19937& rng, int& fails, long& values) {
                 // full-precision d the codes were rounded with (the kernel's id = 1/d), so decoding with the fp16
                 // scale can miss by up to 15 * 2^-11 block scales at the rounding boundary (the largest nibble):
                 // allow |x| * 1.5e-3 too, which covers that at the top codes.
-                const float tol = half_scale + std::fabs(x[i]) * 1.5e-3f + 1e-3f;
+                // The 16 codes only span (nibble - 8) * d, nibble 0..15: ggml clamps the top code at 15 with no
+                // lower clamp, so a value past the far endpoint clips to it by design (a large value whose sign
+                // opposes the block's signed extreme, e.g. -622 in a block peaking at +638).  Allow that
+                // out-of-range distance on top of the half-scale bound.
+                const float lo = std::fmin(-8.f * d, 7.f * d), hi = std::fmax(-8.f * d, 7.f * d);
+                float tol = half_scale + std::fabs(x[i]) * 1.5e-3f + 1e-3f;
+                if (x[i] < lo) tol += lo - x[i];
+                else if (x[i] > hi) tol += x[i] - hi;
                 ++values;
                 if (!(std::fabs(got - x[i]) <= tol)) {
                     std::fprintf(stderr,

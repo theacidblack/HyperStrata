@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "tools"))
 sys.path.insert(0, str(ROOT))
 
-import strata_tokenizer as ST  # noqa: E402
+import hyper_tokenizer as ST  # noqa: E402
 from serve.frontend import ChatTemplate, OutputParser  # noqa: E402
 from serve.server import ByteTokenizer, MockEngine, Service  # noqa: E402
 

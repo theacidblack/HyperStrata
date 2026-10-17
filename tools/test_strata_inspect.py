@@ -1,4 +1,4 @@
-"""tools/strata_inspect.py's verdict, offline: the fingerprints of the files setup installs (data/gguf_fingerprints.json)
+"""tools/hyper_inspect.py's verdict, offline: the fingerprints of the files setup installs (data/gguf_fingerprints.json)
 stand in for headers read from the network.
 
     python -m unittest tools.test_strata_inspect
@@ -12,7 +12,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
-import strata_inspect as SI  # noqa: E402
+import hyper_inspect as SI  # noqa: E402
 
 
 class Verdict(unittest.TestCase):

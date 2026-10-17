@@ -132,7 +132,7 @@ class InstallOwnPath(unittest.TestCase):
         self.assertIn(("sha", gguf.name), self.calls)
         self.assertIn(("engine", "none"), self.calls)            # no image encoder for this family yet
         tok = [c for c in self.calls if c[0] == "run"]
-        self.assertTrue(tok and "strata_tokenizer.py" in str(tok[0][1]))
+        self.assertTrue(tok and "hyper_tokenizer.py" in str(tok[0][1]))
         a = self.cfg["args"]
         self.assertEqual(a[a.index("--native") + 1], str(gguf))
         self.assertEqual(a[a.index("--max-context") + 1], "32768")   # 16 GB card

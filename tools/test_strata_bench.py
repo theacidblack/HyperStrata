@@ -1,4 +1,4 @@
-"""Tests for tools/strata_bench.py with a fake engine behind a real HTTP server: the suite runner, the redaction, the report
+"""Tests for tools/hyper_bench.py with a fake engine behind a real HTTP server: the suite runner, the redaction, the report
 writing and the comparison.  Light: no GPU, no PolyStrata server, a few seconds."""
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import strata_bench as B  # noqa: E402
+import hyper_bench as B  # noqa: E402
 
 
 def text_of(messages) -> str:

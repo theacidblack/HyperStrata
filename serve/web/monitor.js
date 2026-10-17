@@ -1,4 +1,6 @@
 "use strict";
+// FROZEN FOR COMPAT: "strata.monitor.key" (sessionStorage) and "strata.theme" (localStorage) are
+// never renamed — renaming orphans existing users' saved key and theme choice.
 const $ = id => document.getElementById(id);
 let selected = null, detail = null, pane = "input", records = [], state = null, operating = false, stamp = "", actionError = "";
 let apiKey = sessionStorage.getItem("strata.monitor.key") || "";

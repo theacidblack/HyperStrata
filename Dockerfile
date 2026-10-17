@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 #
-# PolyStrata: Qwen3.8-Flash-Next on NVIDIA GPUs (RTX 30/40/50, 12+ GB VRAM; two or
+# HyperStrata: Qwen3.8-Flash-Next on NVIDIA GPUs (RTX 30/40/50, 12+ GB VRAM; two or
 # three cards can share one model, 8 GB each - docs/MULTI_GPU.md).
 #
 # The engine is compiled during docker build, so the first container start only
@@ -11,16 +11,18 @@
 # build; a card outside the set needs a rebuild with its own arch.
 #
 # Build:
-#   docker build -t strata .
-#   docker build -t strata --build-arg CUDA_ARCHITECTURES=89 .        # RTX 40 only
+#   docker build -t hyperstrata .
+#   docker build -t hyperstrata --build-arg CUDA_ARCHITECTURES=89 .        # RTX 40 only
 #
 # Run (host needs an NVIDIA driver >= 580 and nvidia-container-toolkit):
 #   docker run --rm --gpus all \
 #     -p 8080:8080 \
 #     --ulimit memlock=-1 \
-#     -v strata-data:/data \
+#     -v hyperstrata-data:/data \
 #     -e MODEL=IQ2_XS \
-#     strata
+#     hyperstrata
+#
+# Existing installs keep their old strata-data volume: keep using -v strata-data:/data for that data.
 #
 # Setup choices are env vars, read by docker-entrypoint.sh: FAMILY, MODEL, CONTEXT,
 # VISION (no | yes | cpu), KV (int8 | q4_0 | k8v4), GPU (one card) or GPUS ("0,2"
@@ -28,7 +30,7 @@
 # GGUF_DIR (GGUF files you already have), RESIDENT_BUDGET_GIB, KV_STREAMING.
 #
 # Only the model files, the prepared pack, the MTP layer and the install config
-# live in the /data volume; the engine is part of the image. PolyStrata loads 32-62 GB
+# live in the /data volume; the engine is part of the image. HyperStrata loads 32-62 GB
 # into RAM, so a capped container needs -e LOW_RAM=on: setup.py reads the RAM from
 # /proc/meminfo, which here is the host's total, not the container's limit. Add an
 # API key before exposing the port to a network: -e API_KEY=<secret>. Pass
@@ -83,7 +85,7 @@ setup.cmake_build(setup.ROOT, setup.ROOT / "build", "strata",
      f"-DCMAKE_CUDA_ARCHITECTURES={arch}", f"-DCMAKE_CUDA_COMPILER={nvcc}",
      f"-DSTRATA_GGML_DIR={llama}"], None, "build-strata.bat")
 if vision != "none":
-    setup.cmake_build(setup.ROOT / "tools" / "vision", setup.ROOT / "build-vision", "strata-vision",
+    setup.cmake_build(setup.ROOT / "tools" / "vision", setup.ROOT / "build-vision", "hyper-vision",
         [f"-DLLAMA_DIR={llama}", "-DSTRATA_VISION_CUDA=ON", "-DSTRATA_PORTABLE=OFF",
          f"-DCMAKE_CUDA_ARCHITECTURES={arch}", f"-DCMAKE_CUDA_COMPILER={nvcc}"], None, "build-vision.bat")
 

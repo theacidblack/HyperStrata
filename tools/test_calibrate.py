@@ -160,7 +160,7 @@ class Calibrate(unittest.TestCase):
             CAL.measure = lambda args, ids_list, start_engine, say=print, extra=(): seen.append(args) or {}
             fake = type("ST", (), {"Tokenizer": lambda *a: type("T", (), {"encode": lambda s, t, **k: [0]})()})
             try:
-                with mock.patch.dict(sys.modules, {"strata_tokenizer": fake}):
+                with mock.patch.dict(sys.modules, {"hyper_tokenizer": fake}):
                     CAL.run({"tokenizer": d, "args": list(BASE), "gpu": [0]}, start_engine=lambda a: None)
             finally:
                 CAL.measure = saved

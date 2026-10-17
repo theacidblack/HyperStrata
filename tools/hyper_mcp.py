@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""tools/strata_mcp.py - an MCP server that lets an AI assistant install, start, check and stop PolyStrata.
+"""tools/hyper_mcp.py - an MCP server that lets an AI assistant install, start, check and stop HyperStrata.
 
-    claude mcp add strata -- python /path/to/PolyStrata/tools/strata_mcp.py
+    claude mcp add hyper -- python /path/to/HyperStrata/tools/hyper_mcp.py
 
 Add it to Claude Code, Claude Desktop, Cursor, VS Code, Codex ... (docs/MCP_SERVER.md has every client's snippet) and
 ask your AI "install PolyStrata for this PC", "start PolyStrata", "is PolyStrata running?".  It speaks MCP (JSON-RPC 2.0, one
@@ -10,9 +10,10 @@ message per line) over stdin/stdout, uses the Python standard library only (it r
 strata_stop, strata_logs, strata_benchmark, strata_connect_info.
 
 Safety: no tool takes a shell command or a free path.  Every argument is checked against setup.py's own choices
-(models, families, contexts ...); the only path argument (install's data_dir) must be the PolyStrata data folder, a folder
-inside the PolyStrata folder, or a new folder named PolyStrata* outside the system folders.  Setup and the model run as
-background processes this server starts itself; it keeps their process id and start time in .strata-mcp/ and only
+(models, families, contexts ...); the only path argument (install's data_dir) must be the HyperStrata data folder, a folder
+inside the HyperStrata folder, or a new folder named HyperStrata* (or, from before the rename, PolyStrata*) outside
+the system folders.  Setup and the model run as
+background processes this server starts itself; it keeps their process id and start time in .hyper-mcp/ and only
 ever stops a process it started (a PolyStrata started elsewhere, e.g. from its own window, is only asked over its API to
 unload the model).
 
@@ -44,7 +45,7 @@ VERSION = "0.1.0"
 WIN = os.name == "nt"
 DEFAULT_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_PORT = 8080
-STATE_DIR = ".strata-mcp"                             # in the PolyStrata folder (git-ignored)
+STATE_DIR = ".hyper-mcp"                             # in the HyperStrata folder (git-ignored)
 
 # What setup.py offers, used only when setup.py cannot be imported (the numbers are setup's MODELS / FAMILIES /
 # CONTEXTS; tools/test_strata_mcp.py checks they still match).
@@ -109,7 +110,7 @@ FALLBACK_FAMILIES = {
                  "tag": "dsv4-", "engine": "poly", "vision": False, "experimental": True,
                  "models": {"UD-IQ2_XXS": {"about": "2-bit i-quant experts (Unsloth Dynamic), 3-bit and MXFP4 where "
                                                     "they write", "download_gb": 90.9, "ram_gb": 72, "arena_gb": 83.9}}},
-    "lfm25": {"title": "LFM2.5-24B-A2B", "about": "on the strata-poly engine: one NVIDIA card, Linux or Windows; a "
+    "lfm25": {"title": "LFM2.5-24B-A2B", "about": "on the hyper engine: one NVIDIA card, Linux or Windows; a "
                                                    "15 GB file, ~20 GB of RAM beside an 8 GB card; four other sizes "
                                                    "too, no images",
               "tag": "lfm25-", "engine": "poly", "vision": False, "experimental": True,
@@ -124,7 +125,7 @@ FALLBACK_FAMILIES = {
                          "Q8_0": {"about": "8-bit throughout: the closest to the model as trained",
                                   "download_gb": 25.5, "ram_gb": 31, "arena_gb": 24.4}}},
     # a family with sizes of its own ("models"): two of these have a size of one name
-    "qwen36": {"title": "Qwen3.6-35B-A3B", "about": "on the strata-poly engine: one NVIDIA card, Linux or Windows; a "
+    "qwen36": {"title": "Qwen3.6-35B-A3B", "about": "on the hyper engine: one NVIDIA card, Linux or Windows; a "
                                                      "17 GB file, ~21 GB of RAM beside an 8 GB card; a smaller and a "
                                                      "larger size too",
                "tag": "qwen36-", "engine": "poly", "vision": True, "experimental": True,
@@ -144,7 +145,7 @@ FALLBACK_FAMILIES = {
                                           "download_gb": 14.4, "ram_gb": 18, "arena_gb": 12.9},
                           "APEX-I-QUALITY": {"about": "4- to 6-bit experts (APEX)",
                                              "download_gb": 23.7, "ram_gb": 28, "arena_gb": 21.6}}},
-    "gemma4": {"title": "Gemma 4 26B-A4B", "about": "on the strata-poly engine too; a 13 GB file, ~18 GB of RAM beside an 8 GB "
+    "gemma4": {"title": "Gemma 4 26B-A4B", "about": "on the hyper engine too; a 13 GB file, ~18 GB of RAM beside an 8 GB "
                                                      "card; a smaller and a larger size too", "tag": "gemma4-",
                "engine": "poly", "vision": True, "experimental": True,
                "models": {"UD-Q3_K_M": {"about": "3-bit experts (Unsloth Dynamic), and Google's draft model for it",
@@ -197,7 +198,7 @@ if WIN:
 def log(msg: str) -> None:
     """Diagnostics go to stderr: stdout carries only the protocol."""
     try:
-        sys.stderr.write(f"[strata-mcp] {msg}\n")
+        sys.stderr.write(f"[hyper-mcp] {msg}\n")
         sys.stderr.flush()
     except (OSError, ValueError):
         pass
@@ -536,8 +537,8 @@ class Strata:
     # ---- paths
     def settings_path(self) -> Path:
         if WIN:
-            return Path(os.environ.get("APPDATA") or Path.home() / "AppData" / "Roaming") / "PolyStrata" / "settings.json"
-        return Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config") / "polystrata" / "settings.json"
+            return Path(os.environ.get("APPDATA") or Path.home() / "AppData" / "Roaming") / "HyperStrata" / "settings.json"
+        return Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config") / "hyperstrata" / "settings.json"
 
     def data_dir(self) -> Path:
         try:
@@ -545,7 +546,7 @@ class Strata:
         except (OSError, ValueError):
             s = {}
         d = s.get("data_dir") if isinstance(s, dict) else None
-        return Path(d) if d else self.root.parent / "PolyStrata-data"
+        return Path(d) if d else self.root.parent / "HyperStrata-data"
 
     def allowed_roots(self) -> list[Path]:
         return [norm(self.root), norm(self.data_dir())]
@@ -1105,11 +1106,12 @@ def tool_defs(models: dict, families: dict, contexts: list) -> list:
              "low_ram": {"type": "string", "enum": ["auto", "on", "off", "resident", "mmap"],
                          "description": "setup's low-RAM mode (default auto)"},
              "port": {**port, "description": "the port the model will listen on (default 8080)"},
-             "data_dir": {"type": "string", "maxLength": 260,
-                          "description": "where the model files go (default: the PolyStrata-data folder next to the "
-                                         "PolyStrata folder). Only the current data folder, a folder inside the PolyStrata "
-                                         "folder, or a new absolute path whose last folder is named PolyStrata... "
-                                         "(e.g. D:\\PolyStrata-data) outside system folders"},
+              "data_dir": {"type": "string", "maxLength": 260,
+                           "description": "where the model files go (default: the HyperStrata-data folder next to the "
+                                          "HyperStrata folder). Only the current data folder, a folder inside the HyperStrata "
+                                          "folder, or a new absolute path whose last folder is named HyperStrata... "
+                                          "(or, from before the rename, PolyStrata...) "
+                                          "(e.g. D:\\HyperStrata-data) outside system folders"},
              "confirm": {"type": "boolean", "description": "true = really start the install (after the user agreed "
                                                            "to the plan and the download size)"},
              "cancel": {"type": "boolean", "description": "true = stop the install in progress"}}},
@@ -1258,18 +1260,19 @@ class Tools:
             raise ToolError("data_dir: network (UNC) paths are not allowed; use a local drive")
         p = Path(os.path.expandvars(raw)).expanduser()
         if not p.is_absolute():
-            raise ToolError("data_dir must be an absolute path (e.g. D:\\PolyStrata-data or /mnt/big/PolyStrata-data)")
+            raise ToolError("data_dir must be an absolute path (e.g. D:\\HyperStrata-data or /mnt/big/HyperStrata-data)")
         if ".." in p.parts:
             raise ToolError("data_dir must not contain '..'")
         n = norm(p)
         current = norm(s.data_dir())
-        if n == current or is_inside(n, norm(s.root)) or n == norm(s.root.parent / "PolyStrata-data"):
+        if n == current or is_inside(n, norm(s.root)) or n == norm(s.root.parent / "HyperStrata-data") or \
+                n == norm(s.root.parent / "PolyStrata-data"):
             pass
         else:
-            if not p.name.lower().startswith("polystrata"):
-                raise ToolError(f"data_dir {raw!r}: a new data folder must be named PolyStrata... (e.g. "
-                                f"{Path(p.anchor or '/') / 'PolyStrata-data'}), so that no other folder is filled with "
-                                "model files")
+            if not (p.name.lower().startswith("hyperstrata") or p.name.lower().startswith("polystrata")):
+                raise ToolError(f"data_dir {raw!r}: a new data folder must be named HyperStrata... (e.g. "
+                                f"{Path(p.anchor or '/') / 'HyperStrata-data'}), so that no other folder is filled with "
+                                "model files (a PolyStrata... name from before the rename is accepted too)")
             if not p.parent.is_dir():
                 raise ToolError(f"data_dir {raw!r}: its parent folder {p.parent} does not exist")
             if any(n == f or is_inside(n, f) for f in system_folders()):
@@ -1392,7 +1395,7 @@ class Tools:
         short = None
         if free is not None and free < need:
             short = (f"not enough free disk space for {model}: about {need:.0f} GB needed at {target}, "
-                     f"{free:.0f} GB free; free some space or choose data_dir on a bigger drive (e.g. D:\\PolyStrata-data)")
+                     f"{free:.0f} GB free; free some space or choose data_dir on a bigger drive (e.g. D:\\HyperStrata-data)")
         args = ["--yes", "--no-start", "--family", family, "--model", model, "--context", str(context),
                 "--vision", vision or "no"]
         if family in ("qwen", "coder"):
@@ -1431,7 +1434,7 @@ class Tools:
         job_id = f"{int(time.time())}-{os.getpid()}"
         log_path = s.state_dir / "setup.log"
         with open(log_path, "a", encoding="utf-8") as f:
-            f.write(f"\n===== strata-mcp: install {plan['title']} at {time.strftime('%Y-%m-%d %H:%M:%S')} =====\n")
+            f.write(f"\n===== hyper-mcp: install {plan['title']} at {time.strftime('%Y-%m-%d %H:%M:%S')} =====\n")
         spec = {"job": job_id, "root": str(s.root), "python": s.run_python(), "base_python": sys.executable,
                 "create_venv": s.python_override is None and not s.venv_python().exists(),
                 "args": args, "result": str(s.state_dir / "install-result.json")}
@@ -1486,14 +1489,14 @@ class Tools:
             py = s.run_python()
             if not Path(py).exists():
                 raise ToolError("PolyStrata's Python environment (.venv) is missing: run the install again")
-            cmd = [py, str(s.root / "serve" / "server.py"), "--engine", "strata", "--config", str(cfg_path),
+            cmd = [py, str(s.root / "serve" / "server.py"), "--engine", "hyper", "--config", str(cfg_path),
                    "--port", str(port)]
             if gpu is not None:
                 cmd += ["--gpu", str(gpu)]
             log_path = s.state_dir / "server.log"
             s.state_dir.mkdir(parents=True, exist_ok=True)
             with open(log_path, "a", encoding="utf-8") as f:
-                f.write(f"\n===== strata-mcp: start {desc['model']} on port {port} at "
+                f.write(f"\n===== hyper-mcp: start {desc['model']} on port {port} at "
                         f"{time.strftime('%Y-%m-%d %H:%M:%S')} =====\n")
             env = dict(os.environ, PYTHONUNBUFFERED="1", PYTHONIOENCODING="utf-8")
             try:
@@ -1741,7 +1744,7 @@ class McpServer:
             self.protocol = asked if asked in PROTOCOLS else PROTOCOL
             return self.result(rid, {"protocolVersion": self.protocol,
                                      "capabilities": {"tools": {"listChanged": False}},
-                                     "serverInfo": {"name": "strata", "title": "PolyStrata", "version": VERSION},
+                                     "serverInfo": {"name": "hyper", "title": "HyperStrata", "version": VERSION},
                                      "instructions": INSTRUCTIONS})
         if method == "ping":
             return self.result(rid, {})
@@ -1830,10 +1833,10 @@ def install_job(spec_path: str) -> int:
         if spec.get("create_venv"):
             venv = root / ".venv"
             if py.exists() and subprocess.run([str(py), "-m", "pip", "--version"], capture_output=True).returncode:
-                print("strata-mcp: .venv has no pip (an earlier run stopped half-way): making it again", flush=True)
+                print("hyper-mcp: .venv has no pip (an earlier run stopped half-way): making it again", flush=True)
                 shutil.rmtree(venv, ignore_errors=True)
             if not py.exists():
-                print(f"strata-mcp: creating PolyStrata's Python environment in {venv} ...", flush=True)
+                print(f"hyper-mcp: creating the Python environment in {venv} ...", flush=True)
                 r = subprocess.run([spec["base_python"], "-m", "venv", str(venv)])
                 if r.returncode or not py.exists():
                     print("\n  [X]  could not create the Python environment (.venv)", flush=True)
@@ -1842,23 +1845,23 @@ def install_job(spec_path: str) -> int:
                     record(exit_code=1, ended=time.strftime("%Y-%m-%d %H:%M:%S"))
                     return 1
         cmd = [str(py), str(root / "setup.py"), *spec["args"]]
-        print("strata-mcp: running " + " ".join(cmd), flush=True)
+        print("hyper-mcp: running " + " ".join(cmd), flush=True)
         env = dict(os.environ, PYTHONUNBUFFERED="1", PYTHONIOENCODING="utf-8")
         p = subprocess.Popen(cmd, cwd=str(root), stdin=subprocess.DEVNULL, env=env)
         record(child_pid=p.pid, child_ident=proc_identity(p.pid))
         rc = p.wait()
     except Exception as e:                              # noqa: BLE001
-        print(f"\n  [X]  strata-mcp could not run setup: {e}", flush=True)
+        print(f"\n  [X]  hyper-mcp could not run setup: {e}", flush=True)
         rc = 1
-    print(f"strata-mcp: setup ended with exit code {rc}", flush=True)
+    print(f"hyper-mcp: setup ended with exit code {rc}", flush=True)
     record(exit_code=rc, ended=time.strftime("%Y-%m-%d %H:%M:%S"))
     return rc
 
 
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(description="PolyStrata's MCP server (stdio): install, start, check and stop PolyStrata "
+    ap = argparse.ArgumentParser(description="HyperStrata's MCP server (stdio): install, start, check and stop HyperStrata "
                                              "from an AI assistant. See docs/MCP_SERVER.md.")
-    ap.add_argument("--root", help="the PolyStrata folder (default: the one this file is in)")
+    ap.add_argument("--root", help="the HyperStrata folder (default: the one this file is in)")
     ap.add_argument("--install-job", help=argparse.SUPPRESS)
     a = ap.parse_args(argv)
     if a.install_job:

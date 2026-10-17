@@ -4,14 +4,14 @@ Reads only the files' headers (a few MB each, by HTTP range requests for a remot
 real storage of every weight group (bits per weight, quantization types), then compares the routed experts and the
 sizes with the files setup installs (data/gguf_fingerprints.json):
 
-    python tools/strata_inspect.py ms:ISTA-DASLab/Qwen3.8-Flash-Next-GSQ-RCO-GGUF          # list the variants
-    python tools/strata_inspect.py ms:ISTA-DASLab/Qwen3.8-Flash-Next-GSQ-RCO-GGUF IQ3_S    # one variant
-    python tools/strata_inspect.py ms:unsloth/Qwen3.8-Flash-Next-GGUF UD-Q2_K_XL
-    python tools/strata_inspect.py D:/models/my-copy-00001-of-00002.gguf                  # a local file or folder
-    python tools/strata_inspect.py https://example.com/x-00001-of-00002.gguf              # one URL (that shard only)
+    python tools/hyper_inspect.py ms:ISTA-DASLab/Qwen3.8-Flash-Next-GSQ-RCO-GGUF          # list the variants
+    python tools/hyper_inspect.py ms:ISTA-DASLab/Qwen3.8-Flash-Next-GSQ-RCO-GGUF IQ3_S    # one variant
+    python tools/hyper_inspect.py ms:unsloth/Qwen3.8-Flash-Next-GGUF UD-Q2_K_XL
+    python tools/hyper_inspect.py D:/models/my-copy-00001-of-00002.gguf                  # a local file or folder
+    python tools/hyper_inspect.py https://example.com/x-00001-of-00002.gguf              # one URL (that shard only)
 
 ms: is ModelScope, hf: Hugging Face (HF_ENDPOINT is honoured).  setup.py --inspect runs the same.
-    python tools/strata_inspect.py --fingerprints data/gguf_fingerprints.json             # remake the table
+    python tools/hyper_inspect.py --fingerprints data/gguf_fingerprints.json             # remake the table
 """
 from __future__ import annotations
 
@@ -97,8 +97,8 @@ def verdict(fp: dict, table: dict) -> tuple[str, str]:
     if fp["arch"] in PREVIEW_ARCHS:
         return "family", (f"{PREVIEW_ARCHS[fp['arch']]} (architecture {fp['arch']!r}): PolyStrata runs it on its own "
                           "engine path in the NVIDIA (CUDA) and AMD (HIP) builds, not yet on Intel Arc (SYCL); setup "
-                          "installs it with --family qwen36-strata, and with --family qwen36 on the strata-poly "
-                          "engine")
+                           "installs it with --family qwen36-strata, and with --family qwen36 on the hyper "
+                           "engine")
     if fp["arch"] != ARCH:
         return "no", f"not Qwen3.8-Flash-Next (architecture {fp['arch']!r}): PolyStrata runs only that model"
     exact = [k for k, v in known.items() if v["expert_bytes"] == fp["expert_bytes"] and v["bytes"] == fp["bytes"]

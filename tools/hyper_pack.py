@@ -373,7 +373,7 @@ def verify(gguf: pathlib.Path, out_dir: pathlib.Path, limit: int | None, expert_
         got = sha256(gguf)
         if got != want:
             print("%s: sha256 %s, but the pack was built from %s" % (gguf.name, got, want))
-            print("tools/strata_pack.py verify FAIL")
+            print("tools/hyper_pack.py verify FAIL")
             return 1
     g = G.GGUFFile(gguf)
     head, flen = open_shard(gguf)
@@ -404,7 +404,7 @@ def verify(gguf: pathlib.Path, out_dir: pathlib.Path, limit: int | None, expert_
     print("verify: %d tensors, %d elements, %d bad" % (n_t, n_el, bad))
     if expert_every > 0:
         bad += verify_experts(gguf, out_dir, man, expert_every)
-    print("tools/strata_pack.py verify " + ("PASS" if bad == 0 else "FAIL"))
+    print("tools/hyper_pack.py verify " + ("PASS" if bad == 0 else "FAIL"))
     return 0 if bad == 0 else 1
 
 

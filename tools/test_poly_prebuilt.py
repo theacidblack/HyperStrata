@@ -1,4 +1,4 @@
-"""Tests for setup.py's ready-made strata-poly (get_poly_prebuilt) from a local release folder: the asset of this
+"""Tests for setup.py's ready-made hyper engine (get_poly_prebuilt) from a local release folder: the asset of this
 source is installed, one for another source or another card is not, and an engine already there is kept.  No GPU,
 no network, no pip.
 
@@ -142,9 +142,9 @@ class PolyPrebuilt(unittest.TestCase):
 
         def cmake(src, bdir, target, defs, vcvars, script):
             made.setdefault(target, defs)
-            out = bdir / "bin" if target == "strata-vision" else bdir
+            out = bdir / "bin" if target == "hyper-vision" else bdir
             out.mkdir(parents=True, exist_ok=True)
-            (out / (setup.VEXE if target == "strata-vision" else setup.POLY_EXE)).write_text(f"{target} {toolkit}")
+            (out / (setup.VEXE if target == "hyper-vision" else setup.POLY_EXE)).write_text(f"{target} {toolkit}")
         with mock.patch.object(setup, "install_build_tools", lambda g, yes: (str(self.root / "nvcc"), None)), \
                 mock.patch.object(setup, "cmake_build", cmake), mock.patch.object(setup, "cuda_lib_dirs", lambda t: []), \
                 mock.patch.object(setup, "source_version", lambda: "0.1.42"):
@@ -155,8 +155,8 @@ class PolyPrebuilt(unittest.TestCase):
         release(self.rel)
         setup.get_poly_prebuilt(GPU)
         made = self.compile_here(GPU, 12, "gpu")
-        self.assertEqual(sorted(made), ["strata-poly", "strata-vision"])
-        self.assertNotIn("-DSTRATA_EXPERIMENTAL_SM60=ON", made["strata-poly"])
+        self.assertEqual(sorted(made), ["hyper", "hyper-vision"])
+        self.assertNotIn("-DSTRATA_EXPERIMENTAL_SM60=ON", made["hyper"])
         meta = json.loads((self.eng / "BUILD.json").read_text())
         self.assertEqual((meta["toolkit"], meta["archs"], meta["source"]), (12, [89], "local"))
         # the ready-made one is not taken back while the model asks for CUDA 12, and is when it no longer does
@@ -166,8 +166,8 @@ class PolyPrebuilt(unittest.TestCase):
 
     def test_cuda_12_for_a_pascal_card_is_the_experimental_build(self):
         made = self.compile_here({"arch": 61, "driver": "550.54"}, 12)
-        self.assertIn("-DSTRATA_EXPERIMENTAL_SM60=ON", made["strata-poly"])
-        self.assertIn("-DCMAKE_CUDA_ARCHITECTURES=61", made["strata-poly"])
+        self.assertIn("-DSTRATA_EXPERIMENTAL_SM60=ON", made["hyper"])
+        self.assertIn("-DCMAKE_CUDA_ARCHITECTURES=61", made["hyper"])
 
 
 if __name__ == "__main__":

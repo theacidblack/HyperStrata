@@ -9,7 +9,7 @@ source=a.source.resolve()
 sys.path[:0]=[str(source),str(source/'tools')]
 from serve.server import StrataEngine, Service, engine_args, child_env, serve
 from serve.frontend import ChatTemplate
-import strata_tokenizer as ST
+import hyper_tokenizer as ST
 
 cfg=json.loads(a.config.read_text())
 cfg={k:v for k,v in cfg.items() if k in ['args','tokenizer','gpu','lib_dirs','env']}

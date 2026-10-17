@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""PolyStrata one-click setup and start (Windows and Linux, NVIDIA or AMD GPUs).
+"""HyperStrata one-click setup and start (Windows and Linux, NVIDIA or AMD GPUs).
 
     START-HERE.bat  (Windows)   /   ./setup.sh  (Linux)      - they install Python if needed and run this file
 
-The first time it asks four questions - which model (the original Qwen3.8-Flash-Next or the Swift 1.5 fine-tune),
+The first time it asks four questions - which model (the menu still offers the upstream Qwen3.8-Flash-Next line
+including the Swift 1.5 fine-tune; this fork's verified path is Qwen3.6-35B-A3B on its own engine path),
 which size, how much context, and whether the model should also read images - then installs everything and starts the model on http://127.0.0.1:8080 (OpenAI- and Anthropic-compatible
 API; a small page there shows that it runs). Every later start skips straight to running the model: nothing that
 is already downloaded, installed or prepared is done again.
@@ -13,11 +14,12 @@ What the first run does (each step is skipped when it is already done):
   1. checks your PC: NVIDIA or AMD GPU and driver, RAM, CPU, free disk space
   2. asks the questions
   3. installs the Python packages it needs into .venv (numpy, jinja2, ..., and NVIDIA's CUDA libraries)
-  4. gets the PolyStrata engine: a ready-made build for RTX 20/30/40/50 cards (no compiler needed); if none fits your PC,
+  4. gets the HyperStrata engine: a ready-made build for RTX 20/30/40/50 cards (reference rig only - wider lineup
+     support is a goal, not a promise; no compiler needed); if none fits your PC,
      it installs the build tools (asks first) and compiles the engine for your GPU.  AMD (--backend hip, chosen by
      itself on a PC with no usable NVIDIA card): the ready-made HIP engine on Windows, compiled here on Linux
   5. downloads the model from Hugging Face (resumable), and the vision encoder if you want images
-  6. prepares the model for PolyStrata and fetches the MTP draft layer (~5 GB, from the original Qwen checkpoint)
+  6. prepares the model for HyperStrata and fetches the MTP draft layer (~5 GB, from the original Qwen checkpoint)
   7. writes run-<model>.bat / run-<model>.sh and starts the model
 
 GLM 5.3 Flash (--family glm, docs/GLM.md) is a second model with an engine of its own, compiled here: Linux, one
@@ -36,7 +38,7 @@ answers, no questions), --setup (install another model / change settings instead
 (EXPERIMENTAL, off by default),
 --models-dir DIR, --gguf-dir DIR (use GGUF files you already have), --build (compile instead of the ready-made
 engine), --check (only check this PC), --resident-budget-gib N (UD-Q4_K_XL's or UD-IQ4_XS's experts in RAM),
---kv-streaming on|off|auto.  strata-poly's qwen35moe families take --kv fp16|q8_0|q4_0 and --draft-kv fp16|q8_0|q4_0
+--kv-streaming on|off|auto.  hyper's qwen35moe families take --kv fp16|q8_0|q4_0 and --draft-kv fp16|q8_0|q4_0
 (CUDA only; fp16 is the default when omitted).
 
 Setup recommends, it never forces: the recommended answers are the defaults (--yes, or Enter), and a bigger choice
@@ -185,7 +187,7 @@ HF = hf("ISTA-DASLab/Qwen3.8-Flash-Next-GSQ-RCO-GGUF")
 LLAMA_CPP_COMMIT = "3cf03257f219afbe7334045ff7c6a06ac68c627d"
 LLAMA_CPP_ZIP = f"https://github.com/ggml-org/llama.cpp/archive/{LLAMA_CPP_COMMIT}.zip"
 # The image encoder's own llama.cpp: MiniCPM-V 4.7's mtmd is newer than the engines' pin, and the engines stay on
-# the Strata project's pin until it moves; only strata-vision builds from this one (a second checkout, like #14 suggests).
+# the Strata project's pin until it moves; only hyper-vision builds from this one (a second checkout, like #14 suggests).
 VISION_LLAMA_CPP_COMMIT = "69f201a2051ea9b9e9b50c3cc56afd9e2ae64414"
 VISION_LLAMA_CPP_ZIP = f"https://github.com/ggml-org/llama.cpp/archive/{VISION_LLAMA_CPP_COMMIT}.zip"
 
@@ -266,7 +268,7 @@ NVFP4_ENGINE = (0, 1, 44)
 MODELS = {
     # the original model only for now: Swift 1.5's Q2_0 files split one layer's experts across the two shards, which
     # the pack tool (tools/iq_pack.py) cannot prepare yet (#171)
-    "Q2_0": {"about": "2-bit, the fastest", "download_gb": 66.4, "ram_gb": 48, "arena_gb": 34.0, "families": ("qwen",)},
+    "Q2_0": {"about": "2-bit, the smallest file", "download_gb": 66.4, "ram_gb": 48, "arena_gb": 34.0, "families": ("qwen",)},
     "IQ2_XS": {"about": "2-bit i-quant, a little better quality, close in speed", "download_gb": 68.0, "ram_gb": 48,
                "arena_gb": 35.5},
     "IQ3_XXS": {"about": "3-bit i-quant, better quality, slower (more CPU work per token)", "download_gb": 75.8,
@@ -466,7 +468,7 @@ FAMILIES = {
               "tag": "nvfp4-", "name": "qwen3.8-flash-next-nvfp4", "ready": True,
               "mmproj_hf": hf("ISTA-DASLab/Qwen3.8-Flash-Next-GSQ-RCO-GGUF"), "mmproj": "mmproj-Qwen3.8-Flash-Next-BF16.gguf",
               "mmproj_sha256": (907543008, "b1a82259702816a5330d7bd7607cd9676b11780e79ff7348c21103ff3ce49bd0")},
-    # GLM 5.3 Flash: another architecture (llama.cpp's glm5-next), run by strata-poly from its one GGUF - no pack,
+    # GLM 5.3 Flash: another architecture (llama.cpp's glm5-next), run by hyper from its one GGUF - no pack,
     # no image encoder.  "engine": its setup is poly_setup, not main()'s steps (docs/GLM.md).  "draft": the model's
     # draft block in the data folder, one for every size whose file has none (tools/glm_draft_fetch.py)
     "glm": {"title": "GLM 5.3 Flash", "by": "files from neuralll, Unsloth and patrickbdevaney",
@@ -488,7 +490,7 @@ FAMILIES = {
                        (49248507840, "89180f13784dc1128586b98adf1ca876279881a20bc4f01747703ce352563372"),
                        "GLM-5.3-Flash-UD-IQ2_XXS-00004-of-00004.gguf":
                        (2690716000, "9e0ef47daa1fdffce3cf2ac1594ce4634d176ad018be6e692729757f38d5fbf6")}},
-    # DeepSeek V4 Flash (llama.cpp's deepseek4) on strata-poly, from Unsloth's split GGUF; no draft block in it.  Like
+    # DeepSeek V4 Flash (llama.cpp's deepseek4) on hyper, from Unsloth's split GGUF; no draft block in it.  Like
     # GLM's sizes, "ram_gb" is poly_ram_need() for a 32 GB card and "vram_beside_gb" was measured there at 32K: it has
     # run on an RTX 5090 with 120 GB of RAM only.  "row_bytes": its caches keep compressed rows, 6,880 bytes a token.
     "deepseek": {"title": "DeepSeek V4 Flash", "by": "DeepSeek; quantized by Unsloth",
@@ -507,7 +509,7 @@ FAMILIES = {
                             (49890588800, "65a113df6d4469f16db6882b6919e153c464c3c78c833f5e1b41a33803cdbd52"),
                             "DeepSeek-V4-Flash-0731-UD-IQ2_XXS-00003-of-00003.gguf":
                             (40964890464, "a69102ddfaf4a84426e11fdb66716654f4260dc3a1de3ade9fd50e006b8691d3")}},
-    # The models strata-poly also runs, each from one GGUF (docs/BACKENDS.md): "engine": "poly" gives them
+    # The models hyper also runs, each from one GGUF (docs/BACKENDS.md): "engine": "poly" gives them
     # poly_setup's steps.  "models": the family's own sizes, as MODELS has them for the others: Unsloth calls a
     # quantization the same for every model, so two families' sizes share a name.  A size's "arena_gb" (its routed
     # experts) is from its file, "vram_beside_gb" was measured on an RTX 5090 at 32K, and "row_bytes" is the VRAM a
@@ -528,7 +530,7 @@ FAMILIES = {
     # LFM2.5 (llama.cpp's lfm2moe): no draft block and no image encoder.  QAD-Q4_0 is Liquid AI's own file, trained
     # for that quantization; the other sizes are Unsloth's.
     "lfm25": {"title": "LFM2.5-24B-A2B", "by": "Liquid AI; quantized by Unsloth and Liquid AI",
-              "about": "on the strata-poly engine: one NVIDIA card, Linux or Windows; a 15 GB file, ~20 GB of RAM "
+              "about": "on the hyper engine: one NVIDIA card, Linux or Windows; a 15 GB file, ~20 GB of RAM "
                        "beside an 8 GB card; four other sizes too, no images",
               "hf": hf("unsloth/LFM2.5-24B-A2B-GGUF"), "file": "LFM2.5-24B-A2B-{q}.gguf", "shards": 1,
               "tag": "lfm25-", "name": "lfm2.5-24b-a2b", "engine": "poly", "vision": False, "experimental": True,
@@ -556,7 +558,7 @@ FAMILIES = {
                          "LFM2.5-24B-A2B-Q8_0.gguf":
                          (25493733344, "97cd912b01124793a69ddebc309abbbad7ebb38ac2fb9c2bc55dfc1ad9d1809e")}},
     "qwen36": {"title": "Qwen3.6-35B-A3B", "by": "Qwen; quantized by Unsloth",
-               "about": "on the strata-poly engine: one NVIDIA card, Linux or Windows; a 17 GB file, ~21 GB of RAM "
+               "about": "on the hyper engine: one NVIDIA card, Linux or Windows; a 17 GB file, ~21 GB of RAM "
                         "beside an 8 GB card; a smaller and a larger size too",
                "hf": hf("unsloth/Qwen3.6-35B-A3B-MTP-GGUF"), "file": "Qwen3.6-35B-A3B-{q}.gguf", "shards": 1,
                "tag": "qwen36-", "name": "qwen3.6-35b-a3b", "engine": "poly", "vision": True, "experimental": True,
@@ -609,7 +611,7 @@ FAMILIES = {
                           "mmproj.gguf":
                           (899283200, "e277123529451fbcff6d880ad5bd7ada999f9d5e6339ba3639d06c5cef4763b1")}},
     "gemma4": {"title": "Gemma 4 26B-A4B", "by": "Google; quantized by Unsloth",
-               "about": "on the strata-poly engine too; a 13 GB file, ~18 GB of RAM beside an 8 GB card; a smaller and a "
+               "about": "on the hyper engine too; a 13 GB file, ~18 GB of RAM beside an 8 GB card; a smaller and a "
                         "larger size too",
                "hf": hf("unsloth/gemma-4-26B-A4B-it-GGUF"), "file": "gemma-4-26B-A4B-it-{q}.gguf", "shards": 1,
                "tag": "gemma4-", "name": "gemma-4-26b-a4b", "engine": "poly", "vision": True, "experimental": True,
@@ -707,7 +709,7 @@ QWEN36_FILES = {
     "Qwen3.6-35B-A3B-Q8_0.gguf": (37801097504, "c1283d8b80c3e38b2735ddbc9766d3b3126f44d6c484be419d4e101d09a76131"),
     "mmproj-F16.gguf": (899283584, "71f3cbc1f7cc0f30d09d41cfa924c0060827ebc33bf15ace7e86661e856f0160"),
 }
-# PolyStrata: FAMILIES has "qwen36" too (the strata-poly engine, smaller sizes for 8 GB cards), so this one is
+# PolyStrata: FAMILIES has "qwen36" too (the hyper engine, smaller sizes for 8 GB cards), so this one is
 # "qwen36-strata", with a tag of its own: choices_from_config() tells the two families' configs apart by the tag.
 OWN_PATH_FAMILIES = {
     "qwen36-strata": {"title": "Qwen3.6-35B-A3B", "by": "Qwen; GGUFs with the MTP layer by Unsloth", "arch": "qwen35moe",
@@ -739,28 +741,29 @@ VISION_GPU_SMALL_RESERVE_MIB = 1000    # the tip for images on a <= 12 GB card (
 VISION = {"gpu": {"max_tokens": 1024, "reserve_mib": 700},
           "cpu": {"max_tokens": 300, "reserve_mib": 700}}
 EXE = "strata.exe" if WIN else "strata"
-VEXE = "strata-vision.exe" if WIN else "strata-vision"
+VEXE = "hyper-vision.exe" if WIN else "hyper-vision"
 # The engine of GLM 5.3 Flash and of the models that are read from one GGUF (docs/BACKENDS.md), in a folder of its
 # own like the CUDA 12 engine's, so the ready-made engine beside it stays as it was downloaded.  On Windows it comes
 # ready-made when the latest release was built from this checkout's engine source, and is compiled here otherwise.
-# It was called strata-glm, after its first model, and an install from then has that name and folder in its run
-# config (poly_config(), update_poly_engine()).
-POLY_EXE = "strata-poly.exe" if WIN else "strata-poly"
+# It was called strata-poly, after the PolyStrata project, and an install from before the Wave B rename has that
+# name and folder in its run config (poly_config(), update_poly_engine()).
+POLY_EXE = "hyper.exe" if WIN else "hyper"
 # The ready-made one (tools/make_poly_release.py): an asset named after the source_hash() of the engine and the
 # encoder in it (poly_asset()), so a checkout finds the build of its own source or none.  STRATA_POLY_PREBUILT_URL:
-# another folder, a local one too.
+# another folder, a local one too (kept: the only release host with engine assets so far is PolyStrata's; a
+# HyperStrata release must publish a hyper-*.zip asset before the ready-made path works again).
 POLY_PREBUILT_URL = os.environ.get("STRATA_POLY_PREBUILT_URL",
                                    "https://github.com/VecSzn/PolyStrata/releases/latest/download/")
-POLY_ASSET = "strata-poly-windows-x64-{src}.zip"
-# A model of strata-poly that reads pictures has its image encoder on the GPU from this much VRAM (GiB), and on the
+POLY_ASSET = "hyper-windows-x64-{src}.zip"
+# A model of hyper that reads pictures has its image encoder on the GPU from this much VRAM (GiB), and on the
 # CPU below it: the encoder holds 1.6 to 2.4 GB there, which a smaller card needs for the model
 POLY_VISION_GPU_GB = 15.5
-ENGINE_POLY_DIR = "engine-poly"
-OLD_POLY_EXE = "strata-glm.exe" if WIN else "strata-glm"
-OLD_ENGINE_POLY_DIR = "engine-glm"
+ENGINE_POLY_DIR = "engine-hyper"
+OLD_POLY_EXE = "strata-poly.exe" if WIN else "strata-poly"
+OLD_ENGINE_POLY_DIR = "engine-poly"
 POLY_CONTEXTS = [8192, 32768, 65536, 131072]
 GLM_ROW_BYTES = 28160           # VRAM per context token: a row in each of the 11 sparse attention layers' caches
-# Phase 1c (q4_0 KV plan): strata-poly's independent KV knobs, --kv (the target model) and --draft-kv (the draft
+# Phase 1c (q4_0 KV plan): hyper's independent KV knobs, --kv (the target model) and --draft-kv (the draft
 # block), each fp16 | q8_0 | q4_0 (src/poly/main.cpp parses the same three; omitted is fp16).  Only the qwen35moe
 # families take a non-fp16 knob (docs/BACKENDS.md names the architecture per family; the engine refuses the others
 # per knob, src/poly/engine.cpp), and only on CUDA (src/poly/main.cpp refuses them on HIP).
@@ -1452,7 +1455,7 @@ def cuda_choice(archs, cuda=None, poly=False):
     if str(cuda) == "13":
         return 13, ("--cuda 13 (as you chose)" + (f"; CUDA 13 has no code for sm_{old[0]}: the engine will not run "
                                                    "on that card" if old else ""))
-    if str(cuda) == "12":                              # #220 is the Qwen engine's prompt path, not strata-poly's
+    if str(cuda) == "12":                              # #220 is the Qwen engine's prompt path, not hyper's
         crashed = archs and archs[-1] >= 120 and not poly
         return 12, "--cuda 12 (as you chose" + ("; RTX 50 (sm_120) engines built with CUDA 12.8 crashed on long "
                                                   "prompts, #220" if crashed else "") + ")"
@@ -1473,9 +1476,9 @@ def config_toolkit(cfg: dict) -> int:
 
 
 def gpu_problem(g, together=False):
-    """Why PolyStrata cannot use this card, in plain words (None: it can)."""
+    """Why HyperStrata cannot use this card, in plain words (None: it can)."""
     if int(g["arch"]) < 75 and not (sm60_card(g["arch"]) and experimental_sm60()):
-        return (f"not supported - older than the RTX 20 series (compute capability {cc(g)}; PolyStrata needs 7.5 or "
+        return (f"not supported - older than the RTX 20 series (compute capability {cc(g)}; HyperStrata needs 7.5 or "
                 "newer" + ("; experimental: choose it with --gpu " + str(g["index"]) + " (the CUDA 12 engine, "
                           "docs/OLDER_GPUS.md)" if sm60_card(g["arch"]) else "") + ")")
     if together and g["vram_gb"] < SPLIT_MIN_VRAM_GB - 0.5:
@@ -1527,7 +1530,7 @@ def parse_gpus(text, found) -> list:
         sel = [g["index"] for g in together_ok(found)]
         if not sel:
             gpu_table(found)
-            fail("--gpus all: this PC does not have two GPUs PolyStrata can use together")
+            fail("--gpus all: this PC does not have two GPUs HyperStrata can use together")
         return sel
     try:
         sel = [int(x) for x in str(text).split(",") if x.strip()]
@@ -1563,7 +1566,7 @@ def check_gpus(sel, found, what="", yes=False, named=False) -> None:
         ones = " or ".join(f"--gpu {x['index']}" for x in single)
         both = "--gpus " + ",".join(str(x["index"]) for x in can) if can else ""
         hint = ((f"use these together: {both}" + (f" (or one card: {ones})" if not together else "")) if can else
-                f"use one card: {ones}" if single else "PolyStrata needs an NVIDIA RTX 20 series or newer card")
+                f"use one card: {ones}" if single else "HyperStrata needs an NVIDIA RTX 20 series or newer card")
         fail(f"GPU {i}{'' if g is None else ' (' + g['name'] + ')'} {what}cannot be used: {p}", hint)
 
 
@@ -1596,7 +1599,7 @@ def engine_runs_on(g, toolkit=13) -> bool:
 
 def start_gpus(text):
     """--gpus when starting an installed model: NVIDIA cards as nvidia-smi numbers them, or on a PC whose AMD cards
-    are the ones PolyStrata can use, AMD cards as setup lists them ("all": every supported AMD card)."""
+    are the ones HyperStrata can use, AMD cards as setup lists them ("all": every supported AMD card)."""
     if not text:
         return None
     found = gpus()
@@ -1624,12 +1627,12 @@ def choose_gpus(a, found) -> list:
     single = sorted([g for g in found if gpu_problem(g) is None], key=lambda x: (-round(x["vram_gb"]), x["index"]))
     if not single:
         gpu_table(found)
-        fail("none of your GPUs can run PolyStrata", "it needs an NVIDIA RTX 20 series or newer (compute capability 7.5+)")
+        fail("none of your GPUs can run HyperStrata", "it needs an NVIDIA RTX 20 series or newer (compute capability 7.5+)")
     can = together_ok(found)
     if not can:
         return [single[0]["index"]]
     say()
-    say(f"  PolyStrata can run the model on one GPU, or share it across {'these' if len(can) > 2 else 'both'}: then each"
+    say(f"  HyperStrata can run the model on one GPU, or share it across {'these' if len(can) > 2 else 'both'}: then each"
         " card holds the")
     say("  experts of its own layers, so together they hold about twice as many, and prompts are read about 20%")
     say("  faster (details: docs/MULTI_GPU.md). A much slower extra card can also make it slower.")
@@ -1786,7 +1789,7 @@ def offer_together(cfg_path: Path, cfg: dict, yes: bool) -> dict:
     # #642: the engines from RESIDENT_SPLIT_ENGINE keep it on both cards, so they are offered as for any config
     resident = "--resident-experts" in cfg.get("args", []) and not resident_split()
     say()
-    say("  This PC has " + " and ".join(gpu_name(g) for g in pair) + ": PolyStrata can share the model across both.")
+    say("  This PC has " + " and ".join(gpu_name(g) for g in pair) + ": HyperStrata can share the model across both.")
     say("  Together they hold about twice the model's experts and read prompts about 20% faster (docs/MULTI_GPU.md).")
     if resident:
         say("  This model runs in the low-RAM mode with its experts kept in RAM, on one GPU (recommended: steady RAM")
@@ -1823,7 +1826,7 @@ def offer_together(cfg_path: Path, cfg: dict, yes: bool) -> dict:
 
 
 def gpu_info(pick=None):
-    """The GPU PolyStrata runs on: `pick` (nvidia-smi's number) if given, else the one with the most VRAM (ties: the
+    """The GPU HyperStrata runs on: `pick` (nvidia-smi's number) if given, else the one with the most VRAM (ties: the
     lower number).  None when there is no NVIDIA GPU.  The dict also says how many there are ("count")."""
     found = gpus()
     if not found:
@@ -2085,13 +2088,13 @@ def gguf_dir_shards(folder: Path, fam: dict, model: str) -> list[Path]:
 # #444: the quantization in a GGUF's name (Unsloth's UD-IQ3_XXS, a K-quant's Q2_K_XL, a GSQ-RCO IQ3_S, ...)
 GGUF_QUANT = re.compile(r"(?<![A-Za-z0-9])((?:UD-)?(?:I?Q\d+(?:_[A-Za-z0-9]+)*|BF16|F16|F32))"
                         r"(?=-\d{5}-of-\d{5}\.gguf$|\.gguf$)", re.I)
-SUPPORTED_GGUFS = ("PolyStrata runs ISTA-DASLab's GSQ-RCO files (Qwen3.8-Flash-Next Q2_0, IQ2_XS, IQ3_XXS, IQ3_S; Swift "
+SUPPORTED_GGUFS = ("HyperStrata runs ISTA-DASLab's GSQ-RCO files (Qwen3.8-Flash-Next Q2_0, IQ2_XS, IQ3_XXS, IQ3_S; Swift "
                    "1.5's; the Coder's IQ1_M) and Unsloth's UD-IQ4_XS, UD-Q4_K_XL, UD-Q5_K_XL, UD-Q6_K_XL and Q8_0 "
                    "only: other GGUFs (Unsloth's UD-IQ3_XXS or UD-Q2_K_XL, other K-quant files) cannot be used")
 
 
 def gguf_unsupported(name: str) -> str | None:
-    """#444: the quantization a GGUF's name says, when it is one PolyStrata cannot run (not a setup size); else None."""
+    """#444: the quantization a GGUF's name says, when it is one HyperStrata cannot run (not a setup size); else None."""
     m = GGUF_QUANT.search(name)
     return m.group(1) if m and m.group(1).upper() not in MODELS and not name.lower().startswith("mmproj") else None
 
@@ -2110,12 +2113,12 @@ def gguf_choice(name: str) -> tuple | None:
 
 def gguf_dir_problem(folder: Path, first: Path, fam: dict, model: str) -> tuple | None:
     """#444: (message, hint) when --gguf-dir has no file setup can use for this choice: the chosen shard is a GGUF
-    PolyStrata cannot run (Unsloth's UD-IQ3_XXS taken for IQ3_XXS by its name), or it is missing and the folder holds
+    HyperStrata cannot run (Unsloth's UD-IQ3_XXS taken for IQ3_XXS by its name), or it is missing and the folder holds
     other GGUFs - then the hint names the --family/--model of the usable ones.  None otherwise (a missing shard in a
     folder without GGUFs stays check_shards' "missing")."""
     bad = gguf_unsupported(first.name) if first.exists() else None
     if bad:
-        return f"{first.name} is {bad}, a GGUF PolyStrata cannot run", SUPPORTED_GGUFS
+        return f"{first.name} is {bad}, a GGUF HyperStrata cannot run", SUPPORTED_GGUFS
     if first.exists():
         return None
     firsts = sorted(p.name for p in folder.glob("*.gguf")
@@ -2824,7 +2827,7 @@ def amd_gpus(sysfs="/sys"):
 
 def amd_problem(g):
     if g["arch"] not in AMD_ARCHS:
-        return (f"not supported - PolyStrata's AMD backend runs on {AMD_CARDS} only, this is {g['arch']}"
+        return (f"not supported - HyperStrata's AMD backend runs on {AMD_CARDS} only, this is {g['arch']}"
                 + (" (an integrated Radeon, not Strix Halo)" if g["arch"] in ("gfx1150", "gfx1152", "gfx1103") else ""))
     if g.get("cannot_run"):                            # Windows: the installed engine's own check (--list-devices)
         return g["cannot_run"]
@@ -2862,7 +2865,7 @@ def amd_parse_gpus(text, amd) -> list:
             fail(f"--gpus takes AMD GPU numbers as setup lists them, e.g. --gpus 1,0 (or --gpus all), not {text!r}")
     if len(sel) < 2 or len(set(sel)) != len(sel):
         fail("--gpus takes two or more different GPUs, e.g. --gpus 1,0 (one GPU: --gpu 1)",
-             "this PC has " + (f"{len(usable)} AMD card{'s' if len(usable) != 1 else ''} PolyStrata can use"
+             "this PC has " + (f"{len(usable)} AMD card{'s' if len(usable) != 1 else ''} HyperStrata can use"
                                + (": " + ", ".join(f"GPU {g['index']} ({g['name']})" for g in usable) if usable else "")))
     byid = {g["index"]: g for g in amd}
     for i in sel:
@@ -3099,7 +3102,7 @@ def hip_runtime_beside_exe(eng: Path) -> None:
                 shutil.copy2(src, dst)
             except OSError as e:                   # e.g. the engine is running and holds the old copy
                 warn(f"could not put {src.name} next to the AMD engine ({e}); if the engine stops on its first "
-                     "request, close PolyStrata and run START-HERE.bat again")
+                     "request, close HyperStrata and run START-HERE.bat again")
 
 
 def hip_match(card: dict, listed: list[dict], hip: list[dict]) -> dict | None:
@@ -3165,8 +3168,8 @@ def get_prebuilt_hip(url_base, gpu, updating=False) -> Path | None:
                 continue
             warn(f"no ready-made AMD engine at {base} ({e})")
             return None
-    say("  Downloading the ready-made PolyStrata engine for AMD GPUs (with the ROCm libraries it uses) ...")
-    download(base + WIN_HIP_ASSET, z, "PolyStrata AMD engine")
+    say("  Downloading the ready-made HyperStrata engine for AMD GPUs (with the ROCm libraries it uses) ...")
+    download(base + WIN_HIP_ASSET, z, "HyperStrata AMD engine")
     try:
         verify_engine_archive(z, WIN_HIP_ASSET, base)
     except UnverifiedEngine as e:
@@ -3239,7 +3242,7 @@ def rocm_root(archs):
         if (ver is None or ver >= ROCM_SYSTEM_MIN) and not missing:
             return sysroot, [str(sysroot / "lib")]
         if ver is not None and ver < ROCM_SYSTEM_MIN:
-            warn(f"the ROCm in {sysroot} is {ver[0]}.{ver[1]}; PolyStrata needs {ROCM_SYSTEM_MIN[0]}.{ROCM_SYSTEM_MIN[1]} "
+            warn(f"the ROCm in {sysroot} is {ver[0]}.{ver[1]}; HyperStrata needs {ROCM_SYSTEM_MIN[0]}.{ROCM_SYSTEM_MIN[1]} "
                  "or newer: using AMD's wheels in .venv instead")
         else:                                          # #446: a runtime-only ROCm (no -dev packages): cmake would fail
             warn(f"the ROCm in {sysroot} has no HIP development files ({', '.join(missing)}): using AMD's wheels in "
@@ -3349,7 +3352,7 @@ def build_engine_hip(gpu, llama, vision="none") -> Path:
     os.environ["PATH"] = os.pathsep.join([str(root / "bin"), str(root / "llvm" / "bin"), os.environ.get("PATH", "")])
     say("  The engine's source changed: compiling it again (only what changed, a few minutes) ..."
         if meta.get("backend") == "hip" and (eng / EXE).exists() and has_archs
-        else f"  Compiling the PolyStrata engine for your AMD GPU{'s' if len(archs) > 1 else ''} ({', '.join(archs)}; "
+        else f"  Compiling the HyperStrata engine for your AMD GPU{'s' if len(archs) > 1 else ''} ({', '.join(archs)}; "
              "10-20 minutes, once) ...")
     cmake_build(ROOT, ROOT / "build-hip", "strata",
                 ["-DSTRATA_ENABLE_HIP=ON", "-DSTRATA_ENABLE_CUDA=OFF", "-DSTRATA_BUILD_TESTS=OFF",
@@ -3389,7 +3392,7 @@ def build_vision_cpu(eng: Path, stamp: Path, meta: dict, llama, vsrc) -> Path:
     """#304: the CPU image encoder beside the HIP engine (tools/vision without CUDA), recorded in its BUILD.json."""
     if not ((eng / VEXE).exists() and meta.get("vision_src") == vsrc):
         say("  Compiling the image encoder (for the CPU) ...")
-        cmake_build(ROOT / "tools" / "vision", ROOT / "build-vision", "strata-vision",
+        cmake_build(ROOT / "tools" / "vision", ROOT / "build-vision", "hyper-vision",
                     [f"-DLLAMA_DIR={llama}", "-DSTRATA_VISION_CUDA=OFF", "-DSTRATA_PORTABLE=OFF"],
                     find_vcvars() if WIN else None,
                     "build-vision-cpu.bat" if WIN else "")   # #881: MSVC's environment on Windows, as the CUDA path has
@@ -3740,7 +3743,7 @@ def engine_refused(asset: str, e: Exception, updating: bool) -> None:
     catches what the download can throw.
     """
     if not updating:
-        fail(f"the downloaded PolyStrata engine does not match GitHub's checksum: {e}",
+        fail(f"the downloaded HyperStrata engine does not match GitHub's checksum: {e}",
              "the bad download has been deleted (corrupt or tampered), so the next run fetches the "
              "published file again. Set STRATA_SKIP_SHA256=1 only if you insist on installing it anyway")
         return
@@ -3876,8 +3879,8 @@ def get_prebuilt(url_base, gpu, vision, updating=False, toolkit=13) -> Path | No
                 continue
             warn(f"no ready-made engine at {base} ({e})" + ("" if updating else ": compiling instead"))
             return None
-    say("  Downloading the ready-made PolyStrata engine" + (" (CUDA 12, experimental)" if int(toolkit) == 12 else "") + " ...")
-    download(base + asset, z, "PolyStrata engine")
+    say("  Downloading the ready-made HyperStrata engine" + (" (CUDA 12, experimental)" if int(toolkit) == 12 else "") + " ...")
+    download(base + asset, z, "HyperStrata engine")
     try:
         verify_engine_archive(z, asset, base)
     except UnverifiedEngine as e:
@@ -4108,7 +4111,7 @@ def install_build_tools(gpu, yes):
              "install CUDA 12.9 (it can sit next to a newer one) from https://developer.nvidia.com/cuda-toolkit-archive "
              "and run it again (STRATA_NVCC=<its nvcc> picks one toolkit)")
     # RTX 50 (sm_120): CUDA 13.0 - an engine built with 12.8 crashed in the prompt path on Linux (#220).
-    # gpu["need_cuda"]: another engine's own floor (strata-poly, which is another prompt path: build_engine_poly)
+    # gpu["need_cuda"]: another engine's own floor (hyper, which is another prompt path: build_engine_poly)
     need_cuda = need12 if old else gpu.get("need_cuda") or ((13, 0) if max(archs) >= 120 else (12, 0))
     vcvars = find_vcvars(cuda_v) if WIN else None
     have_cc = vcvars is not None if WIN else shutil.which("g++") is not None
@@ -4307,7 +4310,7 @@ def build_engine(gpu, vision, yes, llama, toolkit=None) -> Path:
         say("  Compiling the engine for " + ", ".join(f"sm_{x}" for x in archs) + " (a card it had no code for; "
             "10-20 minutes, once) ..." if new_arch else
             "  The engine's source changed: compiling it again (only what changed, a few minutes) ..."
-            if local and (eng / EXE).exists() else "  Compiling the PolyStrata engine for your GPU (10-20 minutes, once) ...")
+            if local and (eng / EXE).exists() else "  Compiling the HyperStrata engine for your GPU (10-20 minutes, once) ...")
         cmake_build(ROOT, bdir, "strata",
                     ["-DSTRATA_ENABLE_CUDA=ON", "-DSTRATA_BUILD_TESTS=OFF", f"-DCMAKE_CUDA_ARCHITECTURES={cuda_archs}",
                      f"-DCMAKE_CUDA_COMPILER={nvcc}", *toolkit_root_defs(nvcc), f"-DSTRATA_GGML_DIR={llama}",
@@ -4330,7 +4333,7 @@ def build_engine(gpu, vision, yes, llama, toolkit=None) -> Path:
         if vision == "gpu":
             defs += [f"-DCMAKE_CUDA_ARCHITECTURES={cuda_archs}", f"-DCMAKE_CUDA_COMPILER={nvcc}",
                      *toolkit_root_defs(nvcc)]
-        cmake_build(ROOT / "tools" / "vision", vdir, "strata-vision", defs, vcvars,
+        cmake_build(ROOT / "tools" / "vision", vdir, "hyper-vision", defs, vcvars,
                     "build-vision-cuda12.bat" if t12 else "build-vision.bat")
         shutil.copy2(vdir / "bin" / VEXE, eng / VEXE)
     bindir = Path(nvcc).parent                            # the toolkit's own libraries (bin, bin/x64, lib64)
@@ -4345,9 +4348,9 @@ def build_engine(gpu, vision, yes, llama, toolkit=None) -> Path:
 
 # ------------------------------------------------------------------------------------------------ the data folder
 # The model files - the GGUFs, the prepared packs and the MTP layer, 70-120 GB - live in a data folder NEXT TO the
-# PolyStrata folder (`PolyStrata-data`), not inside it: updating PolyStrata by unzipping a new copy used to give a new, empty
-# folder and a full download again.  Where it is, and which PolyStrata folders this user ran, is kept in a small
-# per-user file, so every PolyStrata folder on the PC finds the same files.
+# HyperStrata folder (`HyperStrata-data`), not inside it: updating HyperStrata by unzipping a new copy used to give a new, empty
+# folder and a full download again.  Where it is, and which HyperStrata folders this user ran, is kept in a small
+# per-user file, so every HyperStrata folder on the PC finds the same files.
 DATA_ITEMS = ("models", "packs", "mtp")
 
 
@@ -4595,6 +4598,12 @@ def ram_ctx(model, ram, low_ram=False) -> int:
 
 def settings_path() -> Path:
     if WIN:
+        return Path(os.environ.get("APPDATA") or Path.home() / "AppData" / "Roaming") / "HyperStrata" / "settings.json"
+    return Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config") / "hyperstrata" / "settings.json"
+
+
+def _legacy_settings_path() -> Path:
+    if WIN:
         return Path(os.environ.get("APPDATA") or Path.home() / "AppData" / "Roaming") / "PolyStrata" / "settings.json"
     return Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config") / "polystrata" / "settings.json"
 
@@ -4603,7 +4612,15 @@ def load_settings() -> dict:
     try:
         return json.loads(settings_path().read_text(encoding="utf-8"))
     except (OSError, ValueError):
-        return {}
+        pass
+    try:
+        legacy = _legacy_settings_path()
+        if legacy.is_file():
+            warn(f"using settings from {legacy}; move them to {settings_path()}")
+            return json.loads(legacy.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        pass
+    return {}
 
 
 def save_settings(s: dict) -> None:
@@ -4625,15 +4642,16 @@ def has_data(folder: Path) -> bool:
 
 
 def other_installs(settings: dict) -> list:
-    """PolyStrata folders besides this one that may hold model files: the ones this user ran before, and PolyStrata* folders
-    next to this one (a zip unpacked again lands in e.g. `PolyStrata-main (1)\\PolyStrata-main`)."""
+    """HyperStrata folders besides this one that may hold model files: the ones this user ran before, and
+    HyperStrata* or PolyStrata* folders next to this one (a zip unpacked again lands in e.g. `HyperStrata-main (1)`
+    or, from before the rename, `PolyStrata-main (1)\\PolyStrata-main`)."""
     cands = [Path(p) for p in settings.get("installs", [])]
     for base in dict.fromkeys((ROOT.parent, ROOT.parent.parent)):
         try:
             for d in base.iterdir():
-                if d.is_dir() and d.name.lower().startswith("polystrata"):
+                if d.is_dir() and d.name.lower().startswith(("hyperstrata", "polystrata")):
                     cands.append(d)
-                    cands += [c for c in d.iterdir() if c.is_dir() and c.name.lower().startswith("polystrata")]
+                    cands += [c for c in d.iterdir() if c.is_dir() and c.name.lower().startswith(("hyperstrata", "polystrata"))]
         except OSError:
             pass
     found = []
@@ -4705,22 +4723,25 @@ def repoint_config(cfg_file: Path, old: Path, new: Path) -> None:
 
 def data_folder(requested: str | None) -> tuple:
     """(the data folder, folders on other drives that still hold model files).  Moves the model files of this folder
-    and of earlier PolyStrata folders on the same drive into the data folder, and points their configs there."""
+    and of earlier HyperStrata (or, from before the rename, PolyStrata) folders on the same drive into the data
+    folder, and points their configs there."""
     settings = load_settings()
     dest = Path(requested).expanduser().resolve() if requested else \
-        Path(settings["data_dir"]) if settings.get("data_dir") else ROOT.parent / "PolyStrata-data"
+        Path(settings["data_dir"]) if settings.get("data_dir") else ROOT.parent / "HyperStrata-data"
     try:
         dest.mkdir(parents=True, exist_ok=True)
-    except OSError as e:                                # e.g. no write access next to the PolyStrata folder
+    except OSError as e:                                # e.g. no write access next to the HyperStrata folder
         warn(f"cannot use {dest} for the model files ({e}): keeping them in {ROOT}")
         dest = ROOT
     elsewhere = []
-    # #198: the data folder remembered before (a --data-dir to a new place) is a source too, and so is a PolyStrata-data
-    # folder nested in any of them (an install that kept its models one level down)
+    # #198: the data folder remembered before (a --data-dir to a new place) is a source too, and so is a
+    # HyperStrata-data (or, from before the rename, PolyStrata-data) folder nested in any of them (an install
+    # that kept its models one level down)
     sources = [ROOT, *other_installs(settings)]
     if settings.get("data_dir") and Path(settings["data_dir"]) != dest:
         sources.append(Path(settings["data_dir"]))
-    sources += [f / "PolyStrata-data" for f in list(sources) if (f / "PolyStrata-data") != dest]
+    sources += [f / stem for f in list(sources) for stem in ("HyperStrata-data", "PolyStrata-data")
+                if (f / stem) != dest]
     seen = set()
     for folder in sources:
         key = os.path.normcase(str(folder))
@@ -4751,7 +4772,7 @@ def data_folder(requested: str | None) -> tuple:
             elsewhere.append(folder)                    # in use, or a copy the data folder already has
             warn(f"some model files are still in {folder} (in use, or already in {dest})")
         else:
-            ok(f"model files from {folder} moved to {dest} (a new copy of PolyStrata finds them there)")
+            ok(f"model files from {folder} moved to {dest} (a new copy of HyperStrata finds them there)")
     installs = [str(ROOT)] + [p for p in settings.get("installs", []) if p != str(ROOT) and Path(p).is_dir()]
     save_settings({**settings, "data_dir": str(dest), "installs": installs[:20]})
     return dest, elsewhere
@@ -4821,8 +4842,7 @@ def flag_value(args: list, flag: str):
 
 def carry_profile_args(old: dict, cfg: dict) -> list[str]:
     """#775: a learned expert profile the user wired in by hand (--expert-profile <their file>, --expert-profile-save
-    <file>) survives a setup run: setup writes the shipped profile, which a measured one of their own beats (2.5-3.1x at
-    256K on a 16 GB card in the report).  Their --expert-profile replaces the shipped one only when it is another file
+    <file>) survives a setup run: setup writes the shipped profile, which a measured profile on [that rig, date] reported 2.5-3.1x at [workload] — reported, re-measure after engine changes.  Their --expert-profile replaces the shipped one only when it is another file
     that still exists; --expert-profile-save is kept when the new config has none.  The names kept are returned."""
     oargs, nargs = old.get("args"), cfg.get("args")
     if not isinstance(oargs, list) or not isinstance(nargs, list):
@@ -4843,9 +4863,9 @@ def carry_poly_kv_args(old: dict, cfg: dict) -> list[str]:
     """A --kv / --draft-kv the user wired in by hand survives a setup run, as --expert-profile does: setup
     writes the flags only when asked for them, so without this a regeneration drops a hand-added pair and the engine
     silently runs fp16 again.  Each flag is kept only when the new config has none; a value outside POLY_KV_FORMATS
-    is not kept (args_dropped names it on the .bak line).  Only a strata-poly config takes them (poly_config):
+    is not kept (args_dropped names it on the .bak line).  Only a hyper config takes them (poly_config):
     a Flash-Next config never gains --draft-kv this way.  Flash-Next's --kv int8/k8v4 never match, but its q4_0
-    spells the same as strata-poly's and is carried.  A kept non-fp16 value the new install would refuse warns
+    spells the same as hyper's and is carried.  A kept non-fp16 value the new install would refuse warns
     like poly_kv_choice and stays fp16 instead: outside the qwen35moe families, on a HIP backend, a --draft-kv
     for a size with no draft block, or beside a --no-draft.  The names kept are returned."""
     oargs, nargs = old.get("args"), cfg.get("args")
@@ -5050,7 +5070,7 @@ def model_config(path: Path) -> bool:
         why = e.strerror or str(e)
     except ValueError:
         why = "not valid JSON"
-    warn(f"skipped {path.name} ({why}): it is not a PolyStrata model config")
+    warn(f"skipped {path.name} ({why}): it is not a HyperStrata model config")
     return False
 
 
@@ -5166,7 +5186,7 @@ def calibrate_config(cfg_path: Path) -> bool:
     import calibrate as CAL
     cfg = json.loads(cfg_path.read_text(encoding="utf-8-sig"))
     say()
-    say("  Tuning PolyStrata for this PC: the output speed is measured with a few engine settings (the PCIe share, the")
+    say("  Tuning HyperStrata for this PC: the output speed is measured with a few engine settings (the PCIe share, the")
     say("  draft depth, the CPU threads, the expert cache). It takes roughly 15-30 minutes (3 rounds of each value); the PC is busy meanwhile.")
     try:
         since = os.path.getsize(cfg["log"]) if cfg.get("log") and os.path.isfile(cfg["log"]) else 0
@@ -5190,7 +5210,7 @@ def calibrate_config(cfg_path: Path) -> bool:
         ok("tuned for this PC: " + ", ".join(f"{k} {v}" for k, v in res["settings"].items())
            + (f" ({res['report']['tok_s']} tok/s)" if res["report"].get("tok_s") else ""))
     else:
-        ok("tuned for this PC: the default settings are already the fastest here"
+        ok("tuned for this PC: the default settings measured fastest on this PC in calibration (date/log); re-run --calibrate after engine updates."
            + (f" ({res['report']['tok_s']} tok/s)" if res["report"].get("tok_s") else ""))
     return True
 
@@ -5243,7 +5263,7 @@ def update_install(have: list, a) -> int:
     keeps its engine (update_installed_engine says to close it and run this again)."""
     have = [p for p in have if model_config(p)]        # #549: a strata-*.json that is no model config is skipped
     if not have:
-        say("  No model is installed in this PolyStrata folder yet: run START-HERE.bat (Linux: ./setup.sh) to set it up -")
+        say("  No model is installed in this HyperStrata folder yet: run START-HERE.bat (Linux: ./setup.sh) to set it up -")
         say("  it finds an earlier install's model files next to it and reuses them.")
         return 0
     pip_install(requirement_lines() if REQUIREMENTS.exists() else PY_PACKAGES,
@@ -5264,7 +5284,7 @@ def update_install(have: list, a) -> int:
         ok(f"{cfg.get('model_name', cfg_path.stem)}: up to date")
     ver = engine_version(Path(json.loads(have[0].read_text(encoding="utf-8-sig"))["exe"]))
     say()
-    ok("PolyStrata is updated" + (f" (engine {'.'.join(map(str, ver))})" if any(ver) else "") +
+    ok("HyperStrata is updated" + (f" (engine {'.'.join(map(str, ver))})" if any(ver) else "") +
        ". Start the model with " + ("START-HERE.bat" if WIN else "./setup.sh") + " when you want it.")
     return 0
 
@@ -5302,7 +5322,7 @@ def start(cfg_path: Path, port: int | None, gpu: int | list | None = None, open_
     missing = [p for p in [cfg["exe"], *[a for a in cfg["args"] if a.endswith(".gguf")]] if not Path(p).exists()]
     if missing:
         fail(f"{cfg_path.name} refers to missing files: {missing[0]}", "run it again with --setup to repair")
-    glm = poly_config(cfg)                              # a model of strata-poly: its own engine (engine-poly/)
+    glm = poly_config(cfg)                              # a model of hyper: its own engine (engine-hyper/)
     if glm:
         if isinstance(gpu, list):                      # update_poly_engine() wants code for these cards
             cfg["gpu"] = gpu
@@ -5824,7 +5844,7 @@ def write_run_script(model, cfg_path, port, open_browser=True):
              "--port", str(port)] + (["--open"] if open_browser else [])
     if WIN:
         script = ROOT / f"run-{model.lower()}.bat"
-        script.write_text("@echo off\r\ntitle PolyStrata " + model + "\r\ncd /d \"" + str(ROOT) + "\"\r\n" +
+        script.write_text("@echo off\r\ntitle HyperStrata " + model + "\r\ncd /d \"" + str(ROOT) + "\"\r\n" +
                           " ".join(f'"{x}"' for x in serve) + "\r\nif errorlevel 1 pause\r\n", encoding="utf-8")
     else:
         script = ROOT / f"run-{model.lower()}.sh"
@@ -5873,7 +5893,7 @@ def resolve_rope(ctx: int, scaling, scale, trained: int = 262144):
 
 # ------------------------------------------------------------------------------------------------ GLM 5.3 Flash
 def poly_config(cfg: dict) -> bool:
-    """A run config of strata-poly, under this name or the one it had."""
+    """A run config of hyper, under this name or the one it had (strata-poly, before the Wave B rename)."""
     return Path(str(cfg.get("exe", ""))).name in (POLY_EXE, OLD_POLY_EXE)
 
 
@@ -5889,7 +5909,7 @@ def poly_held_gb(d, vram_gb) -> float:
 
 
 def poly_parallel_note(asked: int | None, d, vram_gb) -> list[str]:
-    """What setup says of "parallel" for a strata-poly size: answers written together pay where the card holds every
+    """What setup says of "parallel" for a hyper size: answers written together pay where the card holds every
     expert of the size.  Where most of them run on the CPU, different requests route to different experts and the
     CPU does each one's: on the 8 GB laptop three Qwen3.6 UD-Q3_K_M chats at once wrote 105 tokens/s together and
     79 one after the other, so there "parallel" gains less than it does on a large card."""
@@ -5926,7 +5946,7 @@ def poly_kv_row_bytes(fam, kv="fp16", draft_kv="fp16") -> float:
     try:
         f, df = POLY_KV_SCALE[kv], POLY_KV_SCALE[draft_kv]
     except KeyError:
-        fail(f"--kv {kv} / --draft-kv {draft_kv}: strata-poly takes fp16, q8_0 or q4_0")
+        fail(f"--kv {kv} / --draft-kv {draft_kv}: hyper takes fp16, q8_0 or q4_0")
     if kv == "fp16" and draft_kv == "fp16":
         return fam.get("row_bytes", GLM_ROW_BYTES)
     return fam.get("row_bytes", GLM_ROW_BYTES) * ((1 - POLY_KV_DRAFT_SHARE) * f + POLY_KV_DRAFT_SHARE * df)
@@ -5934,14 +5954,14 @@ def poly_kv_row_bytes(fam, kv="fp16", draft_kv="fp16") -> float:
 
 def poly_kv_choice(a, family, fam, d, hip, old_args=()) -> tuple:
     """Phase 1c: the validated (kv, draft_kv) for this install, each fp16 | q8_0 | q4_0 (omitted is fp16).
-    A value of the Flash-Next engine (int8, k8v4) fails; a non-fp16 knob the strata-poly engine would
+    A value of the Flash-Next engine (int8, k8v4) fails; a non-fp16 knob the hyper engine would
     refuse warns and falls back to fp16: outside the qwen35moe families (the arch gate, src/poly/engine.cpp), on a
     HIP engine (CUDA only, src/poly/main.cpp), a --draft-kv for a size with no draft block, or a --draft-kv beside a
     --no-draft of an earlier config (setup never writes --no-draft itself)."""
     kv, draft_kv = getattr(a, "kv", None) or "fp16", getattr(a, "draft_kv", None) or "fp16"
     for flag, v in (("--kv", kv), ("--draft-kv", draft_kv)):
         if v not in POLY_KV_FORMATS:
-            fail(f"{flag} {v}: strata-poly takes fp16 (the default, omitted), q8_0 or q4_0 (--family {family})")
+            fail(f"{flag} {v}: hyper takes fp16 (the default, omitted), q8_0 or q4_0 (--family {family})")
     title = fam["title"]
     if family not in POLY_KV_FAMILIES:
         for flag, v in (("--kv", kv), ("--draft-kv", draft_kv)):
@@ -5990,12 +6010,12 @@ def poly_ram_need(d, vram_gb) -> float:
 
 
 def poly_fits(d, ram, vram_gb, hip) -> bool:
-    """Whether a size of strata-poly's models runs on this PC with its experts in RAM, by setup's estimate."""
+    """Whether a size of hyper's models runs on this PC with its experts in RAM, by setup's estimate."""
     return not (hip and WIN) and vram_gb >= poly_beside_gb(d) + 2 and ram >= poly_ram_need(d, vram_gb) - 4
 
 
 def poly_verdict(d, ram, vram_gb, hip, windows=False) -> str:
-    """--check's line for a size of strata-poly's models.  `windows`: its family has run there (FAMILIES)."""
+    """--check's line for a size of hyper's models.  `windows`: its family has run there (FAMILIES)."""
     if hip and WIN:
         return "does not run on AMD cards on Windows yet (its HIP engine is compiled on Linux)"
     if vram_gb < poly_beside_gb(d) + 2:
@@ -6023,15 +6043,15 @@ def poly_saved_conv(paths) -> int | None:
 
 
 def poly_asset() -> str:
-    """The ready-made strata-poly's asset for this checkout: the engine and the image encoder are both in it."""
+    """The ready-made hyper engine's asset for this checkout: the engine and the image encoder are both in it."""
     return POLY_ASSET.format(src=source_hash(ENGINE_SOURCES + VISION_SOURCES))
 
 
 def get_poly_prebuilt(gpu) -> bool:
-    """The ready-made strata-poly and image encoder of this checkout's source in engine-poly/, with NVIDIA's CUDA 13
-    libraries from pip.  False when the release has none for this source or this GPU, off Windows, with a driver
-    older than CUDA 13's or a CPU without AVX2.  An engine already there for this source and GPU is kept, ready-made
-    or compiled, unless it was compiled with CUDA 12."""
+    """The ready-made hyper engine and image encoder of this checkout's source in engine-hyper/, with NVIDIA's
+    CUDA 13 libraries from pip.  False when the release has none for this source or this GPU, off Windows, with a
+    driver older than CUDA 13's or a CPU without AVX2.  An engine already there for this source and GPU is kept,
+    ready-made or compiled, unless it was compiled with CUDA 12."""
     eng = ROOT / ENGINE_POLY_DIR
     stamp = eng / "BUILD.json"
     meta = json.loads(stamp.read_text()) if stamp.exists() else {}
@@ -6053,16 +6073,16 @@ def get_poly_prebuilt(gpu) -> bool:
             req = urllib.request.Request(base + asset, method="HEAD", headers={"User-Agent": "strata-setup"})
             urllib.request.urlopen(req, timeout=60).close()
     except OSError as e:
-        say(f"  No ready-made strata-poly for this checkout ({e})")
+        say(f"  No ready-made hyper engine for this checkout ({e})")
         return False
     eng.mkdir(exist_ok=True)
     z = eng / asset
-    say("  Downloading the ready-made strata-poly engine ...")
-    download(base + asset, z, "strata-poly engine")
+    say("  Downloading the ready-made hyper engine ...")
+    download(base + asset, z, "hyper engine")
     try:
         verify_engine_archive(z, asset, base)
     except UnverifiedEngine as e:
-        warn(f"the ready-made strata-poly is not installed ({e})")
+        warn(f"the ready-made hyper engine is not installed ({e})")
         return False
     tmp = eng / "_unpack"
     shutil.rmtree(tmp, ignore_errors=True)
@@ -6074,7 +6094,7 @@ def get_poly_prebuilt(gpu) -> bool:
     new = json.loads((tmp / "BUILD.json").read_text(encoding="utf-8"))
     archs = {int(x) for x in new.get("archs", [])}
     if (new.get("src"), new.get("vision_src")) != (src, vsrc) or not cards <= archs:
-        warn(f"the ready-made strata-poly is built for {', '.join(f'sm_{x}' for x in sorted(archs))}, not for "
+        warn(f"the ready-made hyper engine is built for {', '.join(f'sm_{x}' for x in sorted(archs))}, not for "
              f"{', '.join(f'sm_{x}' for x in sorted(cards - archs)) or 'this source'}")
         shutil.rmtree(tmp, ignore_errors=True)
         return False
@@ -6082,13 +6102,13 @@ def get_poly_prebuilt(gpu) -> bool:
     for p in tmp.iterdir():
         p.replace(eng / p.name)
     shutil.rmtree(tmp, ignore_errors=True)
-    ok(f"ready-made strata-poly for {', '.join(f'sm_{x}' for x in sorted(archs))} (CUDA {new.get('cuda', '?')})")
+    ok(f"ready-made hyper engine for {', '.join(f'sm_{x}' for x in sorted(archs))} (CUDA {new.get('cuda', '?')})")
     return True
 
 
 def build_engine_poly(gpu, yes, llama, vision="none", toolkit=13) -> Path:
-    """Compile strata-poly for this GPU and, for images, the encoder beside it ("gpu": with CUDA, "cpu": without);
-    the results go to engine-poly/.  Each is compiled again when its source changed (a `git pull`); the engine also
+    """Compile hyper for this GPU and, for images, the encoder beside it ("gpu": with CUDA, "cpu": without);
+    the results go to engine-hyper/.  Each is compiled again when its source changed (a `git pull`); the engine also
     when the card is one it has no code for, and the encoder when it is wanted on the GPU and was built without.
     toolkit 12 (--cuda 12): with a CUDA 12.x toolkit, for a driver older than CUDA 13's or a Pascal / Volta card;
     both are compiled again when the ones there were built with the other toolkit."""
@@ -6110,7 +6130,7 @@ def build_engine_poly(gpu, yes, llama, vision="none", toolkit=13) -> Path:
     vision_ok = vision == "none" or ((eng / VEXE).exists() and meta.get("vision_src") == vsrc and
                                      (was == "gpu" and same or was == "cpu" and vision == "cpu"))
     if engine_ok and vision_ok:
-        ok(f"strata-poly already {'downloaded' if release else 'built'} for this PC")
+        ok(f"hyper already {'downloaded' if release else 'built'} for this PC")
         return eng
     # CUDA 12.8 is the toolkit it was written and measured with, on an RTX 5090: the Qwen engine's reason to want 13.0
     # there (#220, its prompt path) is not this engine's
@@ -6118,16 +6138,16 @@ def build_engine_poly(gpu, yes, llama, vision="none", toolkit=13) -> Path:
                                         "need_cuda": (12, 8) if max(archs) >= 120 else (12, 0)}, yes)
     cuda_archs = ";".join(str(x) for x in archs)
     if not engine_ok:
-        say("  strata-poly's source changed: compiling it again (only what changed, a few minutes) ..."
+        say("  hyper's source changed: compiling it again (only what changed, a few minutes) ..."
             if have and same and set(archs) == built else
-            "  Compiling the strata-poly engine for your GPU (some minutes, once) ...")
+            "  Compiling the hyper engine for your GPU (some minutes, once) ...")
         # a folder per toolkit: CMake does not take another compiler into a folder configured with one
-        bdir = ROOT / ("build-poly" if toolkit == 13 else "build-poly-cuda12")
+        bdir = ROOT / ("build-hyper" if toolkit == 13 else "build-hyper-cuda12")
         defs = ["-DSTRATA_ENABLE_CUDA=ON", "-DSTRATA_BUILD_TESTS=OFF", f"-DCMAKE_CUDA_ARCHITECTURES={cuda_archs}",
                 f"-DCMAKE_CUDA_COMPILER={nvcc}", f"-DSTRATA_GGML_DIR={llama}"]
         if min(archs) < CUDA13_MIN_ARCH:
             defs.append("-DSTRATA_EXPERIMENTAL_SM60=ON")
-        cmake_build(ROOT, bdir, "strata-poly", defs, vcvars, "build-strata-poly.bat")
+        cmake_build(ROOT, bdir, "hyper", defs, vcvars, "build-hyper.bat")
         shutil.copy2(bdir / POLY_EXE, eng / POLY_EXE)
     if not vision_ok:
         say("  Compiling the image encoder" + (" with CUDA (10-20 minutes, once) ..." if vision == "gpu" else " ..."))
@@ -6135,8 +6155,8 @@ def build_engine_poly(gpu, yes, llama, vision="none", toolkit=13) -> Path:
         if vision == "gpu":
             defs += [f"-DCMAKE_CUDA_ARCHITECTURES={cuda_archs}", f"-DCMAKE_CUDA_COMPILER={nvcc}"]
         # its own build folder: the Qwen engine's encoder may be built for another toolkit in build-vision/
-        vdir = ROOT / ("build-vision-poly" if toolkit == 13 else "build-vision-poly-cuda12")
-        cmake_build(ROOT / "tools" / "vision", vdir, "strata-vision", defs, vcvars, "build-vision-poly.bat")
+        vdir = ROOT / ("build-vision-hyper" if toolkit == 13 else "build-vision-hyper-cuda12")
+        cmake_build(ROOT / "tools" / "vision", vdir, "hyper-vision", defs, vcvars, "build-vision-hyper.bat")
         shutil.copy2(vdir / "bin" / VEXE, eng / VEXE)
         was, meta = vision, {**meta, "vision_src": vsrc}
     bindir = Path(nvcc).parent                            # the toolkit's own libraries (bin, bin/x64, lib64)
@@ -6146,12 +6166,12 @@ def build_engine_poly(gpu, yes, llama, vision="none", toolkit=13) -> Path:
     stamp.write_text(json.dumps({"source": "local", "version": source_version(), "archs": archs, "cuda_dirs": dirs,
                                  "toolkit": toolkit, "src": src, "vision": was, "vision_src": meta.get("vision_src")},
                                 indent=1))
-    ok(f"strata-poly compiled: {eng / POLY_EXE}" + (f", image encoder: {eng / VEXE}" if vision != "none" else ""))
+    ok(f"hyper compiled: {eng / POLY_EXE}" + (f", image encoder: {eng / VEXE}" if vision != "none" else ""))
     return eng
 
 
 def build_engine_poly_hip(gpu, llama) -> Path:
-    """Compile strata-poly for this AMD GPU into engine-poly/ (again only when its source changed: a `git pull`).
+    """Compile hyper for this AMD GPU into engine-hyper/ (again only when its source changed: a `git pull`).
     ROCm comes from rocm_root: a system ROCm 7 or AMD's TheRock wheels in .venv, as for the main engine's HIP
     build.  There is no ready-made AMD engine and no HIP image encoder: images stay off."""
     eng = ROOT / ENGINE_POLY_DIR
@@ -6163,10 +6183,10 @@ def build_engine_poly_hip(gpu, llama) -> Path:
     engine_ok = meta.get("backend") == "hip" and (eng / POLY_EXE).exists() and meta.get("src") == src and \
         set(archs) <= set(meta.get("archs", []))
     if engine_ok:
-        ok("strata-poly already built for this PC")
+        ok("hyper already built for this PC")
         return eng
     if not (shutil.which("c++") or shutil.which("g++")) or not shutil.which("git"):
-        fail("a C++ compiler and git are needed to compile the AMD strata-poly",
+        fail("a C++ compiler and git are needed to compile the AMD hyper",
              "Ubuntu/Debian: sudo apt install build-essential git   Fedora: sudo dnf install gcc-c++ git")
     root, dirs = rocm_root(archs)
     libs = [str(Path(d).parent) for d in dirs[1:]]
@@ -6176,25 +6196,25 @@ def build_engine_poly_hip(gpu, llama) -> Path:
                        "HIP_PATH": str(root)})
     os.environ["LD_LIBRARY_PATH"] = os.pathsep.join(dirs + [os.environ.get("LD_LIBRARY_PATH", "")]).rstrip(os.pathsep)
     os.environ["PATH"] = os.pathsep.join([str(root / "bin"), str(root / "llvm" / "bin"), os.environ.get("PATH", "")])
-    say("  strata-poly's source changed: compiling it again (only what changed, a few minutes) ..."
+    say("  hyper's source changed: compiling it again (only what changed, a few minutes) ..."
         if meta.get("backend") == "hip" and (eng / POLY_EXE).exists()
-        else f"  Compiling the strata-poly engine for your AMD GPU ({', '.join(archs)}; some minutes, once) ...")
-    cmake_build(ROOT, ROOT / "build-poly-hip", "strata-poly",
+        else f"  Compiling the hyper engine for your AMD GPU ({', '.join(archs)}; some minutes, once) ...")
+    cmake_build(ROOT, ROOT / "build-hyper-hip", "hyper",
                 ["-DSTRATA_ENABLE_HIP=ON", "-DSTRATA_ENABLE_CUDA=OFF", "-DSTRATA_BUILD_TESTS=OFF",
                  "-DCMAKE_HIP_ARCHITECTURES=" + ";".join(archs),
                  f"-DCMAKE_HIP_COMPILER={root / 'llvm' / 'bin' / 'clang++'}", f"-DCMAKE_HIP_COMPILER_ROCM_ROOT={root}",
                  "-DCMAKE_PREFIX_PATH=" + ";".join([str(root), *libs]),
                  f"-DCMAKE_HIP_FLAGS=--rocm-path={root} --rocm-device-lib-path={bitcode}",
                  f"-DSTRATA_GGML_DIR={llama}"], None, "")
-    shutil.copy2(ROOT / "build-poly-hip" / POLY_EXE, eng / POLY_EXE)
+    shutil.copy2(ROOT / "build-hyper-hip" / POLY_EXE, eng / POLY_EXE)
     stamp.write_text(json.dumps({"source": "local-hip", "backend": "hip", "version": source_version(),
                                  "archs": archs, "vision": "none", "lib_dirs": dirs, "src": src}, indent=1))
-    ok(f"strata-poly compiled: {eng / POLY_EXE}")
+    ok(f"hyper compiled: {eng / POLY_EXE}")
     return eng
 
 
 def update_poly_engine(cfg: dict, yes=False, cfg_path: Path | None = None) -> None:
-    """Before a model of strata-poly starts: the engine setup installed is replaced when its source changed (a `git
+    """Before a model of hyper starts: the engine setup installed is replaced when its source changed (a `git
     pull`) or the card is another generation, a ready-made one by the release's for the new source, one compiled here
     by a compile.  A ready-made one stays while no release has the new source: a compile would first install the
     build tools.  A failure must not stop the start: the installed one runs.  An install from before the engine was
@@ -6233,7 +6253,7 @@ def update_poly_engine(cfg: dict, yes=False, cfg_path: Path | None = None) -> No
                 and (vision == "none" or meta.get("vision_src") == source_hash(VISION_SOURCES))):
             # one compiled here (--build, a CPU without AVX2) stays so
             if meta.get("source") == "release" and not get_poly_prebuilt(gpu) and fits:
-                warn("the latest release has no ready-made strata-poly of this source: the one installed starts "
+                warn("the latest release has no ready-made hyper engine of this source: the one installed starts "
                      "(START-HERE.bat --setup --build compiles this source)")
                 return
             build_engine_poly(gpu, yes, get_llama_cpp(), vision, int(meta.get("toolkit", 13)))
@@ -6246,7 +6266,7 @@ def update_poly_engine(cfg: dict, yes=False, cfg_path: Path | None = None) -> No
         if renamed:
             ok(f"this install's engine is {POLY_EXE} now (it was {OLD_POLY_EXE}); {OLD_ENGINE_POLY_DIR}/ can be deleted")
     except (Exception, SystemExit) as e:
-        warn(f"could not update strata-poly{'' if isinstance(e, SystemExit) else f' ({e})'}: starting the installed one")
+        warn(f"could not update hyper{'' if isinstance(e, SystemExit) else f' ({e})'}: starting the installed one")
 
 
 def poly_tail_skip(cfg: dict, cfg_path: Path | None = None) -> None:
@@ -6265,7 +6285,7 @@ def poly_tail_skip(cfg: dict, cfg_path: Path | None = None) -> None:
 
 
 def poly_kv_whole(cfg: dict, cfg_path: Path | None = None) -> None:
-    """A config of strata-poly on an AMD card gets --kv-whole: ROCm keeps the VRAM that cuMemUnmap() and
+    """A config of hyper on an AMD card gets --kv-whole: ROCm keeps the VRAM that cuMemUnmap() and
     cuMemRelease() gave back (issue #13), so the attention caches take theirs at load instead of as the
     conversation grows, where the expert cache's VRAM would be lost to them.  A config that has it keeps it."""
     a = cfg["args"]
@@ -6283,7 +6303,7 @@ def poly_kv_whole(cfg: dict, cfg_path: Path | None = None) -> None:
 
 
 def poly_setup(a, family, gpu, hip, cuda_tk, multi, ram, data, elsewhere, port, adopted) -> int:
-    """Steps 2 to 7 for a model of strata-poly (docs/GLM.md, docs/BACKENDS.md): its questions, the Python
+    """Steps 2 to 7 for a model of hyper (docs/GLM.md, docs/BACKENDS.md): its questions, the Python
     packages, the engine (ready-made or compiled here), the model file, its tokenizer and expert profile, the run
     config and the start script."""
     fam = FAMILIES[family]
@@ -6469,7 +6489,7 @@ def poly_setup(a, family, gpu, hip, cuda_tk, multi, ram, data, elsewhere, port, 
     pip_install(requirement_lines() if REQUIREMENTS.exists() else PY_PACKAGES,
                 "numpy, jinja2, regex, pyyaml, tqdm, requests, cmake, ninja, pillow, psutil")
 
-    step(4, "the strata-poly engine")
+    step(4, "the hyper engine")
     llama = get_llama_cpp()
     ok(f"llama.cpp {LLAMA_CPP_COMMIT[:7]} (gguf-py, ggml)")
     if not a.build and not hip and cuda_tk != 12:
@@ -6505,10 +6525,10 @@ def poly_setup(a, family, gpu, hip, cuda_tk, multi, ram, data, elsewhere, port, 
         ok(f"vision encoder: {mmproj}")
     ok("model file present")
 
-    step(6, "preparing the model for PolyStrata")
+    step(6, "preparing the model for HyperStrata")
     pack = find_in([data, *elsewhere], f"packs/{tag.lower()}") or data / "packs" / tag.lower()
     if not (pack / "tokenizer" / "vocab.json").exists():
-        run([sys.executable, str(ROOT / "tools" / "strata_tokenizer.py"), "--gguf", str(gguf), "--out", str(pack)],
+        run([sys.executable, str(ROOT / "tools" / "hyper_tokenizer.py"), "--gguf", str(gguf), "--out", str(pack)],
             env=dict(os.environ, STRATA_GGUF_PY=str(llama / "gguf-py")))   # writes <pack>/tokenizer/
     # The engine counts which experts are used and writes the counts back when it stops, so its profile is a file of
     # this install's own: it starts as the counts the repository ships, or with none where it ships none.
@@ -6650,7 +6670,7 @@ def sycl_setup(argv) -> int:
             rest.append(x)
     script = ROOT / "sycl" / "setup_intel.py"
     if not script.exists():
-        fail(f"{script} is missing", "use a full PolyStrata checkout (git clone) - docs/INTEL_ARC.md")
+        fail(f"{script} is missing", "use a full HyperStrata checkout (git clone) - docs/INTEL_ARC.md")
     return subprocess.call([sys.executable, str(script), *rest])
 
 
@@ -6662,7 +6682,7 @@ def engine_step(a, gpu, hip, amd, cuda_tk, vision):
     if hip and WIN:                                    # AMD on Windows: the ready-made HIP engine (no compiler)
         eng = None if a.build else get_prebuilt_hip(a.prebuilt, gpu)
         if eng is None:
-            fail("no ready-made AMD engine for this PolyStrata version" + (" (--build)" if a.build else ""),
+            fail("no ready-made AMD engine for this HyperStrata version" + (" (--build)" if a.build else ""),
                  "compiling it on Windows: tools\\hip\\build_windows.bat makes strata-windows-x64-hip.zip, then run "
                  "START-HERE.bat --backend hip --prebuilt <its dist folder> (docs/AMD_HIP.md)")
         gpu = hip_card(eng, gpu, amd)
@@ -6765,7 +6785,7 @@ def install_own_path(a, family, gpu, hip, amd, cuda_tk, multi, port, ram, adopte
     if a.rope_scaling or a.rope_scale or a.kv or getattr(a, "draft_kv", None) or a.resident_budget_gib is not None \
             or a.low_ram not in (None, "auto"):
         warn(f"--rope-scaling / --kv / --draft-kv / --resident-budget-gib / --low-ram are Flash-Next settings "
-             f"(--kv fp16|q8_0|q4_0 and --draft-kv are strata-poly's): {fam['title']} does not use them")
+             f"(--kv fp16|q8_0|q4_0 and --draft-kv are hyper's): {fam['title']} does not use them")
     folder = Path(a.gguf_dir) if a.gguf_dir else Path(a.models_dir) / tag
     gguf = folder / fam["file"].format(q=model)
     size = fam["sha256"][gguf.name][0]
@@ -6778,11 +6798,11 @@ def install_own_path(a, family, gpu, hip, amd, cuda_tk, multi, port, ram, adopte
     pip_install(requirement_lines() if REQUIREMENTS.exists() else PY_PACKAGES,
                 "numpy, jinja2, regex, pyyaml, tqdm, requests, cmake, ninja, pillow, psutil")
 
-    step(4, "the PolyStrata engine")
+    step(4, "the HyperStrata engine")
     llama, eng, meta, lib_dirs, gpu, _ = engine_step(a, gpu, hip, amd, cuda_tk, "none")
     if fam["arch"] not in engine_families(eng):
         fail(f"this engine ({meta.get('version')}) does not run {fam['title']} yet",
-             "update PolyStrata, or compile the engine with --build, and run setup again")
+             "update HyperStrata, or compile the engine with --build, and run setup again")
     ok(f"engine: {eng / EXE}")
 
     step(5, f"downloading {fam['title']} {model}")
@@ -6795,11 +6815,11 @@ def install_own_path(a, family, gpu, hip, amd, cuda_tk, multi, port, ram, adopte
     verify_sha256(gguf, *fam["sha256"][gguf.name])
     ok(f"model file: {gguf}")
 
-    step(6, "preparing the model for PolyStrata")
+    step(6, "preparing the model for HyperStrata")
     data, _ = data_folder(a.data_dir)
     pack = data / "packs" / tag.lower()            # only the tokenizer: the engine reads the GGUF itself
     if not (pack / "tokenizer" / "vocab.json").exists():
-        run([sys.executable, str(ROOT / "tools" / "strata_tokenizer.py"), "--gguf", str(gguf), "--out", str(pack)],
+        run([sys.executable, str(ROOT / "tools" / "hyper_tokenizer.py"), "--gguf", str(gguf), "--out", str(pack)],
             env=dict(os.environ, STRATA_GGUF_PY=str(llama / "gguf-py")))
     ok(f"tokenizer: {pack / 'tokenizer'}")
 
@@ -6849,7 +6869,7 @@ def preview_family(a) -> int:
     names = list(fam["models"])
     say()
     say(f"  {fam['title']} - {fam['by']}: {fam['about']}")
-    warn(f"this PolyStrata version does not run {fam['title']} yet (support is in development): setup downloads its "
+    warn(f"this HyperStrata version does not run {fam['title']} yet (support is in development): setup downloads its "
          "files, and the engine refuses them with a message until a version that runs it")
     if a.model and a.model not in names:
         fail(f"{fam['title']} has no {a.model} model file", "choose one of: " + ", ".join(names))
@@ -6880,7 +6900,7 @@ def preview_family(a) -> int:
         verify_sha256(f, *fam["sha256"][f.name])
     ok(f"{fam['title']} {model}: {folder}")
     say()
-    say(f"{fam['title']} is downloaded, but this PolyStrata version cannot run it yet (its engine path is in "
+    say(f"{fam['title']} is downloaded, but this HyperStrata version cannot run it yet (its engine path is in "
         "development); nothing was configured. Run setup again without --family qwen36-strata to install a model it runs.")
     return 0
 
@@ -6891,7 +6911,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--family", choices=list(FAMILIES) + list(PREVIEW_FAMILIES),
                     help="qwen = Qwen3.8-Flash-Next, swift = Swift 1.5, glm = GLM 5.3 Flash (docs/GLM.md), deepseek = "
-                         "DeepSeek V4 Flash, lfm25 = LFM2.5-24B-A2B, qwen36 = Qwen3.6-35B-A3B on strata-poly, ornith = "
+                         "DeepSeek V4 Flash, lfm25 = LFM2.5-24B-A2B, qwen36 = Qwen3.6-35B-A3B on hyper, ornith = "
                          "Ornith 1.5, gemma4 = Gemma 4 26B-A4B, tiel = Tiel Coder 35B-A3B, minicpmv = MiniCPM-V 4.7 "
                          "35B-A3B (docs/BACKENDS.md), qwen36-strata = Qwen3.6-35B-A3B on the Strata project's "
                          "own engine (UD-Q4_K_XL and up, 32 GB of RAM or more)")
@@ -6909,11 +6929,11 @@ def main() -> int:
     ap.add_argument("--kv", choices=["int8", "q4_0", "k8v4", "fp16", "q8_0"],
                     help="KV cache precision. Qwen3.8-Flash-Next above 8K context: int8 (default), q4_0 (half the "
                          "memory, a little less precise) or k8v4 (hybrid: INT8 K + 4-bit V, 816 B/cell). "
-                         "strata-poly's qwen35moe families (--family qwen36, ornith, tiel, minicpmv): fp16 "
+                         "hyper's qwen35moe families (--family qwen36, ornith, tiel, minicpmv): fp16 "
                          "(default, omitted), q8_0 or q4_0, CUDA only (the other engine's values are refused there, "
                          "and vice versa)")
     ap.add_argument("--draft-kv", choices=list(POLY_KV_FORMATS), default=None,
-                    help="strata-poly: the draft block's KV cache format, independent of --kv: fp16 (default), "
+                    help="hyper: the draft block's KV cache format, independent of --kv: fp16 (default), "
                          "q8_0 or q4_0. Only where the size runs a draft block (Qwen3.6, Ornith 1.5 and "
                          "Tiel Coder), CUDA only; elsewhere it is warned about and left out")
     ap.add_argument("--vision", choices=["yes", "no", "none", "gpu", "cpu"],
@@ -6955,8 +6975,8 @@ def main() -> int:
                          "that uses the API; remembered for this model, also in run-<model>.bat/.sh)")
     ap.add_argument("--browser", dest="browser", action="store_true",
                     help="open the chat page again when the model is ready (the default; undoes --no-browser)")
-    ap.add_argument("--data-dir", help="where the model files go (~70-120 GB): default PolyStrata-data next to this folder, "
-                                       "remembered for every PolyStrata folder on this PC")
+    ap.add_argument("--data-dir", help="where the model files go (~70-120 GB): default HyperStrata-data next to this folder, "
+                                       "remembered for every HyperStrata folder on this PC")
     ap.add_argument("--models-dir", help="where the GGUF files go (default: <data folder>/models)")
     ap.add_argument("--gguf-dir", help="use GGUF files you already have (a folder with every shard: "
                                        "<name>-00001-of-0000N.gguf ... -0000N-of-0000N.gguf)")
@@ -6974,7 +6994,7 @@ def main() -> int:
                          "(mainland China: the same files, checked against ModelScope's published SHA-256; "
                          "STRATA_SOURCE)")
     ap.add_argument("--inspect", nargs="+", metavar=("SOURCE", "VARIANT"),
-                    help="what a GGUF is and whether PolyStrata runs it, from its headers only (no download): a file, a "
+                    help="what a GGUF is and whether HyperStrata runs it, from its headers only (no download): a file, a "
                          "folder, a URL, ms:owner/repo (ModelScope) or hf:owner/repo, and optionally a variant name")
     ap.add_argument("--cuda", choices=["12", "13", "auto"], default=os.environ.get("STRATA_CUDA") or None,
                     help="NVIDIA: the CUDA toolkit of this model's engine. auto (default): CUDA 13, the ready-made "
@@ -7013,18 +7033,18 @@ def main() -> int:
                          "experts fit on the GPU); auto: when the RAM has room for it")
     ap.add_argument("--backend", choices=["cuda", "hip", "sycl"],
                     help="cuda = NVIDIA (default), hip = AMD RX 7900 / 7800 / 7700 XT, RX 9060 XT / 9070 / AI PRO R9700 on "
-                         "Linux or Windows (chosen by itself when the PC has no NVIDIA card PolyStrata can use), "
+                         "Linux or Windows (chosen by itself when the PC has no NVIDIA card HyperStrata can use), "
                          "sycl = Intel Arc, EXPERIMENTAL: Linux, built from source (docs/INTEL_ARC.md)")
     ap.add_argument("--skip-build", action="store_true", help=argparse.SUPPRESS)
     a = ap.parse_args()
-    # a strata-poly family's own size (FAMILIES[f]["models"]) is checked by poly_setup, which names the family
+    # a hyper family's own size (FAMILIES[f]["models"]) is checked by poly_setup, which names the family
     if a.model and a.model not in MODELS and a.family not in PREVIEW_FAMILIES and             not any(a.model in d.get("models", {}) for d in FAMILIES.values()):
         ap.error(f"--model {a.model} is a size of " + ", ".join(f"--family {f}" for f, d in PREVIEW_FAMILIES.items()
                                                               if a.model in d["models"]))
     if a.source:
         os.environ["STRATA_SOURCE"] = a.source
     if a.inspect:                                      # headers only: nothing is installed
-        sys.exit(subprocess.run([sys.executable, str(ROOT / "tools" / "strata_inspect.py"), *a.inspect[:2]]).returncode)
+        sys.exit(subprocess.run([sys.executable, str(ROOT / "tools" / "hyper_inspect.py"), *a.inspect[:2]]).returncode)
     if a.backend == "sycl":                            # Intel Arc: the SYCL port's own setup (sycl/setup_intel.py)
         return sycl_setup(sys.argv[1:])
     if a.resident_budget_gib is not None and not a.resident_budget_gib > 0:
@@ -7040,7 +7060,7 @@ def main() -> int:
             a.gpu = int(a.gpu)
         else:
             ap.error(f"--gpu takes a GPU number as nvidia-smi numbers them, e.g. --gpu 1 (or --gpus 0,2), not {a.gpu!r}")
-    say("PolyStrata - Qwen3.8-Flash-Next, GLM 5.3 Flash and smaller MoE models on a normal PC (a GPU + system RAM + CPU)")
+    say("HyperStrata - Qwen3.8-Flash-Next, GLM 5.3 Flash and smaller MoE models on a normal PC (a GPU + system RAM + CPU)")
     data, elsewhere = data_folder(a.data_dir)          # the model files: in the data folder, found from any copy
     roots = [data, *elsewhere]
     if a.models_dir is None:
@@ -7106,7 +7126,7 @@ def main() -> int:
                 say(f"  {i}) {json.loads(c.read_text(encoding='utf-8-sig')).get('model_name', c.stem)}")
             pick_cfg = have[int(ask("Tune which one?", [str(i) for i in range(1, len(have) + 1)], "1", a.yes)) - 1]
         if poly_config(json.loads(pick_cfg.read_text(encoding="utf-8-sig"))):
-            warn("--calibrate measures settings of the Qwen engine: strata-poly has none of them, so nothing is "
+            warn("--calibrate measures settings of the Qwen engine: hyper has none of them, so nothing is "
                  "tuned")
         elif not calibrate_config(pick_cfg):           # #447: said again where it is not lost above the start
             say()
@@ -7148,7 +7168,7 @@ def main() -> int:
     if a.backend is None and nv_ok and amd_ok:
         # both kinds of card: asked (a first run on such a PC used to take NVIDIA without mentioning the Radeon)
         say()
-        say("  This PC has NVIDIA and AMD cards PolyStrata can use:")
+        say("  This PC has NVIDIA and AMD cards HyperStrata can use:")
         say("  1) NVIDIA: " + ", ".join(f"{g['name']} ({g['vram_gb']:.0f} GB)" for g in found if gpu_problem(g) is None)
             + "   (recommended)")
         say("  2) AMD: " + ", ".join(f"{g['name']} ({g['vram_gb']:.0f} GB{', unified memory' if g.get('uma') else ''})"
@@ -7178,7 +7198,7 @@ def main() -> int:
                         "empty: ROCm cannot use it yet (docs/STRIX_HALO.md: the amdgpu driver and /dev/kfd access, "
                         "your user in the render and video groups)")
         if not usable:
-            fail("no AMD GPU PolyStrata can use", f"the AMD backend runs on {AMD_CARDS}")
+            fail("no AMD GPU HyperStrata can use", f"the AMD backend runs on {AMD_CARDS}")
         if a.gpus:                                     # a layer split across these cards, the first one the main
             chosen = amd_parse_gpus(a.gpus, amd)
             gpu = chosen[0]
@@ -7240,22 +7260,22 @@ def main() -> int:
                                            f"{CUDA12_MIN_DRIVER} or newer, docs/OLDER_GPUS.md)"))
     if gpu["vram_gb"] < 11:
         warn("less than 12 GB of " + ("GPU memory (this APU's carve-out + shared memory)" if gpu.get("uma") else "VRAM")
-             + ": PolyStrata will run, but most experts stay on the CPU and it will be slow")
+             + ": HyperStrata will run, but most experts stay on the CPU and it will be slow")
     ram = ram_gb()
     cpu, avx2, avx512 = cpu_info()
     need = min(d["ram_gb"] for d in MODELS.values())
     low_ok = low_ram_fits("IQ1_M", ram, low_ram_vram(gpu)) and a.low_ram != "off"   # the smallest model, mapped
-    # a family of strata-poly has its own estimate of the RAM it wants, by size and card (poly_setup)
+    # a family of hyper has its own estimate of the RAM it wants, by size and card (poly_setup)
     own_ram = bool(a.family) and FAMILIES[a.family].get("engine") == "poly"
     if ram < need - 4 and not a.check and not low_ok and not own_ram:
         # every model keeps ALL its experts in RAM (23+ GB); VRAM only holds a copy of the most-used ones, so a
         # bigger GPU does not lower this.  The owner's rule: a stop by default, a risk the user can take (--model
         # with --yes, or y)
-        confirm_risk(f"RAM: {ram:.0f} GB - the smallest model (the Coder) needs about {need} GB: PolyStrata keeps all of "
+        confirm_risk(f"RAM: {ram:.0f} GB - the smallest model (the Coder) needs about {need} GB: HyperStrata keeps all of "
                      "the model's experts in RAM (23-50 GB, whatever the GPU), so the OS will page them from disk. "
                      "Expect it to be very slow, and it may not start at all.", bool(a.model), a.yes,
                      f"RAM: {ram:.0f} GB - the smallest model (the Coder) needs about {need} GB",
-                     "PolyStrata keeps all of the model's experts in RAM (23-50 GB, whatever the GPU) and the GPU holds a "
+                     "HyperStrata keeps all of the model's experts in RAM (23-50 GB, whatever the GPU) and the GPU holds a "
                      "copy of the most-used ones: it needs 32 GB of RAM or more (48 GB for the full model); --model "
                      "NAME --yes installs one anyway. Qwen3.6, Ornith 1.5 and Gemma 4 want less: --family qwen36, "
                      "ornith or gemma4")
@@ -7275,12 +7295,12 @@ def main() -> int:
             warn(problem)
     floor = cpu_floor(avx2)
     if floor == "unsupported":
-        fail("this CPU has neither AVX2 nor SSE4.2; PolyStrata needs at least SSE4.2 (Intel Nehalem, 2008, or newer)")
+        fail("this CPU has neither AVX2 nor SSE4.2; HyperStrata needs at least SSE4.2 (Intel Nehalem, 2008, or newer)")
     if not avx2:
         # #394 #595 #623: the ready-made engine is AVX2; an older CPU gets one compiled here, whose CPU experts run on
         # ggml-cpu's kernels for this CPU.  Experimental: measured only on newer CPUs with the older path forced, and by
         # users on a few Xeons.  A warning, not a stop.
-        warn(f"this CPU has no AVX2: PolyStrata support for it is EXPERIMENTAL and slow. Setup compiles the engine on this "
+        warn(f"this CPU has no AVX2: HyperStrata support for it is EXPERIMENTAL and slow. Setup compiles the engine on this "
              f"PC for {'AVX' if floor == 'avx' else 'SSE4.2'} (STRATA_ISA_FLOOR={floor}; 10-20 minutes, once), and the "
              "CPU's share of the experts runs on ggml-cpu's kernels, a few times slower than on an AVX2 CPU. "
              "See \"Older CPUs\" in docs/INSTALL.md")
@@ -7322,10 +7342,10 @@ def main() -> int:
         if not any_fits:
             # #977: every size says "does not fit", so the verdict says so too (and the exit code, for scripts). It only
             # reports: --model NAME --yes still installs one anyway.
-            say(f"\nThis PC cannot run PolyStrata yet: no model size fits {ram:.0f} GB of RAM (the smallest needs about "
+            say(f"\nThis PC cannot run HyperStrata yet: no model size fits {ram:.0f} GB of RAM (the smallest needs about "
                 f"{need} GB). --model NAME --yes installs one anyway, slowly.")
             return 1
-        say("\nThis PC can run PolyStrata. Run it again without --check to install.")
+            say("\nThis PC can run HyperStrata. Run it again without --check to install.")
         return 0
 
     # ---- 2. the questions
@@ -7494,8 +7514,8 @@ def main() -> int:
         ok(f"rope scaling: {scaling}, factor {rope_scale:g} ({origin})")
     ok(f"context: {ctx} tokens")
     # the KV cache (the model's memory of the conversation): 8-bit, or 4-bit after a Hadamard rotation (PR #21)
-    if a.kv in ("fp16", "q8_0"):                         # strata-poly's formats, refused here as before
-        fail(f"--kv {a.kv}: this model takes int8, q4_0 or k8v4 (fp16, q8_0 and strata-poly's q4_0 are another "
+    if a.kv in ("fp16", "q8_0"):                         # hyper's formats, refused here as before
+        fail(f"--kv {a.kv}: this model takes int8, q4_0 or k8v4 (fp16, q8_0 and hyper's q4_0 are another "
              "format for its qwen35moe families: --family qwen36, ornith, tiel or minicpmv)")
     kv = "fp16" if ctx <= 8192 else (a.kv or "int8")
     if ctx > 8192 and not a.kv and not a.yes:
@@ -7643,7 +7663,7 @@ def main() -> int:
                 "numpy, jinja2, regex, pyyaml, tqdm, requests, cmake, ninja, pillow, psutil")
 
     # ---- 4. the engine
-    step(4, "the PolyStrata engine")
+    step(4, "the HyperStrata engine")
     llama, eng, meta, lib_dirs, gpu, vision = engine_step(a, gpu, hip, amd, cuda_tk, vision)
     if ready and meta.get("source") != "local" and \
             tuple(int(x) for x in str(meta.get("version", "0")).split(".")[:4] if x.isdigit()) < MODELS[model]["engine"]:
@@ -7657,7 +7677,7 @@ def main() -> int:
     # checked before the 94-188 GB download
     if MODELS[model].get("budget") and engine_ver < need_engine:
         fail(f"{model} needs engine {'.'.join(map(str, need_engine))} or newer; this one is {meta.get('version')}",
-             "update PolyStrata (or compile the engine with --build) and run setup again")
+             "update HyperStrata (or compile the engine with --build) and run setup again")
     ok(f"engine: {eng / EXE}")
 
     # ---- 5. the model files
@@ -7717,7 +7737,7 @@ def main() -> int:
                 "cosine 0.999 vs BF16); see 'A Q8_0 encoder' in docs/DETAILS.md")
 
     # ---- 6. the pack and the MTP draft layer
-    step(6, "preparing the model for PolyStrata")
+    step(6, "preparing the model for HyperStrata")
     pack = find_in(roots, f"packs/{tag.lower()}") or data / "packs" / tag.lower()
     env = dict(os.environ, STRATA_GGUF_PY=str(llama / "gguf-py"))
     if ready:                                          # the downloaded pack folder is the pack, experts.bin included
@@ -7726,11 +7746,11 @@ def main() -> int:
         # the Q2_0 experts repacked for the AVX-512 kernel (the measured speed): a one-time ~40 GB conversion
         if not (pack / "index.txt").exists() or not (pack / "experts.bin").exists():   # index.txt is written last
             say("  Converting the Q2_0 experts for the AVX-512 kernel (one time, ~40 GB written, 2-5 min) ...")
-            run([sys.executable, str(ROOT / "tools" / "strata_pack.py"), "build", "--gguf", str(shards[0]),
+            run([sys.executable, str(ROOT / "tools" / "hyper_pack.py"), "build", "--gguf", str(shards[0]),
                  "--out", str(pack), "--skip-hash", "--force"], env=env)   # --force: #634 refuses an occupied pack
             run([sys.executable, str(ROOT / "tools" / "pack_index.py"), "--pack", str(pack)], env=env)
         if not (pack / "tokenizer" / "vocab.json").exists():
-            run([sys.executable, str(ROOT / "tools" / "strata_tokenizer.py"), "--gguf", str(shards[0]),
+            run([sys.executable, str(ROOT / "tools" / "hyper_tokenizer.py"), "--gguf", str(shards[0]),
                  "--out", str(pack)], env=env)   # writes <pack>/tokenizer/
     elif not (pack / "native_experts.txt").exists() or not (pack / "tokenizer" / "vocab.json").exists():
         # every tensor as the GGUF stores it; the experts are read from the GGUF at start (seconds to build)
@@ -8029,7 +8049,7 @@ def main() -> int:
     script = write_run_script(tag, cfg_path, port, cfg.get("open_browser") is not False)
     # offered only when someone answers: --yes installs and adopted earlier installs are not held up by it
     if cal is None and not hip and not a.no_start and not a.yes and ask(
-            "Tune PolyStrata for this PC now? It measures a few engine settings (about 15-30 minutes, longer on a slow card; the PC is busy "
+            "Tune HyperStrata for this PC now? It measures a few engine settings (about 15-30 minutes, longer on a slow card; the PC is busy "
             "meanwhile; later: START-HERE --calibrate)", ["y", "n"], "y", a.yes) == "y":
         tuned = calibrate_config(cfg_path)
     else:

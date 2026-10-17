@@ -1,13 +1,14 @@
-"""The ready-made strata-poly for Windows: strata-poly.exe and the image encoder strata-vision.exe, built for other
-PCs (STRATA_PORTABLE: ggml's CPU code for AVX2, the MSVC runtime linked in) and for every card from RTX 20 to RTX 50
-with CUDA 13.0, the version of the CUDA libraries setup.py installs from pip.  They are zipped with a BUILD.json under
+"""The ready-made hyper engine for Windows: hyper.exe and the image encoder hyper-vision.exe, built for other
+PCs (STRATA_PORTABLE: ggml's CPU code for AVX2, the MSVC runtime linked in) and for the reference rig's card family
+(RTX 20 to RTX 50 arch builds, CUDA 13.0, the version of the CUDA libraries setup.py installs from pip; tested/supported
+in this fork: reference rig only — RTX 3070 Ti Laptop 8 GB + 32 GB RAM).  They are zipped with a BUILD.json under
 the name setup.py asks the latest release for (poly_asset()), which carries the source_hash() of their source.
 
 Run it on a clean checkout of the commit the release is made from, with setup's Python:
 
     .venv\\Scripts\\python.exe tools\\make_poly_release.py OUT_DIR
 
-and upload OUT_DIR\\strata-poly-windows-x64-<source>.zip to that release.  setup.py checks the download against the
+and upload OUT_DIR\\hyper-windows-x64-<source>.zip to that release.  setup.py checks the download against the
 SHA-256 GitHub publishes for the asset.  The build folders stay in OUT_DIR, so a second run compiles what changed."""
 import hashlib
 import json
@@ -42,9 +43,9 @@ def main() -> int:
     poly, vis = out / "build-poly", out / "build-vision"   # GBs of CUDA objects for five cards: on OUT_DIR's disk
     for d in (poly, vis):
         d.mkdir(parents=True, exist_ok=True)
-    setup.cmake_build(ROOT, poly, "strata-poly", ["-DSTRATA_ENABLE_CUDA=ON", "-DSTRATA_BUILD_TESTS=OFF",
+    setup.cmake_build(ROOT, poly, "hyper", ["-DSTRATA_ENABLE_CUDA=ON", "-DSTRATA_BUILD_TESTS=OFF",
                                                   f"-DSTRATA_GGML_DIR={llama}", *defs], vcvars, poly / "build.bat")
-    setup.cmake_build(ROOT / "tools" / "vision", vis, "strata-vision", [f"-DLLAMA_DIR={setup.get_llama_cpp(vision=True)}",
+    setup.cmake_build(ROOT / "tools" / "vision", vis, "hyper-vision", [f"-DLLAMA_DIR={setup.get_llama_cpp(vision=True)}",
                                                                         "-DSTRATA_VISION_CUDA=ON", *defs],
                       vcvars, vis / "build.bat")
     src = setup.source_hash(setup.ENGINE_SOURCES)

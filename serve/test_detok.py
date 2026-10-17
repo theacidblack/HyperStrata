@@ -46,7 +46,7 @@ class OldDetokenizer:
 class Detok(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        import strata_tokenizer as ST
+        import hyper_tokenizer as ST
         cls.tok = ST.Tokenizer.from_dir(find_tokenizer())   # as the server reads it: a pack of any of the models
 
     def same_stream(self, ids):
@@ -107,7 +107,7 @@ def real_tokenizer():
         if t is None:
             _REAL.append(None)
         else:
-            import strata_tokenizer as ST
+            import hyper_tokenizer as ST
             _REAL.append(ST.Tokenizer.from_dir(t))
     return _REAL[0]
 
@@ -150,7 +150,7 @@ def encode_with(tok, text, parse_special, heap_min):
 def synthetic_tokenizer(seed=268, n_merges=1500):
     """A small byte-level BPE vocabulary with merges learned (randomly) from random_text, and a few specials of
     both kinds - so the parity test runs without a pack."""
-    import strata_tokenizer as ST
+    import hyper_tokenizer as ST
     rng = random.Random(seed)
     tokens = sorted(set(ST.BYTE_TO_UNICODE.values()))
     have, merges = set(tokens), []
@@ -221,7 +221,7 @@ class HeapBpe(unittest.TestCase):
     def test_words_directly(self):
         tok = synthetic_tokenizer()
         rng = random.Random(1)
-        import strata_tokenizer as ST
+        import hyper_tokenizer as ST
         for _ in range(300):
             for piece in ST.regex.compile(ST.QWEN35_PATTERN).findall(random_text(rng, 8)):
                 word = "".join(ST.BYTE_TO_UNICODE[b] for b in piece.encode("utf-8"))

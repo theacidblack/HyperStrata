@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT), str(ROOT / 'tools')]
 from serve.server import StrataEngine, child_env
 from serve.frontend import ChatTemplate
-import strata_tokenizer as ST
+import hyper_tokenizer as ST
 
 # pooled: the completed indexer rows (the 0.1.29 extent); pooled_full: those plus the spare row
 STATE_KEYS = ('L', 'gdn', 'ple', 'tail', 'dead', 'pooled', 'pooled_full', 'kv', 'ple_prev')

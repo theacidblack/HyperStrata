@@ -93,7 +93,7 @@ class Main(unittest.TestCase):
                 self.assertEqual(self.verified, [(file, *FAM["sha256"][file])])
                 tag = "lfm25-" + size
                 pack = self.t / "data" / "packs" / tag.lower()
-                self.assertEqual([Path(r[1]).name for r in self.runs], ["strata_tokenizer.py"])
+                self.assertEqual([Path(r[1]).name for r in self.runs], ["hyper_tokenizer.py"])
                 args = cfg["args"]
                 self.assertEqual(Path(args[args.index("--model") + 1]), self.t / "models" / tag / file)
                 self.assertEqual(Path(args[args.index("--expert-profile") + 1]), pack / "expert-profile.txt")

@@ -50,5 +50,5 @@ if errorlevel 1 (
 )
 
 cd /d "%REPO_ROOT%"
-%PY% "%REPO_ROOT%\serve\server.py" --engine strata --config "%TMP_JSON%" --port 8080 --open
+%PY% "%REPO_ROOT%\serve\server.py" --engine hyper --config "%TMP_JSON%" --port 8080 --open
 if errorlevel 1 pause

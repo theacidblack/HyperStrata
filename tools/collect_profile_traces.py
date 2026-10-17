@@ -25,7 +25,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import strata_tokenizer as ST  # noqa: E402
+import hyper_tokenizer as ST  # noqa: E402
 
 
 def load_tokenizer(tdir):

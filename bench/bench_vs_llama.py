@@ -84,7 +84,7 @@ class Engine:
             scfg["exe"] = self.m["strata_exe"]
         p = Path(self.out) / ("strata-cfg-%s.json" % c["name"])
         p.write_text(json.dumps(scfg, indent=1))
-        return [sys.executable, str(Path(self.m["serve"]) / "server.py"), "--engine", "strata", "--config", str(p),
+        return [sys.executable, str(Path(self.m["serve"]) / "server.py"), "--engine", "hyper", "--config", str(p),
                 "--port", str(PORT)]
 
     def start(self, out):
@@ -158,7 +158,7 @@ class Engine:
 
 def cmd_prompts(a):
     sys.path.insert(0, str(Path(a.repo) / "tools"))
-    import strata_tokenizer as ST
+    import hyper_tokenizer as ST
     tp = Path(a.tokenizer)
     vocab = json.loads((tp / "vocab.json").read_text(encoding="utf-8"))
     toks = [None] * len(vocab)

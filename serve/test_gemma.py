@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
-import strata_tokenizer as ST  # noqa: E402
+import hyper_tokenizer as ST  # noqa: E402
 from serve.frontend import ChatTemplate, OutputParser, openai_to_messages, parse_gemma_tool_call  # noqa: E402
 from serve.server import ByteTokenizer, MockEngine, Service, StrataEngine  # noqa: E402
 

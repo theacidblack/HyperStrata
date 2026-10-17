@@ -1,4 +1,4 @@
-// serve/web/app.js - the PolyStrata web app: Chat, Monitor, About. No framework, no network beyond this server.
+// serve/web/app.js - the HyperStrata web app: Chat, Monitor, About. No framework, no network beyond this server.
 // The Monitor tab rebuilds PR #22's dashboard idea (code-martin) on the server's own /metrics.
 "use strict";
 
@@ -12,6 +12,8 @@ const kfmt = (n) => (n == null ? "–" : n >= 1000 ? `${fmt(n / 1000, n >= 10000
 const ctxfmt = (n) => (n && n % 1024 === 0 ? `${fmt(n / 1024)}K` : kfmt(n));
 const gb = (b, d = 1) => (b == null ? "–" : fmt(b / 1073741824, d));   // memory: binary GB, as Windows shows it
 
+// FROZEN FOR COMPAT: the "strata." localStorage prefix and "strata.theme" below are never
+// renamed — existing users' chats, settings and theme live under them; renaming orphans that data.
 const store = {
   get(k, d) { try { const v = localStorage.getItem("strata." + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem("strata." + k, JSON.stringify(v)); } catch (e) { /* private mode: in memory only */ } },
@@ -938,7 +940,7 @@ $("export-btn").onclick = () => {
     `## ${health.model}\n\n${m.reasoning ? `<details><summary>Thinking</summary>\n\n${m.reasoning}\n\n</details>\n\n` : ""}${tools(m)}${m.text || m.error || ""}\n`).join("\n");
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([md], {type: "text/markdown"}));
-  a.download = `strata-chat-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-")}.md`;
+  a.download = `hyper-chat-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-")}.md`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 5000);
 };

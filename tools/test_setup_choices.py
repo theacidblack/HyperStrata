@@ -353,14 +353,14 @@ class HipVision(unittest.TestCase):
 
     def test_the_cpu_encoder_is_built_once(self):
         built, meta, have = self.build({}, "cpu")
-        self.assertEqual([t for t, _ in built], ["strata-vision"])
+        self.assertEqual([t for t, _ in built], ["hyper-vision"])
         self.assertIn("-DSTRATA_VISION_CUDA=OFF", built[0][1])
         self.assertIn("-DSTRATA_PORTABLE=OFF", built[0][1])            # built for this PC (#411: portable is the default)
         self.assertEqual((meta["vision"], meta["vision_src"], have), ("cpu", "V", True))
         built, meta, _ = self.build({"vision": "cpu", "vision_src": "V"}, "cpu", vexe=True)
         self.assertEqual(built, [])                                    # built and unchanged: nothing to do
         built, meta, _ = self.build({"vision": "cpu", "vision_src": "old"}, "cpu", vexe=True)
-        self.assertEqual([t for t, _ in built], ["strata-vision"])     # its source changed: again
+        self.assertEqual([t for t, _ in built], ["hyper-vision"])     # its source changed: again
 
     def test_without_images_nothing_changes(self):
         built, meta, have = self.build({}, "none")
@@ -544,7 +544,7 @@ class CudaVision(unittest.TestCase):
                         mock.patch.object(setup, "install_build_tools", lambda gpu, yes: (str(root / "nvcc"), None)), \
                         mock.patch.object(setup, "source_version", lambda: "test"):
                     quiet(setup.build_engine, {"arch": "86"}, vision, True, "llama")
-                self.assertEqual([t for t, _ in built], ["strata-vision"])
+                self.assertEqual([t for t, _ in built], ["hyper-vision"])
                 self.assertIn("-DSTRATA_PORTABLE=OFF", built[0][1])
                 self.assertIn(f"-DSTRATA_VISION_CUDA={'ON' if vision == 'gpu' else 'OFF'}", built[0][1])
 

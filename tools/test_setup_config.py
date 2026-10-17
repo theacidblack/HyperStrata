@@ -149,8 +149,8 @@ class CarryOver(unittest.TestCase):
 
     def test_hand_added_kv_flags_are_carried(self):
         # A --kv / --draft-kv wired in by hand survives a setup run, as --expert-profile does; without
-        # this the regenerated config silently runs fp16 again.  Only a strata-poly config takes them.
-        poly = "/x/engine-poly/" + setup.POLY_EXE
+        # this the regenerated config silently runs fp16 again.  Only a hyper config takes them.
+        poly = "/x/engine-hyper/" + setup.POLY_EXE
         old = {"exe": poly, "args": ["--model", "m.gguf", "--kv", "q8_0", "--draft-kv", "q4_0"]}
         new = {"exe": poly, "args": ["--model", "m.gguf"]}
         self.assertEqual(setup.carry_over(old, new), ["args --kv", "args --draft-kv"])

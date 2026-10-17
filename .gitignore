@@ -40,7 +40,7 @@ td.log
 /build-strata.bat
 /build-strata-cuda12.bat
 /build-cuda12/
-/.strata-mcp/
+/.hyper-mcp/
 
 # image encoder (setup.py --vision): build output and the generated build script
 build-vision*/
@@ -50,11 +50,9 @@ build-vision-cuda12.bat
 # setup.py outputs (engine, downloads) and release builds
 /engine/
 /engine-cuda12/
-/engine-poly/
-/build-strata-poly.bat
-/build-vision-poly.bat
-/engine-glm/
-/build-strata-glm.bat
+/engine-hyper/
+/build-hyper.bat
+/build-vision-hyper.bat
 /build-release*/
 /dist/
 *.done

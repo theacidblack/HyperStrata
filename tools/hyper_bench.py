@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """One command that measures this PolyStrata install the way it is used, and writes a report you can share.
 
-    BENCH.bat                      (Windows)        ./bench.sh        (Linux)        python tools/strata_bench.py
+    BENCH.bat                      (Windows)        ./bench.sh        (Linux)        python tools/hyper_bench.py
 
 It starts the server with your existing settings (the newest strata-*.json of this folder, or --config FILE), or uses
 the one already running (it checks the config's port, or --url http://host:port), and sends a fixed suite through the
@@ -696,7 +696,7 @@ def start_server(cfg_path: Path, port: int, gpu: str | None, log_path: Path):
             tmp = log_path.with_suffix(".config.json")
             tmp.write_text(json.dumps(safe), encoding="utf-8")
             cfg_path = tmp
-    cmd = [sys.executable, str(ROOT / "serve" / "server.py"), "--engine", "strata", "--config", str(cfg_path), "--port", str(port)]
+    cmd = [sys.executable, str(ROOT / "serve" / "server.py"), "--engine", "hyper", "--config", str(cfg_path), "--port", str(port)]
     if gpu:
         cmd += ["--gpu", gpu]
     logf = open(log_path, "w", encoding="utf-8", errors="replace")
@@ -734,7 +734,8 @@ def log_excerpt(path: Path, limit: int = 80) -> list[str]:
     except OSError:
         return []
     keep = re.compile(r"(?i)expert cache|slots|vram|ready|resident|kv |context|backend|gpu|prefill|mtp|spec|batch|version|hit")
-    out = [x for x in lines if keep.search(x) and "[strata] done:" not in x]
+    # Dual-compatible (Wave B): the server's own "done" line is "[hyper] done:" now, "[strata] done:" before.
+    out = [x for x in lines if keep.search(x) and "[hyper] done:" not in x and "[strata] done:" not in x]
     return out[:limit]
 
 
@@ -810,7 +811,7 @@ def render_readme(res: dict) -> str:
     vram = f"{mc['gpu_vram_mib'] / 1024:.0f} GiB VRAM" if mc.get("gpu_vram_mib") else "VRAM not read"
     model = (model_label(mc) if mc.get("model") else mc.get("quant")) or "model not read"
     L = [f"# Community benchmark on {gpu}", "",
-         f"Measured on {res['date']} with `tools/strata_bench.py` (suite {SCHEMA}, {p['runs']} runs per test, medians with ranges). "
+         f"Measured on {res['date']} with `tools/hyper_bench.py` (suite {SCHEMA}, {p['runs']} runs per test, medians with ranges). "
          f"Speeds are the engine's own timings; first-token times are measured by the client over HTTP. Speed only: no "
          f"correctness check was run.", "",
          "## Hardware and software", "",
@@ -996,9 +997,9 @@ def main(argv=None) -> int:
         machine = collect_machine(base, key, cfg, a.gpu)      # again: VRAM and the cache after the work
         if not machine.get("gpu"):
             machine["gpu"] = pre.get("gpu")
-        res = {"schema": SCHEMA, "tool": "tools/strata_bench.py", "date": datetime.date.today().isoformat(),
+        res = {"schema": SCHEMA, "tool": "tools/hyper_bench.py", "date": datetime.date.today().isoformat(),
                "params": {"runs": suite.runs, "think": a.think, "clients": a.clients, "long": a.long, "started_server": started,
-                          "command": "python tools/strata_bench.py" + "".join(
+                          "command": "python tools/hyper_bench.py" + "".join(
                               f" {x}" for x in (f"--clients {a.clients}" if a.clients else "", "--long" if a.long else "",
                                                 "--think" if a.think else "", f"--runs {a.runs}" if a.runs != 3 else "") if x)},
                "elapsed_s": time.time() - t0, "machine": machine, "results": out}

@@ -84,7 +84,7 @@ def build(n_layers: int, out_path: pathlib.Path) -> dict:
                 per_expert = t.elements // NE
                 assert per_expert * BLOCK_BYTES // QK == ROLE_BYTES, per_expert
             layer_off = out.tell()
-            # vectorized over the layer's 512 experts (the same bytes the per-block loop wrote; tools/strata_pack.py
+            # vectorized over the layer's 512 experts (the same bytes the per-block loop wrote; tools/hyper_pack.py
             # verify checks them): each role is (512 experts, rows, blocks per row, 18 bytes)
             def role_blocks(role, rows, per_row):
                 t = roles[role]

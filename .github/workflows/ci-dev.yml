@@ -59,7 +59,7 @@ jobs:
           #   serve/fixtures/rcall_specimens.json: test fixtures (candidate dirs,
           #   reserved device names, deliberately-bogus Z:\ path, redacted <private-path>).
           # - .gitignore: lists HyperStrata-data/, .env, *.key as ignore rules, not leaks.
-          # - tools/strata_mcp.py: D:\PolyStrata-data help/error examples.
+          # - tools/hyper_mcp.py: D:\HyperStrata-data help/error examples.
           # - tools/test_setup_page_file.py, tools/test_setup_engine_hash.py,
           #   tools/test_setup_update.py, tools/test_strata_bench.py,
           #   tools/test_strata_mcp.py, tools/_paths.py: fixtures and fallbacks.
@@ -80,7 +80,7 @@ jobs:
             ':!serve/test_slots.py',
             ':!serve/test_server.py',
             ':!serve/fixtures/rcall_specimens.json',
-            ':!tools/strata_mcp.py',
+            ':!tools/hyper_mcp.py',
             ':!tools/test_setup_page_file.py',
             ':!tools/test_setup_engine_hash.py',
             ':!tools/test_setup_update.py',
@@ -127,21 +127,21 @@ jobs:
           # anywhere under tools/), matching each file's own docstring runner
           # (python -m unittest tools.<name>). All run CPU-only with no
           # downloads. test_source_nul_bytes scans via git (falls back to a tree
-          # walk); test_check_isa_guard and test_polystrata_names cover the
+          # walk); test_check_isa_guard and test_hyperstrata_names cover the
           # guard policy and the rename tool without a binary or a build.
           python --version
           python -m unittest discover -s tools -p "test_setup_*.py"
-          python -m unittest tools.test_source_nul_bytes tools.test_check_isa_guard tools.test_polystrata_names
+          python -m unittest tools.test_source_nul_bytes tools.test_check_isa_guard tools.test_hyperstrata_names
 
-      - name: ISA-guard smoke and PolyStrata naming check
+      - name: ISA-guard smoke and HyperStrata naming check
         run: |
           # The full binary guard needs a built engine and runs in ctest as
           # isa_guard_check (see CMakeLists.txt); CPU-only CI runs the policy
-          # unit test above plus this --help smoke test. polystrata_names
-          # --check exits 1 when a file still says Strata (uses git ls-files,
+          # unit test above plus this --help smoke test. hyperstrata_names
+          # --check exits 1 when a file still says PolyStrata (uses git ls-files,
           # so it needs the full checkout above) and changes nothing.
           python tools/check_isa_guard.py --help
-          python tools/polystrata_names.py --check
+          python tools/hyperstrata_names.py --check
 
       - name: Docs-internals check (fails on hit)
         run: |

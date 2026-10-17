@@ -20,7 +20,7 @@ if(STRATA_ENABLE_SYCL)
   add_subdirectory(sycl)
   return()
 endif()
-add_compile_definitions(STRATA_VERSION="${PROJECT_VERSION}")
+add_compile_definitions(HYPER_VERSION="${PROJECT_VERSION}")
 # issue #31: release builds keep a PDB beside the exe (not shipped in it), so a minidump from a stalled engine can
 # be read back to the exact source line
 if(MSVC AND CMAKE_BUILD_TYPE STREQUAL "Release")
@@ -1772,7 +1772,7 @@ if(STRATA_BUILD_TESTS)
   add_test(NAME aux_cpus_test COMMAND aux_cpus_test)
 endif()
 
-# ---- strata-poly: GLM 5.3 Flash (llama.cpp's glm5-next), read from its GGUF ----
+# ---- hyper: GLM 5.3 Flash (llama.cpp's glm5-next), read from its GGUF ----
 #
 # A second engine beside `strata`.  It shares the quantized matvec kernels and the GGUF reader, and takes the
 # CPU experts' dot products from ggml-cpu.  On HIP it is the same CUDA-shaped code through the hip_compat headers
@@ -1834,10 +1834,10 @@ if(STRATA_NATIVE_EXPERTS AND (STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP) AND NOT S
     target_link_libraries(strata_poly_mmq PUBLIC ggml-base ${_strata_gpu_runtime_target})
   endif()
 
-  add_executable(strata-poly src/poly/main.cpp src/poly/engine.cpp src/poly/glm5next.cpp src/poly/qwen35.cpp
+  add_executable(hyper src/poly/main.cpp src/poly/engine.cpp src/poly/glm5next.cpp src/poly/qwen35.cpp
                             src/poly/gemma4.cpp src/poly/deepseek4.cpp src/poly/lfm2moe.cpp src/poly/cpu_experts.cpp
                             src/poly/kernels.cu src/poly/kernels_dsv4.cu src/core/conversation_memory.cpp)
-  target_include_directories(strata-poly PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include ${_strata_gpu_include_directories})
+  target_include_directories(hyper PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include ${_strata_gpu_include_directories})
   # the driver's virtual memory calls: the attention caches grow with the conversation; on HIP they are HIP's
   # memory management calls, which the HIP runtime itself provides (hip_compat/cuda.h)
   if(STRATA_ENABLE_HIP)
@@ -1845,7 +1845,7 @@ if(STRATA_NATIVE_EXPERTS AND (STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP) AND NOT S
   else()
     set(_strata_poly_driver CUDA::cuda_driver)
   endif()
-  target_link_libraries(strata-poly PRIVATE strata_poly_mmq strata_kernels strata_spec ggml-cpu ggml-base
+  target_link_libraries(hyper PRIVATE strata_poly_mmq strata_kernels strata_spec ggml-cpu ggml-base
                                            ${_strata_gpu_blas_target} ${_strata_gpu_runtime_target}
                                            ${_strata_poly_driver}
                                            Threads::Threads)

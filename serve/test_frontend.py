@@ -210,7 +210,7 @@ class QuotedToolCallCloser(unittest.TestCase):
     def setUp(self):
         import sys
         sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
-        import strata_tokenizer as ST
+        import hyper_tokenizer as ST
         b2u = ST.bytes_to_unicode()
         self.tool_tags = ["</tool_call>", "<tool_call>", "<tool_response>", "</tool_response>"]
         self.tok = ST.Tokenizer([b2u[b] for b in range(256)] + self.tool_tags + ["<|im_end|>"], [],

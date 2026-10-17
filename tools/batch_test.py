@@ -9,7 +9,7 @@ import argparse, json, os, subprocess, sys, tempfile, threading, time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import strata_tokenizer as ST  # noqa: E402
+import hyper_tokenizer as ST  # noqa: E402
 
 QUESTIONS = [
     "Explique en detail le fonctionnement d'un B-tree.",

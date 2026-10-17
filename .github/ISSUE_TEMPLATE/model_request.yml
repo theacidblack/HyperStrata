@@ -1,13 +1,15 @@
 name: Model request
-description: Ask for a model PolyStrata does not run yet
+description: Ask for a model HyperStrata does not run yet
 title: "[Model]: "
 labels: ["enhancement"]
 body:
   - type: markdown
     value: |
       The engine reads the same GGUF files as llama.cpp, so a model llama.cpp runs is much less work to add.
+      HyperStrata is experimental software tuned for limited-spec rigs: say which GPU + RAM you would run
+      the model on, so the request can be judged against real hardware.
       Give the numbers from the model card or the GGUF. You can let an AI agent fill this in, but check what it
-      writes. There is also a vote for the next model: https://github.com/VecSzn/PolyStrata/issues/16
+       writes. If the public repo has issues enabled, there is also a vote for the next model: https://github.com/theacidblack/HyperStrata/issues/16
   - type: input
     id: model
     attributes:
@@ -49,4 +51,4 @@ body:
     id: why
     attributes:
       label: Why this model?
-      description: Benchmarks against a model PolyStrata already runs, or what you would use it for.
+      description: Benchmarks against a model HyperStrata already runs, or what you would use it for.

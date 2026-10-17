@@ -11,7 +11,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
-import strata_tokenizer as ST  # noqa: E402
+import hyper_tokenizer as ST  # noqa: E402
 
 
 def toy() -> ST.Tokenizer:

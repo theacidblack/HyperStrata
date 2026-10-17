@@ -30,7 +30,7 @@ bool iq128_down_supported(int ggml_type) noexcept;
 void iq128_down_rows(int ggml_type, const uint8_t* w, size_t row_bytes, int n, const void* const* hq, int nt,
                      float* const* out, int r0, int r1);
 
-/// ggml's quantize_row_q8_K (x86 runs the scalar reference), byte-identical, in SSE4.2/AVX1: the older CPUs'
+/// ggml's quantize_row_q8_K (x86 runs the scalar reference), transcription of ggml's quantize_row_q8_K in SSE4.2/AVX1; byte-identity pinned by parity tests: the older CPUs'
 /// copy of q8k_quant_avx2 (no 256-bit integer ops, no FMA).  q8k_quant_parity checks the bytes.
 void q8k_quant_avx1(const float* x, void* y, int64_t n);
 

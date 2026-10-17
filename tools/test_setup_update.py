@@ -146,7 +146,7 @@ class TailSkip(unittest.TestCase):
 
     def upgraded(self, name, version, args=()):
         with tempfile.TemporaryDirectory() as d:
-            eng = Path(d) / "engine-poly"
+            eng = Path(d) / "engine-hyper"
             eng.mkdir()
             (eng / "BUILD.json").write_text(json.dumps({"version": version}), encoding="utf-8")
             p = Path(d) / "strata-x.json"
@@ -172,11 +172,11 @@ class TailSkip(unittest.TestCase):
 
 
 class KvWhole(unittest.TestCase):
-    """A strata-poly config whose engine is the AMD build gets --kv-whole on update (issue #13); a CUDA one does not."""
+    """A hyper config whose engine is the AMD build gets --kv-whole on update (issue #13); a CUDA one does not."""
 
     def upgraded(self, backend, args=()):
         with tempfile.TemporaryDirectory() as d:
-            eng = Path(d) / "engine-poly"
+            eng = Path(d) / "engine-hyper"
             eng.mkdir()
             meta = {"version": "0.1.42", **({"backend": backend} if backend else {})}
             (eng / "BUILD.json").write_text(json.dumps(meta), encoding="utf-8")
@@ -199,7 +199,7 @@ class KvWhole(unittest.TestCase):
 
     def test_no_build_stamp_is_left_alone(self):
         with tempfile.TemporaryDirectory() as d:
-            cfg = {"exe": str(Path(d) / "engine-poly" / setup.POLY_EXE), "args": ["--model", "m.gguf"]}
+            cfg = {"exe": str(Path(d) / "engine-hyper" / setup.POLY_EXE), "args": ["--model", "m.gguf"]}
             setup.poly_kv_whole(cfg)
         self.assertNotIn("--kv-whole", cfg["args"])
 

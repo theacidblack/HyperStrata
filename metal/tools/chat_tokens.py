@@ -7,7 +7,7 @@ from pathlib import Path
 
 repo, tdir = Path(sys.argv[1]), Path(sys.argv[2])
 sys.path.insert(0, str(repo / "tools"))
-import strata_tokenizer as ST
+import hyper_tokenizer as ST
 
 vocab = json.loads((tdir / "vocab.json").read_text(encoding="utf-8"))
 toks = [None] * len(vocab)

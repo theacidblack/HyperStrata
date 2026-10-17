@@ -124,13 +124,13 @@ class Config(unittest.TestCase):
     def test_choices_from_config(self):
         with tempfile.TemporaryDirectory() as t:
             p = Path(t) / "strata-glm-3.0bit.json"
-            p.write_text(json.dumps({"exe": "/x/engine-poly/" + setup.POLY_EXE, "args": ["--max-context", "65536"]}))
+            p.write_text(json.dumps({"exe": "/x/engine-hyper/" + setup.POLY_EXE, "args": ["--max-context", "65536"]}))
             ch = setup.choices_from_config(p)
             self.assertEqual((ch["family"], ch["model"], ch["context"], ch["vision"]), ("glm", M, 65536, "none"))
             self.assertTrue(setup.poly_config(json.loads(p.read_text())))
 
     def test_an_install_from_before_the_engine_was_renamed(self):
-        # its config has strata-glm in engine-glm/: it is this engine's, and an update moves it to the new one
+        # its config has hyper in engine-hyper/: it is this engine's, and an update moves it to the new one
         with tempfile.TemporaryDirectory() as t:
             root = Path(t)
             p = root / "strata-glm-3.0bit.json"
@@ -152,7 +152,7 @@ class Config(unittest.TestCase):
                 # a compile that fails leaves the install as it was: the old engine still starts
                 with mock.patch.object(setup, "build_engine_poly", lambda *a: build(*a, works=False)):
                     _code, out = quiet(setup.update_poly_engine, dict(cfg), False, p)
-                self.assertIn("could not update strata-poly", out)
+                self.assertIn("could not update hyper", out)
                 self.assertEqual(json.loads(p.read_text())["exe"], cfg["exe"])
                 with mock.patch.object(setup, "build_engine_poly", build):
                     _code, out = quiet(setup.update_poly_engine, cfg, False, p)
@@ -274,7 +274,7 @@ class Main(unittest.TestCase):
         self.assertEqual(self.verified, [(FILE, *setup.FAMILIES["glm"]["sha256"][FILE])])
         self.assertEqual(self.built, [["120"]])
         self.assertEqual(len(self.runs), 2, self.runs)                 # the tokenizer and the draft block: no pack
-        self.assertTrue(self.runs[0][1].endswith("strata_tokenizer.py"))
+        self.assertTrue(self.runs[0][1].endswith("hyper_tokenizer.py"))
         pack = self.t / "data" / "packs" / "glm-3.0bit"
         self.assertEqual(self.runs[0][self.runs[0].index("--out") + 1], str(pack))
         # this size's file has no draft block: the model's is fetched, and the engine is given it
@@ -303,7 +303,7 @@ class Main(unittest.TestCase):
         block.write_bytes(b"GGUF")
         code, out, cfg = self.main()
         self.assertEqual(code, 0, out)
-        self.assertEqual([Path(r[1]).name for r in self.runs], ["strata_tokenizer.py"])
+        self.assertEqual([Path(r[1]).name for r in self.runs], ["hyper_tokenizer.py"])
         self.assertEqual(Path(cfg["args"][cfg["args"].index("--draft-model") + 1]), block)
 
     def test_the_engine_keeps_its_own_profile(self):
@@ -344,7 +344,7 @@ class Main(unittest.TestCase):
         args = cfg["args"]
         self.assertEqual(Path(args[args.index("--model") + 1]), self.t / "models" / "glm-REAP50-Q3_K_M" / HALF_FILE)
         self.assertNotIn("--draft-model", args)                          # its file has its own, pruned with it
-        self.assertEqual([Path(r[1]).name for r in self.runs], ["strata_tokenizer.py"])
+        self.assertEqual([Path(r[1]).name for r in self.runs], ["hyper_tokenizer.py"])
 
     def test_a_size_in_several_files(self):
         code, out, cfg = self.main(ram=88.0)
@@ -357,7 +357,7 @@ class Main(unittest.TestCase):
         pack = self.t / "data" / "packs" / "glm-ud-iq2_xxs"
         self.assertEqual((pack / "expert-profile.txt").read_text(), "3 0 7\n")     # the whole model's profile
         self.assertNotIn("--draft-model", args)                          # the draft block is in its last file
-        self.assertEqual([Path(r[1]).name for r in self.runs], ["strata_tokenizer.py"])
+        self.assertEqual([Path(r[1]).name for r in self.runs], ["hyper_tokenizer.py"])
 
     def test_deepseek(self):
         """DeepSeek V4 Flash: GLM's steps for Unsloth's three files, no draft block and no shipped profile."""
@@ -372,7 +372,7 @@ class Main(unittest.TestCase):
         self.assertEqual(code, 0, out)
         self.assertEqual(self.downloads, [d["hf"] + f for f in files])
         self.assertEqual(self.verified, [(f, *fam["sha256"][f]) for f in files])
-        self.assertEqual([Path(r[1]).name for r in self.runs], ["strata_tokenizer.py"])
+        self.assertEqual([Path(r[1]).name for r in self.runs], ["hyper_tokenizer.py"])
         args = cfg["args"]
         self.assertEqual(Path(args[args.index("--model") + 1]), self.t / "models" / "dsv4-UD-IQ2_XXS" / files[0])
         self.assertNotIn("--draft-model", args)
@@ -402,9 +402,9 @@ class Main(unittest.TestCase):
         self.assertEqual(code, 0, out)
         line = next(ln for ln in out.splitlines() if "not used with GLM 5.3 Flash" in ln)
         self.assertIn("--vision", line)
-        self.assertNotIn("--parallel", line)   # strata-poly answers several requests at once too
+        self.assertNotIn("--parallel", line)   # hyper answers several requests at once too
         self.assertEqual(cfg["parallel"], 2)
-        # Phase 1c: --kv is strata-poly's own knob now, with its own qwen35moe-only warning; nothing is written
+        # Phase 1c: --kv is hyper's own knob now, with its own qwen35moe-only warning; nothing is written
         self.assertIn("--kv q4_0 is only supported for qwen35moe models in v1", out)
         self.assertNotIn("--kv", cfg["args"])
         self.assertNotIn("--draft-kv", cfg["args"])

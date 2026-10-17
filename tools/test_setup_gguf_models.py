@@ -116,7 +116,7 @@ class Config(unittest.TestCase):
         with tempfile.TemporaryDirectory() as t:
             for family, (size, *_rest) in NEW.items():
                 p = Path(t) / f"strata-{setup.FAMILIES[family]['tag']}{size.lower()}.json"
-                p.write_text(json.dumps({"exe": "/x/engine-poly/" + setup.POLY_EXE, "args": ["--max-context", "8192"]}))
+                p.write_text(json.dumps({"exe": "/x/engine-hyper/" + setup.POLY_EXE, "args": ["--max-context", "8192"]}))
                 ch = setup.choices_from_config(p)
                 self.assertEqual((ch["family"], ch["model"], ch["context"]), (family, size, 8192))
 
@@ -124,12 +124,12 @@ class Config(unittest.TestCase):
         # Phase 1c: the reader for the writer below; a config from before the flags keeps reading (fp16)
         with tempfile.TemporaryDirectory() as t:
             p = Path(t) / "strata-qwen36-ud-q3_k_m.json"
-            p.write_text(json.dumps({"exe": "/x/engine-poly/" + setup.POLY_EXE,
+            p.write_text(json.dumps({"exe": "/x/engine-hyper/" + setup.POLY_EXE,
                                      "args": ["--max-context", "32768", "--kv", "q8_0", "--draft-kv", "q4_0"]}))
             ch = setup.choices_from_config(p)
             self.assertEqual((ch["family"], ch["model"], ch["kv"], ch["draft_kv"]),
                              ("qwen36", "UD-Q3_K_M", "q8_0", "q4_0"))
-            p.write_text(json.dumps({"exe": "/x/engine-poly/" + setup.POLY_EXE,
+            p.write_text(json.dumps({"exe": "/x/engine-hyper/" + setup.POLY_EXE,
                                      "args": ["--max-context", "32768"]}))
             ch = setup.choices_from_config(p)
             self.assertEqual((ch["kv"], ch["draft_kv"]), (None, None))
@@ -153,7 +153,7 @@ class Main(unittest.TestCase):
                 tag = fam["tag"] + size
                 pack = self.t / "data" / "packs" / tag.lower()
                 # the tokenizer alone: no draft block is fetched for these
-                self.assertEqual([Path(r[1]).name for r in self.runs], ["strata_tokenizer.py"])
+                self.assertEqual([Path(r[1]).name for r in self.runs], ["hyper_tokenizer.py"])
                 self.assertEqual(self.runs[0][self.runs[0].index("--out") + 1], str(pack))
                 args = cfg["args"]
                 self.assertEqual(Path(args[args.index("--model") + 1]), self.t / "models" / tag / file)
@@ -350,7 +350,7 @@ class Main(unittest.TestCase):
     def test_flash_kv_value_is_refused(self):
         code, out, cfg = self.main(["--kv", "int8"], family="qwen36", ram=32.0, vram=8.0)
         self.assertNotEqual(code, 0)
-        self.assertIn("--kv int8: strata-poly takes fp16", out)
+        self.assertIn("--kv int8: hyper takes fp16", out)
         self.assertIsNone(cfg)
 
 

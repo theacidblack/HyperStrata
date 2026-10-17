@@ -83,7 +83,7 @@ class DefsTest(unittest.TestCase):
 
 class McpTest(unittest.TestCase):
     def test_no_avx2_is_a_note_not_a_refusal(self):
-        import strata_mcp as M
+        import hyper_mcp as M
         s = M.Strata(ROOT)
         gpu = [{"index": 0, "name": "x", "vram_gb": 24.0, "usable": True, "vendor": "nvidia"}]
         r = s.recommend({"ram_gb": 64, "gpus": gpu, "cpu": {"avx2": False}})

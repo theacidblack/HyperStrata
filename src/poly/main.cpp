@@ -42,8 +42,8 @@
 #undef far   // a word of this file's
 #endif
 
-#ifndef STRATA_VERSION
-#define STRATA_VERSION "dev"
+#ifndef HYPER_VERSION
+#define HYPER_VERSION "dev"
 #endif
 
 namespace {
@@ -609,7 +609,7 @@ int serve(Session& ss, const Options& o) {
     std::vector<Slot> slots((size_t) engine.sequences() - 1);
     std::printf("INFO context=%d expert_slots=%d expert_cache_mib=%lld pool_workers=%d conversation_cache_mib=%lld "
                 "conversation_cache_slots=%d conversation_cache_min_free_mib=%lld vram_free_mib=%lld vram_elastic=1 "
-                "batch_slots=%d kv=%s draft_kv=%s engine=" STRATA_VERSION "\n",
+                "batch_slots=%d kv=%s draft_kv=%s engine=" HYPER_VERSION "\n",
                 engine.max_context(), engine.cached_experts(), (long long) (engine.cached_gib() * 1024.0),
                 engine.threads(), (long long) ss.flags.o.park_mib, ss.flags.o.park_slots, ss.flags.min_free_mib,
                 (long long) engine.vram_free_mib(), (int) slots.size(), kv_flag_name(o.kv_format),

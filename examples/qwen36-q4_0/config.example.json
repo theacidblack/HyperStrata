@@ -1,5 +1,5 @@
 {
-  "exe": "<REPO_ROOT>\\engine-poly\\strata-poly.exe",
+  "exe": "<REPO_ROOT>\\engine-hyper\\hyper.exe",
   "args": [
     "--model",
     "<MODEL_FILE>",

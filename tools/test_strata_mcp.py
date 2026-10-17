@@ -24,7 +24,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-import strata_mcp as M  # noqa: E402
+import hyper_mcp as M  # noqa: E402
 
 FAKE_SETUP = r'''
 import json, sys, time
@@ -115,7 +115,7 @@ class H(BaseHTTPRequestHandler):
             self.js(404, {})
 httpd = ThreadingHTTPServer(("127.0.0.1", port), H)
 def term(*_):
-    print("[strata] stopped (fake)", flush=True)
+    print("[hyper] stopped (fake)", flush=True)
     os._exit(0)
 signal.signal(signal.SIGTERM, term)
 print(f"ready: http://127.0.0.1:{port}/v1", flush=True)
@@ -231,7 +231,7 @@ class Protocol(FakeRoot):
         init = r[1]["result"]
         self.assertEqual(init["protocolVersion"], "2025-06-18")
         self.assertIn("tools", init["capabilities"])
-        self.assertEqual(init["serverInfo"]["name"], "strata")
+        self.assertEqual(init["serverInfo"]["name"], "hyper")
         names = [t["name"] for t in r[2]["result"]["tools"]]
         self.assertEqual(names, ["strata_status", "strata_models", "strata_install", "strata_start", "strata_stop",
                                  "strata_logs", "strata_benchmark", "strata_connect_info"])
@@ -267,7 +267,7 @@ class Protocol(FakeRoot):
                 {"jsonrpc": "2.0", "id": 2, "method": "tools/list"},
                 {"jsonrpc": "2.0", "id": 3, "method": "tools/call",
                  "params": {"name": "strata_logs", "arguments": {"source": "setup"}}}]
-        p = subprocess.run([sys.executable, str(HERE / "strata_mcp.py"), "--root", str(self.root)],
+        p = subprocess.run([sys.executable, str(HERE / "hyper_mcp.py"), "--root", str(self.root)],
                            input="\n".join(json.dumps(m) for m in msgs) + "\n", capture_output=True, text=True,
                            timeout=60, env=dict(os.environ))
         lines = [json.loads(x) for x in p.stdout.splitlines()]
@@ -276,7 +276,7 @@ class Protocol(FakeRoot):
         self.assertIn("ready", p.stderr)
 
     def test_not_a_strata_folder(self):
-        p = subprocess.run([sys.executable, str(HERE / "strata_mcp.py"), "--root", self.tmp.name], input="",
+        p = subprocess.run([sys.executable, str(HERE / "hyper_mcp.py"), "--root", self.tmp.name], input="",
                            capture_output=True, text=True, timeout=60)
         self.assertEqual(p.returncode, 2)
 
@@ -325,13 +325,14 @@ class Validation(FakeRoot):
     def test_data_dir_paths(self):
         self.assertRejected("strata_install", {"data_dir": "models"}, "absolute")
         self.assertRejected("strata_install", {"data_dir": str(self.root.parent / "x" / ".." / "PolyStrata-x")}, "'..'")
-        self.assertRejected("strata_install", {"data_dir": str(self.root.parent / "Documents")}, "named PolyStrata")
+        self.assertRejected("strata_install", {"data_dir": str(self.root.parent / "Documents")}, "named HyperStrata")
         self.assertRejected("strata_install", {"data_dir": str(self.root.parent / "nope" / "PolyStrata-data")},
                             "does not exist")
         self.assertRejected("strata_install", {"data_dir": "\\\\server\\share\\PolyStrata-data"}, "network")
         sysdir = (os.environ.get("SystemRoot", "C:\\Windows") + "\\PolyStrata-data") if M.WIN else "/etc/PolyStrata-data"
         self.assertRejected("strata_install", {"data_dir": sysdir}, "system folder")
-        ok = [self.root.parent / "PolyStrata-data", self.root / "models-here", self.root.parent / "PolyStrata-big"]
+        ok = [self.root.parent / "HyperStrata-data", self.root.parent / "PolyStrata-data",
+              self.root / "models-here", self.root.parent / "PolyStrata-big"]
         for d in ok:
             self.assertEqual(M.norm(self.tools.check_data_dir(str(d))), M.norm(d))
 

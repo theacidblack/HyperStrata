@@ -107,7 +107,7 @@ RESIDENT_LEAVE_SHARE = 0.30
 BIG_MAC_GB = 64.0
 GIB_GB = 1.073741824    # a GiB in GB: ram_gb is binary, the model sizes are decimal
 CONTEXTS = [8192, 32768, 65536, 131072]
-MAC_ABOUT = {"Q2_0": "2-bit, the fastest", "IQ3_XXS": "3-bit i-quant, better quality",
+MAC_ABOUT = {"Q2_0": "2-bit, the smallest file", "IQ3_XXS": "3-bit i-quant, better quality",
              "IQ3_S": "3.5-bit i-quant, the best quality (matches the full model), the slowest",
              "UD-Q4_K_XL": "Unsloth ~4.5-bit (111 GB download)", "UD-Q5_K_XL": "Unsloth ~5.5-bit (158 GB download)",
              "UD-Q6_K_XL": "Unsloth ~6.5-bit (169 GB download)"}
@@ -319,11 +319,11 @@ def engine_args(pack: Path, shards: list, rt: Path, ctx: int, stream: bool = Fal
 # the image encoder's projector (setup.py's pinned revision): name -> (bytes, SHA-256)
 VISION_SHA256 = {"mmproj-Qwen3.8-Flash-Next-BF16.gguf":
                  (907543008, "b1a82259702816a5330d7bd7607cd9676b11780e79ff7348c21103ff3ce49bd0")}
-VISION_EXE = ROOT / "build-vision" / "bin" / "strata-vision"
+VISION_EXE = ROOT / "build-vision" / "bin" / "hyper-vision"
 
 
 def build_vision(llama: Path) -> Path:
-    """strata-vision (tools/vision: llama.cpp's mtmd at the pinned commit), with ggml's Metal backend: the encoder
+    """hyper-vision (tools/vision: llama.cpp's mtmd at the pinned commit), with ggml's Metal backend: the encoder
     runs on the GPU."""
     stamp = ROOT / "build-vision" / "BUILD.json"
     src = source_digest()
@@ -340,7 +340,7 @@ def build_vision(llama: Path) -> Path:
         for cmd in ([tool("cmake"), "-S", str(ROOT / "tools" / "vision"), "-B", str(ROOT / "build-vision"), "-G", "Ninja",
                      "-DCMAKE_BUILD_TYPE=Release", f"-DCMAKE_MAKE_PROGRAM={tool('ninja')}", f"-DLLAMA_DIR={llama}",
                      "-DSTRATA_VISION_CUDA=OFF", "-DSTRATA_PORTABLE=OFF"],
-                    [tool("ninja"), "-C", str(ROOT / "build-vision"), "strata-vision"]):
+                    [tool("ninja"), "-C", str(ROOT / "build-vision"), "hyper-vision"]):
             if subprocess.call(cmd, stdout=f, stderr=subprocess.STDOUT, env=env) != 0:
                 S.fail(f"the image encoder did not build (see {log})")
     stamp.write_text(json.dumps({"source": src}), encoding="utf-8")
@@ -471,7 +471,7 @@ def start(cfg_path: Path, port: int | None, open_browser: bool = True) -> int:
     cfg_path.touch()
     if "--mtp" in cfg["args"][:-1]:
         S.refresh_draft_vocab(Path(cfg["args"][cfg["args"].index("--mtp") + 1]), cfg.get("draft_vocab", "cjk"))
-    cmd = [sys.executable, str(ROOT / "serve" / "server.py"), "--engine", "strata", "--config", str(cfg_path),
+    cmd = [sys.executable, str(ROOT / "serve" / "server.py"), "--engine", "hyper", "--config", str(cfg_path),
            "--port", str(port or cfg.get("port", 8080))]
     if open_browser and cfg.get("open_browser") is not False:
         cmd.append("--open")

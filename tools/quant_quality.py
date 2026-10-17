@@ -48,7 +48,7 @@ DROP_FLAG = {"--serve", "--vision", "--resident-experts", "--resident-cpu-expert
 # ------------------------------------------------------------------------------------------------ ids
 def cmd_ids(a) -> int:
     sys.path.insert(0, str(HERE))
-    import strata_tokenizer as ST  # noqa: E402
+    import hyper_tokenizer as ST  # noqa: E402
     tp = pathlib.Path(a.tokenizer)
     vocab = json.loads((tp / "vocab.json").read_text(encoding="utf-8"))
     toks = [None] * len(vocab)

@@ -516,7 +516,7 @@ class VisionTempFiles(unittest.TestCase):
 
         pipe = Pipe()
         v = Vision.__new__(Vision)
-        v.dir, v.lock, v.cache = Path(tempfile.mkdtemp(prefix="strata-vision-test-")), threading.Lock(), {}
+        v.dir, v.lock, v.cache = Path(tempfile.mkdtemp(prefix="hyper-vision-test-")), threading.Lock(), {}
         v.proc = mock.Mock(stdin=pipe, stdout=mock.Mock(readline=lambda: "OK 7 1 1 1\n"))
         try:
             with mock.patch.object(Vision, "load", return_value=b""), \
@@ -559,7 +559,7 @@ class VisionTempFiles(unittest.TestCase):
             err.winerror = code
             with self.subTest(winerror=code), mock.patch.object(subprocess, "Popen", side_effect=err):
                 with self.assertRaises(OSError) as cm:
-                    popen("the image encoder", ["strata-vision.exe"])
+                    popen("the image encoder", ["hyper-vision.exe"])
                 self.assertIn("Smart App Control", str(cm.exception))
                 self.assertIn("--vision no", str(cm.exception))
         with mock.patch.object(subprocess, "Popen", side_effect=FileNotFoundError("gone")):
@@ -657,7 +657,7 @@ class LiteralThinkTags(unittest.TestCase):
         self.assertIn("Hello, </think> is a tag.", self.tok.decode(ids))
 
     def test_the_real_tokenizer_reads_the_tag_as_text(self):
-        import strata_tokenizer as ST
+        import hyper_tokenizer as ST
         b2u = ST.bytes_to_unicode()
         tokens = [b2u[b] for b in range(256)] + ["<think>", "</think>", "<|im_end|>"]
         tok = ST.Tokenizer(tokens, [], [1] * 256 + [4, 4, 3])
@@ -730,7 +730,7 @@ class LiteralControlTokens(unittest.TestCase):
         self.assertIn(text, self.tok.decode(ids))
 
     def test_a_literal_inside_a_longer_one(self):
-        import strata_tokenizer as ST
+        import hyper_tokenizer as ST
         b2u = ST.bytes_to_unicode()
         text = "see <x<|a|>y> and <|a|> here"
         for order in (["<|a|>", "<x<|a|>y>"], ["<x<|a|>y>", "<|a|>"]):          # either order in the vocabulary
@@ -742,7 +742,7 @@ class LiteralControlTokens(unittest.TestCase):
                 self.assertEqual(tok.encode(prompt, parse_special=True, plain=plain), [*text.encode()])
 
     def test_the_real_tokenizer_names_its_control_tokens(self):
-        import strata_tokenizer as ST
+        import hyper_tokenizer as ST
         b2u = ST.bytes_to_unicode()
         tokens = [b2u[b] for b in range(256)] + ["<think>", "</think>", "<|im_end|>"]
         self.assertEqual(ST.Tokenizer(tokens, [], [1] * 256 + [4, 4, 3]).control_tokens, ["<|im_end|>"])
@@ -1476,7 +1476,7 @@ class ClientShapes(unittest.TestCase):
                 raise BrokenPipeError("the encoder is gone")
 
         v = Vision.__new__(Vision)
-        v.dir, v.lock, v.cache = Path(tempfile.mkdtemp(prefix="strata-vision-test-")), threading.Lock(), {}
+        v.dir, v.lock, v.cache = Path(tempfile.mkdtemp(prefix="hyper-vision-test-")), threading.Lock(), {}
         v.proc = mock.Mock(stdin=Gone())
         with mock.patch.object(Vision, "load", return_value=b""), mock.patch.object(Vision, "normalize",
                                                                                    return_value=b"png"):
@@ -1722,7 +1722,7 @@ def join_warm_read():
 
 
 class LastTurn(unittest.TestCase):
-    """strata-poly keeps a checkpoint where the prompt's last turn begins (the GEN line's turn_at): the chat's next
+    """hyper keeps a checkpoint where the prompt's last turn begins (the GEN line's turn_at): the chat's next
     request shares the prompt up to there, whatever its template writes for this reply (some drop the thinking)."""
 
     MSGS = [{"role": "system", "content": "You are terse."}, {"role": "user", "content": "hi"}]
@@ -2221,9 +2221,9 @@ class PeerDevice(unittest.TestCase):
         self.assertEqual(engine_args({"args": list(done), "vision": {"gpu": True}}), done)
         self.assertEqual(engine_args({"args": list(args)}), args)                # no section: no images
         # it has no such option; setup writes its path as this system writes one
-        for exe in ("engine-poly/strata-poly", os.path.join(os.sep, "x", "engine-poly", "strata-poly.exe")):
-            poly = ["--model", "x.gguf"]
-            self.assertEqual(engine_args({"exe": exe, "args": list(poly), "vision": {"exe": "v", "gpu": True}}), poly)
+        for exe in ("engine-hyper/hyper", os.path.join(os.sep, "x", "engine-hyper", "hyper.exe")):
+            hyper = ["--model", "x.gguf"]
+            self.assertEqual(engine_args({"exe": exe, "args": list(hyper), "vision": {"exe": "v", "gpu": True}}), hyper)
 
     def test_split_added_for_several_gpus(self):
         self.assertEqual(engine_args({"args": ["--native", "x"], "gpu": [0, 1]}),
@@ -2610,19 +2610,32 @@ class StartCrashReported(unittest.TestCase):
         from serve.server import transient_start_failure
         d = tempfile.mkdtemp()
         p = Path(d) / "engine.log"
-        p.write_text("[strata] 2026-10-13 17:49:15 engine started: /x/strata --serve\n", encoding="utf-8")
-        self.assertTrue(transient_start_failure(str(p), 0, 3.0, 0))         # a silent plain exit: the old retry
-        self.assertTrue(transient_start_failure(str(p), 0, 3.0, -6))        # SIGABRT (ROCm teardown)
-        self.assertFalse(transient_start_failure(str(p), 0, 3.0, 1))        # the engine's own error exit
-        self.assertFalse(transient_start_failure(str(p), 0, 3.0, 0xC000001D))
-        if os.name != "nt":
-            import signal
-            for sig in (signal.SIGILL, signal.SIGSEGV, signal.SIGBUS, signal.SIGKILL):
-                self.assertFalse(transient_start_failure(str(p), 0, 3.0, -int(sig)), sig)
-        # the runtime's own words keep it a retry whatever the status
-        p.write_text("[strata] x engine started\nterminate called after throwing an instance of "
-                     "'rocr::AMD::hsa_exception'\n", encoding="utf-8")
-        self.assertTrue(transient_start_failure(str(p), 0, 3.0, -6))
+        # Wave B dual-compat: the launcher's own lines under the new "[hyper]" tag and the old "[strata]" one
+        for tag in ("[hyper]", "[strata]"):
+            with self.subTest(tag=tag):
+                p.write_text(f"{tag} 2026-10-13 17:49:15 engine started: /x/strata --serve\n", encoding="utf-8")
+                self.assertTrue(transient_start_failure(str(p), 0, 3.0, 0))         # a silent plain exit: the old retry
+                self.assertTrue(transient_start_failure(str(p), 0, 3.0, -6))        # SIGABRT (ROCm teardown)
+                self.assertFalse(transient_start_failure(str(p), 0, 3.0, 1))        # the engine's own error exit
+                self.assertFalse(transient_start_failure(str(p), 0, 3.0, 0xC000001D))
+                if os.name != "nt":
+                    import signal
+                    for sig in (signal.SIGILL, signal.SIGSEGV, signal.SIGBUS, signal.SIGKILL):
+                        self.assertFalse(transient_start_failure(str(p), 0, 3.0, -int(sig)), sig)
+                # the runtime's own words keep it a retry whatever the status
+                p.write_text(f"{tag} x engine started\nterminate called after throwing an instance of "
+                             "'rocr::AMD::hsa_exception'\n", encoding="utf-8")
+                self.assertTrue(transient_start_failure(str(p), 0, 3.0, -6))
+
+    def test_a_log_with_only_launcher_lines_says_so(self):
+        # Wave B dual-compat: the "launcher's own lines" note fires for the new "[hyper]" tag and the old
+        # "[strata]" one, but not when the engine wrote its own (untagged) line.
+        for line, wanted in (("[hyper] almost ready ...", True), ("[strata] almost ready ...", True),
+                             ("strata generate: session is up (engine 0.1.44.1)", False)):
+            with self.subTest(line=line):
+                text, _ = self.run_fake("import sys\nsys.stderr.write(%r + chr(10))\nsys.exit(1)\n" % line)
+                self.assertIn("the engine exited before it was ready", text)
+                self.assertEqual("(those are the launcher's own lines" in text, wanted)
 
     @unittest.skipIf(os.name == "nt", "signals")
     def test_sigill_is_reported_not_retried(self):
@@ -5434,7 +5447,7 @@ class VisionArgs(unittest.TestCase):
             return Proc()
 
         with mock.patch.object(server.subprocess, "Popen", popen), mock.patch.object(server, "contain"):
-            server.Vision({"exe": "strata-vision", "mmproj": "m.gguf", "model": "t.gguf", **cfg})
+            server.Vision({"exe": "hyper-vision", "mmproj": "m.gguf", "model": "t.gguf", **cfg})
         return seen[0]
 
     def test_min_tokens_is_passed_only_when_set(self):
@@ -5550,7 +5563,7 @@ class LazyVision(unittest.TestCase):
             return p
 
         with mock.patch.object(server, "popen", popen), mock.patch.object(server, "contain"):
-            v = server.Vision({"exe": "strata-vision", "mmproj": "m.gguf", "model": "t.gguf"}, lazy=True)
+            v = server.Vision({"exe": "hyper-vision", "mmproj": "m.gguf", "model": "t.gguf"}, lazy=True)
             self.addCleanup(lambda: shutil.rmtree(v.dir, ignore_errors=True))
             return v, started, popen
 
@@ -5597,7 +5610,7 @@ class VisionShutdown(unittest.TestCase):
     def test_shutdown_removes_the_work_dir_but_close_keeps_it(self):
         import serve.server as server
         with tempfile.TemporaryDirectory() as t:
-            d = Path(t) / "strata-vision-x"
+            d = Path(t) / "hyper-vision-x"
             d.mkdir()
             (d / "k.sve").write_bytes(b"x")
             v = server.Vision.__new__(server.Vision)
@@ -5769,7 +5782,7 @@ class UntimedReads(unittest.TestCase):
         import serve.server as server
         silent = self.Silent()
         v = server.Vision.__new__(server.Vision)
-        v.dir, v.lock, v.cache = Path(tempfile.mkdtemp(prefix="strata-vision-test-")), threading.Lock(), {}
+        v.dir, v.lock, v.cache = Path(tempfile.mkdtemp(prefix="hyper-vision-test-")), threading.Lock(), {}
         v.stopped = False
         v.proc = SimpleNamespace(stdin=io.StringIO(), stdout=silent, kill=silent.kill, poll=lambda: 1 if silent.killed else None)
         try:
@@ -5789,8 +5802,8 @@ class UntimedReads(unittest.TestCase):
         silent = self.Silent()
         proc = SimpleNamespace(stdin=io.StringIO(), stdout=silent, kill=silent.kill, poll=lambda: None)
         v = server.Vision.__new__(server.Vision)
-        v.spawn = (["strata-vision"], None, None)
-        v.dir = Path(tempfile.mkdtemp(prefix="strata-vision-test-"))
+        v.spawn = (["hyper-vision"], None, None)
+        v.dir = Path(tempfile.mkdtemp(prefix="hyper-vision-test-"))
         try:
             with mock.patch.object(server, "popen", lambda *a, **k: proc), mock.patch.object(server, "contain"),                     mock.patch.object(server, "VISION_READY_S", 0.3):
                 with self.assertRaises(RuntimeError) as cm:

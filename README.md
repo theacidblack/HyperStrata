@@ -10,6 +10,8 @@ House models: Unsloth UD-Q4_K_M with MTP and UD-Q5_K_M with MTP. v1.0.0 gates on
 
 Chain: Strata → PolyStrata → HyperStrata. Upstream did the engineering; experiments happen here.
 
+Site (same docs, black theme): https://theacidblack.github.io/HyperStrata/
+
 - [Features](#features)
 - [Speed right now](#speed-right-now)
 - [Install](#install)

@@ -1,4 +1,6 @@
-# TODO owner: confirm author name/email
+authors:
+  - alias: theacidblack
+    website: https://github.com/theacidblack
 cff-version: 1.2.0
 title: HyperStrata
 message: If you use this software, please cite it as below.

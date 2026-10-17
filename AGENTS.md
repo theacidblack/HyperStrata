@@ -36,8 +36,8 @@ the server, and connect the user's apps. Never expose the server beyond
 - Keep the docs' style: plain words, measured numbers with what they were
   measured on, no claims without a measurement.
 - HyperStrata is pure experimentation: low stability is accepted while looking
-  for what runs fastest on limited hardware. Measure, change one thing, measure
-  again, and keep whatever survives contact with the numbers.
+  for what runs well on limited hardware. Measure, change one thing, measure
+  again, and keep what the numbers support.
 
 ## Contributing a change or report
 

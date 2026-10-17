@@ -1,8 +1,8 @@
-# Upstream Divergence Registry — internal
+# Upstream Divergence Registry
 
 Tracks every substantial difference between this fork (`theacidblack/HyperStrata`)
-and upstream (`VecSzn/PolyStrata`). Internal document: it lives in the private
-`HyperStrata-Dev` repo and reaches the public repo's `main` only with releases.
+and upstream (`VecSzn/PolyStrata`). It ships with the repo so every change can
+be checked against its reason.
 
 It must always answer, per divergence: what changed, why, what upstream code it
 touches, whether it is still necessary, whether upstream now does it better, what
@@ -23,7 +23,7 @@ breaks if removed, and how to validate removal. Unknowns are marked, never guess
 - Upstream did: batch slots up to 8 (`--batch`/`--slots`/`--check-batch`, `"parallel": N` config, `setup.py --parallel` for poly), joint `step()` with per-model one-head rows (`qwen35.cpp` covers our Qwen3.6-35B-A3B arch), MXFP4 decode on-GPU (DeepSeek-V4-only), `docs/BATCHING.md` poly section + FAQ numbers, extended `test_setup_parallel.py`.
 - Single-user 8 GB impact: none — solo path behavior-identical, no default shifts, our fp16/q8_0 baselines stand (numbers belong to the pre-sync binary; re-verify after rebuild).
 - Registry impact: DIV-001 unaffected (docs-identity only). No new DIV: upstream's parallel work is `Upstream-only` → sync work, not fork behavior; our q4_0 KV plan premises (`--kv` unused for poly, KV cell bytes, `poly_batch` math) hold verbatim.
-- Method: `git fetch upstream --prune`; `git log --oneline 51dc2427..upstream/main` (13 commits); 3-analyst swarm on engine/kernels/setup-docs (reports in session); `tools/upstream_divergence_audit.py` confirms merge-base = `f72a15e9`, upstream-only = 0.
+- Method: `git fetch upstream --prune`; `git log --oneline 51dc2427..upstream/main` (13 commits); `tools/upstream_divergence_audit.py` confirms merge-base = `f72a15e9`, upstream-only = 0.
 
 ## Registry
 
@@ -56,7 +56,7 @@ breaks if removed, and how to validate removal. Unknowns are marked, never guess
 - **Category:** feature (engine + setup + docs, opt-in, default byte-identical)
 - **Status:** active
 - **Location:** `src/poly/engine.hpp:41,75` (`KvFmt::kQ4_0`, `Options::draft_kv_format`); `src/poly/engine.cpp` (`Engine::open()` per-knob gates); `src/poly/qwen35.cpp` / `qwen35.hpp` (`block_kv()`, per-block alloc/save/load/attend, `head_dim` guard); `src/poly/main.cpp:597-616,1057-1058,1148-1168` (`kv=`/`draft_kv=` INFO, `--draft-kv` help/parse); `src/poly/kernels.cu` (`store_q4[_at]`, q4 reader/dequant arms); `include/strata/poly/kernels.hpp` (`Kvq4`); `src/poly/kv_q4_test.cpp` (new: round-trip, layout, ring, attend key+value arms); `src/poly/draft_race_test.cpp` (mixed-knob arm); `serve/web/app.js:411-420` (neutral `Q4_0` label, Draft KV row hidden when fp16); `setup.py:767` (`POLY_KV_FORMATS`) + writer/reader/carry; `docs/KV_CACHE.md` (new), `docs/GLM.md:261-262,278-284`, `README.md`, `CHANGELOG.md`, `examples/qwen36-q4_0/`
-- **Origin:** fork change 2026-10-16/17 (q4_0 KV plan v2, 4-auditor hardened; commits `f262e222`, `259a690e`, `f7a8d229`, `a95fe7cf`, `5d73df09`, `66602d44`, `99a16422`, `886f5fd0`, `3edabd82` + audit fixes on top)
+- **Origin:** fork change 2026-10-16/17 (q4_0 KV plan v2; commits `f262e222`, `259a690e`, `f7a8d229`, `a95fe7cf`, `5d73df09`, `66602d44`, `99a16422`, `886f5fd0`, `3edabd82` + audit fixes on top)
 - **Reason:** upstream `strata-poly` offers exactly one KV choice (`fp16`, or `q8_0` on qwen35moe) shared by target layers and the draft block. On an 8 GB card the KV cache competes with the expert cache; a q4_0 option at 9/32 of fp16 per row (ggml-true transcription of `quantize_row_q4_0_ref`) plus an independent draft knob lets small/draft traffic run cheap while keeping target precision — mixable per block, both knobs omitted = fp16 exactly as before.
 - **Behavioral difference:** two new opt-in flags; per-block formats in alloc/save/load/attend; setup writes/carries them; new docs. No-flag behavior unchanged (verified: default-path byte-identity traced in review; `poly_kv_q8_test` PASS 91530 values + `poly_attend_test` all passed; `poly_kv_q4_test` PASS 112010 values incl. store→attend round-trip vs ggml oracle through both the key and value readers; `poly_draft_race_test` PASS with 5/5 knob pairs and bit-exact save/load rows 6/6).
 - **Hardware relevance:** yes (8 GB VRAM) — measured once live (q4-001 under both knobs: 90.9 max / 46.3 low / ~55.6 avg tok/s, 48 turns; ≈1.9 GiB KV at ~78K context vs ≈6.7 fp16 / ≈3.6 q8_0). Frozen-fixture A/B pending. No `Perf-record` claimed.

@@ -130,7 +130,6 @@ accepts `-ctk q8_0 -ctv q8_0`. Given a Q8_0 KV cache it answered the two short f
 (`Reply with exactly: KV OK` → `KV OK`; `What is 17 + 25? Answer with just the number.` → `42`), the same
 tokens the poly engine's `--kv q8_0` produced on all three models. It was run on the CPU (`-ngl 0`) because the
 file is far larger than the card; only the short deterministic answers are a meaningful signal across engines.
-Full transcript in the T8.5 report.
 
 ## Files touched
 

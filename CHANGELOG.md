@@ -3,7 +3,14 @@
 Fork changes only; upstream history is the git log. Each entry ships in the
 private dev repo first and reaches the public `main` only on releases.
 
-## Unreleased (toward v0.1.45 — first public change)
+Version numbers are `v<upstream>.<fork-build>`: the first numbers name the
+upstream release this state includes (e.g. `0.1.44.1`), the last number counts
+our releases on top of it (`v0.1.44.1.1`, `v0.1.44.1.2`, ...). After syncing a
+new upstream, the counter restarts (`v0.1.45.1`, ...). Exception: `v0.1.45`
+below predates the scheme — read it as "aligned to upstream `0.1.44.1`, fork
+build 0".
+
+## v0.1.45 — 2026-10-17 (first public release)
 
 ### Added
 - q4_0 KV cache for the `strata-poly` / qwen35moe engine plus an independent

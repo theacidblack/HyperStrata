@@ -51,6 +51,22 @@ breaks if removed, and how to validate removal. Unknowns are marked, never guess
 - **Validation procedure:** re-read against the identity task's definition of done;
   confirm no authorship/endorsement/universal-gain claims and no invented benchmarks.
 
+## DIV-002 — Independent q4_0 KV-cache knobs for target model and draft block
+
+- **Category:** feature (engine + setup + docs, opt-in, default byte-identical)
+- **Status:** active
+- **Location:** `src/poly/engine.hpp:41,75` (`KvFmt::kQ4_0`, `Options::draft_kv_format`); `src/poly/engine.cpp` (`Engine::open()` per-knob gates); `src/poly/qwen35.cpp` / `qwen35.hpp` (`block_kv()`, per-block alloc/save/load/attend); `src/poly/main.cpp:1057,1153-1169` (`--draft-kv` parse/help, `kv=`/`draft_kv=` INFO); `src/poly/kernels.cu` (`store_q4[_at]`, q4 reader/dequant arms); `include/strata/poly/kernels.hpp` (`Kvq4`); `src/poly/kv_q4_test.cpp` (new); `serve/web/app.js` (Draft KV cache row); `setup.py:767` (`POLY_KV_FORMATS`) + writer/reader/carry; `docs/KV_CACHE.md` (new), `docs/GLM.md:262,281`, `README.md` (terse mentions)
+- **Origin:** fork change 2026-10-16/17 (q4_0 KV plan v2, 4-auditor hardened; commits `f262e222`, `259a690e`, `f7a8d229`, `a95fe7cf`, `5d73df09`)
+- **Reason:** upstream `strata-poly` offers exactly one KV choice (`fp16`, or `q8_0` on qwen35moe) shared by target layers and the draft block. On an 8 GB card the KV cache competes with the expert cache; a q4_0 option at 9/32 of fp16 per row (ggml-true transcription of `quantize_row_q4_0_ref`) plus an independent draft knob lets small/draft traffic run cheap while keeping target precision — mixable per block, both knobs omitted = fp16 exactly as before.
+- **Behavioral difference:** two new opt-in flags; per-block formats in alloc/save/load/attend; setup writes/carries them; new docs. No-flag behavior unchanged (verified: default-path byte-identity traced in review; `poly_kv_q8_test` + `poly_attend_test` PASS; `poly_kv_q4_test` PASS 101770 values incl. store→attend round-trip vs ggml oracle).
+- **Hardware relevance:** yes (8 GB VRAM) — unmeasured yet; LEDGER arms pending (Phase-0 harness ready in `livetesting/`). No `Perf-record` claimed.
+- **Evidence:** `poly_kv_q4_test: PASS (101770 values checked)`; `poly_kv_q8_test: PASS`; `poly_attend_test: all passed`; full `test_setup_*` battery green (667 tests); review verdicts in session (nibble-pairing + dup-body + carry-validation + ggml-formula findings all fixed before commit).
+- **Dependencies:** none
+- **Upstream status:** no equivalent (upstream has no per-knob `fp16|q8_0|q4_0` selection; its parallel/batch work at `f72a15e9` is orthogonal and merged).
+- **Maintenance cost:** rebase surface is the per-block branches in `qwen35.cpp` + kernel arms; upstream batch-slot `step()` path is format-agnostic (selection is per-block, never per-sequence). Unknown yet beyond that.
+- **Removal criteria:** retire only when upstream ships equivalent mixed target/draft KV selection; then delete the shim + note the LEDGER run that re-validated parity.
+- **Validation procedure:** rebuild `strata-poly` from source (sm_86, TESTS=ON), run `poly_kv_q4_test` + `poly_kv_q8_test` + `poly_attend_test` + mixed `draft_race_test` arm; Phase-0 A/B harness gates before any perf claim.
+
 Use the next free `DIV-00N` id for each new entry. One entry per coherent problem,
 not one per edit. Trivial edits (formatting, lockfile noise, generated files) get
 no entry.

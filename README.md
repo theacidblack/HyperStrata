@@ -4,8 +4,6 @@
 
 What I run: Unsloth UD quants q4–q6, house model Q4_K_M MTP. Fork of PolyStrata.
 
-Why Hyper: High Performance on cheap cards. Hyper + Strata = HyperStrata.
-
 My experience with 8 GB VRAM and 32 GB RAM covers a lot of the 35B-A3B space. I keep what runs well on these specs. Nothing else is covered, nothing else promised.
 
 ## Status
@@ -24,20 +22,20 @@ Agent builds a browser game start to finish — messy real decode, not a clean l
 
 | run | model / quant | max | low | avg | provenance |
 | --- | --- | --- | --- | --- | --- |
-| fp16-001 | UD-Q4_K_M, fp16 KV | 91.9 | 55.4 | ~61.5 | 41 turns, log on file |
-| q8-001 | UD-Q4_K_M, q8_0 KV | 86.5 | 56.3 | ~61.4 | 48 turns, log on file |
-| q4-001 | UD-Q4_K_M, q4_0 + draft | 90.9 | 46.3 | ~55.6 | 48 turns, REPORTED, no log |
-| q5-001 | UD-Q5_K_M, q4_0 + draft | 63.4 | 31.0 | ~42.7 | 69 turns, log on file, verdict pending user |
-| q6-001 | UD-Q6_K base, no MTP + Vision | 55.8 | 13.5 | ~35.5 | 159 turns, chat paste, archive PENDING, verdict NOT stated |
-| q4v-001 | UD-Q4_K_M MTP + Vision | 92.4 | 47.2 | — (partial) | 19 turns pasted, unfinished, NO verdict |
+| fp16-001 | UD-Q4_K_M (MTP), fp16 KV | 91.9 | 55.4 | ~61.5 | 41 turns, log on file |
+| q8-001 | UD-Q4_K_M (MTP), q8_0 KV | 86.5 | 56.3 | ~61.4 | 48 turns, log on file |
+| q4-001 | UD-Q4_K_M (MTP), q4_0 KV + draft | 90.9 | 46.3 | ~55.6 | 48 turns, REPORTED, no log |
+| q5-001 | UD-Q5_K_M (MTP), q4_0 KV + draft | 63.4 | 31.0 | ~42.7 | 69 turns, log on file, verdict pending user |
+| q6-001 | UD-Q6_K (base, no MTP), KV n/s + Vision | 55.8 | 13.5 | ~35.5 | 159 turns, chat paste, archive PENDING, verdict NOT stated |
+| q4v-001 | UD-Q4_K_M (MTP), q4_0 KV + draft + Vision | 92.4 | 47.2 | — (partial) | 19 turns pasted, unfinished, NO verdict |
 
 Max is one turn, avg covers the run. REPORTED outranks nothing. No dates on anything PENDING.
 
-PENDING: q4v full run + transcript, q5/q6 verdicts, q4 log, per-quant VRAM table, Q2_K/Q3_K fast paths, frozen A/B (q4_0 experimental until then). ctest 121/122 (`ple_parity` fails by design, needs a 20 GB fixture). Long contexts on 32 GB may fail — physics, not a bug.
+PENDING: q4v full run + transcript, q5/q6 verdicts, q4 log, per-quant VRAM table, Q2_K/Q3_K fast paths, frozen A/B (q4_0 experimental until then). ctest 121/122 (`ple_parity` fails by design, needs a 20 GB fixture). Long contexts on 32 GB may fail.
 
 ## Install
 
-1. Agent (recommended): open a CLI agent in the source folder, ask it to build the engine for your specs and install a model. It checks, asks, handles the edges. Script for it: [`docs/HOW-TO-INSTALL.md`](docs/HOW-TO-INSTALL.md).
+1. Agent (recommended): open your preferred CLI agent in the source folder, ask it to build the engine for your specs and install a model. It checks your specs and asks what it needs. Script for it: [`docs/HOW-TO-INSTALL.md`](docs/HOW-TO-INSTALL.md).
 2. Manual: same page, Method 2. Presets: [`examples/`](examples/).
 
 Specs outside [`docs/COVERAGE.md`](docs/COVERAGE.md) get no guarantee — untested by me, and this repo changed enough to break anything outside my scope.
@@ -59,7 +57,3 @@ MIT, copyright (c) 2026 Niko1221 and the Strata contributors — [`LICENSE`](LIC
 ## Reports
 
 Bug reports welcome: what you ran, hardware, exact config and flags, full server log — not an excerpt. No fix timeline. No PRs right now. Model requests fall under curation default-NO.
-
-## Tone
-
-If something here sounds edgy — sorry. This repo is ~100% agent-maintained; agents can be impolite and write weird stuff. I'm cleaning as I go, but things slip through. Big repo, one person, not a mainstream product — a playground for learning how engines work, maintain them, optimize them.

@@ -1,77 +1,73 @@
 <h1 align="center">HyperStrata</h1>
 
-<p align="center"><b>An agentic playground for inference speed</b><br>
-Qwen3.6-35B-A3B on one RTX 3070 Ti Laptop GPU + 32 GB RAM · fork of PolyStrata</p>
+<p align="center"><b>How fast can one model go on one fixed laptop?</b><br>
+Qwen3.6-35B-A3B on a single RTX 3070 Ti (8 GB) + 32 GB RAM · fork of PolyStrata</p>
 
-## 1. What this is
+## The idea
 
-HyperStrata is a personal experimental fork of
-[PolyStrata](https://github.com/VecSzn/PolyStrata) (built on
-[Strata](https://github.com/Niko1221/Strata)). It asks one question: how far can
-an existing inference engine be pushed for **one model on one fixed PC**?
+HyperStrata is a personal experiment: take an existing inference engine and
+squeeze it for exactly one model on exactly one PC. No new architecture, no
+claims about other hardware — just measure, change one thing, measure again,
+and keep whatever survives contact with the numbers.
 
-The work is agentic: AI agents write the code, run the benchmarks, and iterate,
-and I supervise — checking every number before anything ships. Development
-happens in the private `HyperStrata-Dev` repo; this public repo holds only
-`main` and is updated when something is found that makes inference faster.
+The work is done by AI agents. I supervise: every number below was checked
+before it shipped, and negative results get published, not buried.
+Development happens in the private `HyperStrata-Dev` repo; this public repo
+holds only `main` and moves when something is found that actually helps.
 
-## 2. Verified results
+## What we've measured
 
-Two same-day baselines, identical config except KV format — ctx 131072,
-temperature 0.6, thinking cap 4096, 256 MiB VRAM reserve, Pi agent building a
-playable browser RTS to completion (2026-10-16, recipe in section 3):
+Same model, same machine, same config — only the KV-cache format changes
+(ctx 131072, temp 0.6, thinking cap 4096, 256 MiB VRAM reserve). The workload
+is an agent building a playable browser RTS start to finish, so the numbers
+are messy real-world decode, not a clean benchmark loop:
 
-| Metric | fp16 KV (engine default) | q8_0 KV |
-| --- | --- | --- |
-| Generation | 91.9 max / 55.4 low / ~61.5 avg tok/s (41 turns) | 86.5 max / 56.3 low / ~61.4 avg tok/s (48 turns) |
-| Prompt intake, fresh reads | ~1.4K tok/s (17.3K tokens / ~12 s) | ~1.4K tok/s (17.0K tokens / ~12 s) |
-| Thinking cap 4096 | hit once, wrapped cleanly, run finished | never hit |
+| | fp16 KV (engine default) | q8_0 KV | q4_0 KV, both knobs (ours) |
+| --- | --- | --- | --- |
+| Generation | 91.9 max / 55.4 low / ~61.5 avg tok/s (41 turns) | 86.5 max / 56.3 low / ~61.4 avg tok/s (48 turns) | 90.9 max / 46.3 low / ~55.6 avg tok/s (48 turns) |
+| Prompt intake | ~1.4K tok/s (17.3K tokens / ~12 s) | ~1.4K tok/s (17.0K / ~12 s) | ~1.33K tok/s (17.3K / ~13 s) |
+| Thinking cap 4096 | hit once, wrapped, finished | never hit | hit once, wrapped, finished |
 
-Averages are identical — no measurable KV effect on sustained decode here. The
-fp16 max is ~6% higher, but those are single-turn peaks on two different agent
-trajectories, so that gap is variance, not a claim. Speed falls as context
-grows — that curve is the record to beat. No loops, no crashes, no
-cancellations. Negative results are published here too, not buried. The full
-per-request breakdown is kept in the private dev repo's test ledger.
+Read it straight: quantization buys **no decode speed here**. The maxima are
+single-turn peaks within noise, and the averages come from different agent
+trajectories, so don't compare them turn-for-turn. What q4_0 buys is
+**room** — 288 bytes a row (28% of fp16, 53% of q8_0), so at ~78K context the
+KV cache holds ≈1.9 GiB instead of ≈6.7 (fp16) or ≈3.6 (q8_0). On an 8 GB
+card, that room is the difference between experts staying in VRAM and
+spilling to CPU. That last claim still needs a frozen-fixture A/B before it
+counts as a result — until then q4_0 stays opt-in and the default is
+untouched.
 
-## 3. How a baseline is made
+## How a number gets here
 
-**Engine.** Built once with this repo's installer (full command in section 6),
-reusing a locally stored model file. The generated `run-*.bat` starts
-`strata-poly` on `127.0.0.1:8080` (OpenAI- and Anthropic-compatible APIs).
+**Engine.** Built from this repo with the stock installer, reusing a locally
+stored model file. The launcher starts `strata-poly` on `127.0.0.1:8080`
+(OpenAI- and Anthropic-compatible).
 
-**Launcher.** At launch, a temporary config is derived from the untouched source
-config, injecting `"sampling": {"temperature": 0.6}` and
-`"reasoning_budget_tokens": 4096`, plus `--vram-reserve-mib 256`. The default
-run uses engine-default fp16 KV (no `--kv` flag); the comparison run adds only
-`--kv q8_0`. KV format is the only variable between runs. `--kv q4_0` and
-`--draft-kv` are implemented but unmeasured on this box (`docs/KV_CACHE.md`).
+**Launcher.** Each run derives a throwaway config from the untouched source:
+temperature 0.6, thinking budget 4096, 256 MiB VRAM reserve. The runs differ
+in exactly one flag — the KV format. Nothing else moves.
 
 **Test.** Same day, same machine, same model file. An agent session builds a
-small browser game start to finish with zero mid-run interaction. All metrics
-come from the server log only — never estimated. The 4096 thinking cap exists
-because an uncapped run once looped dead at ~35% context on a ~16k thinking
-sink.
+small browser game with zero mid-run interaction. Every metric comes from
+the server log — never estimated. The 4096 thinking cap exists because an
+uncapped run once looped dead at ~35% context on a 16K thinking sink.
 
-**Policy.** Hypothesis → change flags or engine code → benchmark against a
-same-day unmodified baseline → keep it if faster, revert and record it if it
-regresses. A change that helps this laptop but hurts the general case stays a
-local experiment, documented as such. No change ships unmeasured.
+**Policy.** Hypothesis → change flags or code → benchmark against a same-day
+unmodified baseline → keep it if faster, revert and record it if it
+regresses. Nothing ships unmeasured.
 
-## 4. Where things come from
+## What's ours
 
-- Engine, server, web app, installer, docs: [Strata](https://github.com/Niko1221/Strata)
-  via [PolyStrata](https://github.com/VecSzn/PolyStrata) (`strata-poly` engine).
-  Upstream did the engineering; agents experiment on top of it here. No approval,
-  support, or endorsement by them is implied. Upstream improvements are merged
-  in (see section 7), never silently dropped.
-- Model weights: Unsloth **`UD-Q4_K_M`** GGUF of **Qwen3.6-35B-A3B** (~22.6 GB,
-  draft block included), stored locally and reused via `--gguf-dir` — never
-  committed to any repo. Please check the model card before redistributing.
-- Test workload: the agent builds its own small browser game from locally
-  available libraries. No benchmark data ships with this repo.
+One engine change so far: a **q4_0 KV cache for the poly engine plus an
+independent `--draft-kv` knob** for the draft block (upstream strata-poly has
+neither — fp16 or q8_0, one knob for everything). The quantization is a
+straight transcription of ggml's `quantize_row_q4_0`, covered by a
+round-trip test against the ggml oracle (101,770 values) and one full live
+run with zero errors. Details in [`UPSTREAM_DIVERGENCE.md`](UPSTREAM_DIVERGENCE.md)
+(DIV-002) and `docs/KV_CACHE.md`.
 
-## 5. Target hardware (verified)
+## Hardware (everything is tied to this box)
 
 | Part | Value |
 | --- | --- |
@@ -79,41 +75,43 @@ local experiment, documented as such. No change ships unmeasured.
 | RAM | 32 GB (2×16 GB) DDR5-4800 |
 | OS | Windows 10/11, x86-64 |
 
-Assume neither the full 8 GB nor the full 32 GB is usable. Every result is tied
-to this box; nothing here claims to generalize.
+Assume neither the full 8 GB nor the full 32 GB is usable. Nothing here
+claims to generalize.
 
-## 6. Installation
+## Install
 
 ```
 START-HERE.bat --yes --family qwen36 --model UD-Q4_K_M --context 131072 --gguf-dir <folder-with-the-gguf> --no-start
 ```
 
-Then run the generated `run-*.bat` and open `http://127.0.0.1:8080`. Details:
-`docs/INSTALL.md`, `docs/AI_SETUP.md`. `UD-Q4_K_M` wants ~27 GB RAM beside 8 GB
-VRAM — tight on 32 GB; `UD-Q2_K_XL` if setup warns.
+Then run the generated `run-*.bat` and open `http://127.0.0.1:8080`.
+Details: `docs/INSTALL.md`, `docs/AI_SETUP.md`. `UD-Q4_K_M` wants ~27 GB RAM
+beside 8 GB VRAM — tight on 32 GB; use `UD-Q2_K_XL` if setup warns.
 
-## 7. Divergence tracking
+## Where things come from
 
-Substantial fork-vs-upstream differences live in
-[`UPSTREAM_DIVERGENCE.md`](UPSTREAM_DIVERGENCE.md) (reason, evidence, removal
-criteria, validation). Please read it before assuming any file differs on purpose.
+- Engine, server, web app, installer, docs: [Strata](https://github.com/Niko1221/Strata)
+  via [PolyStrata](https://github.com/VecSzn/PolyStrata) (`strata-poly` engine).
+  Upstream did the engineering; agents experiment on top here. No approval,
+  support, or endorsement by them is implied. Upstream improvements are merged
+  in, never silently dropped — see [`UPSTREAM_DIVERGENCE.md`](UPSTREAM_DIVERGENCE.md).
+- Model weights: Unsloth **`UD-Q4_K_M`** GGUF of **Qwen3.6-35B-A3B** (~22.6 GB),
+  stored locally and reused — never committed anywhere. Check the model card
+  before redistributing.
+- Test workload: the agent builds its own small browser game from locally
+  available libraries. No benchmark data ships with this repo.
 
-## 8. Limitations
+## Limitations
 
-No fork engine changes published yet. The q4_0 KV cache is implemented but not yet
-benchmarked here. Windows + NVIDIA only here; Linux, AMD,
-and multi-GPU paths are upstream's and untested in this fork. Long contexts on
-32 GB may fail — physics, not a bug.
+Our q4_0 work is unit-tested and live-run once; the frozen-fixture A/B is
+still pending, so treat it as experimental. Windows + NVIDIA only here;
+Linux, AMD, and multi-GPU paths are upstream's and untested in this fork.
+Long contexts on 32 GB may fail — physics, not a bug.
 
-## 9. Licensing and attribution
+## License and disclaimer
 
 MIT, copyright (c) 2026 Niko1221 and the Strata contributors — [`LICENSE`](LICENSE)
-retained verbatim, never replaced. `third_party/ggml` and the font/projection
-assets keep their own licenses. Agent-written additions claim no upstream
-ownership. No legal review performed — please open an issue if anything looks wrong.
-
-## 10. Disclaimer
-
-Independent personal work, built with AI agents. Not affiliated with Strata or
-PolyStrata; no endorsement implied. Performance statements cover only the
-measured hardware, model, and configuration.
+retained verbatim, never replaced. Agent-written additions claim no upstream
+ownership. Independent personal work, built with AI agents; not affiliated
+with Strata or PolyStrata, no endorsement implied. Performance statements
+cover only the measured hardware, model, and configuration above.

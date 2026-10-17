@@ -1,12 +1,6 @@
 # HyperStrata
 
-My personal playground to learn engines and chase speed on cheap cards.
-
-## What this is
-
-This is a small experiment, run in the open.
-I pull an engine apart to learn how it works.
-The goal is fast answers on one cheap card.
+my open experiment to learn engines and get fast answers from my cheap card.
 
 ## Models we cover
 

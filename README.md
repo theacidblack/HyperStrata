@@ -1,6 +1,6 @@
 # HyperStrata
 
-my open experiment to learn engines and get fast answers from my cheap card.
+My public notes while I learn how engines work.
 
 ## Models we cover
 

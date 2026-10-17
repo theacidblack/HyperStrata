@@ -6,7 +6,9 @@
 *Start 1/4*
 
 The one install page. Two ways to the same end: a built engine, a working
-launcher, the server up, one agent chatting with it.
+launcher, the server up, one agent chatting with it. Method 1 is an agent
+follows this page, Method 2 is you do it by hand. Neither way says anything
+about measuring speed — that lives in docs/BENCHMARKS.md only.
 
 > **Guarantee rule (both methods):** only house-model UD-Q4_K_M with MTP and UD-Q5_K_M with MTP are expected to run. Rest of coverage list
 > (`docs/MODELS.md` §§1–3) is oracle-only/occasional, never gating. Anything else is untested here, not guaranteed —
@@ -32,9 +34,8 @@ launcher, the server up, one agent chatting with it.
 
 ## Method 1 — an agent installs it (recommended)
 
-Tested with the Pi agent only — other agents might work, but untested here,
-no guarantee. Agent coverage comes later. Open the source folder, run the
-Pi agent in it, paste this (fill the brackets):
+Ask any CLI agent to follow this page. No claim which agent installs best.
+Open the source folder, run the agent in it, paste this (fill the brackets):
 
 > Build the engine tailored for my specs and get one model chatting.
 > My GPU: [model + VRAM]. RAM: [GB]. OS: [Windows 10/11].

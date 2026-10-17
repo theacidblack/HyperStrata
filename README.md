@@ -23,9 +23,9 @@ What runs here, on my rig:
 
 Both at ctx 131072, temp 0.6, cap 4096, reserve 256, sitting around 65C and 0.775V on the 6 last cores. Full table is in docs/BENCHMARKS.md. Logs on file.
 
-There's no ready engine here. The best way to run it is to ask a CLI agent to follow docs/HOW-TO-INSTALL.md, Method 1. I tested that with the Pi agent only. Others should work, but I don't promise.
-
-Or do Method 1 by hand, then build with BUILD_HYPER.bat. You bring your own weights.
+There's no ready engine here.
+- How to install: ask any CLI agent to follow docs/HOW-TO-INSTALL.md, or do it by hand. Then build with BUILD_HYPER.bat. You bring your own weights. No claim which agent installs best.
+- How speed was measured: Pi agent running a 4-phase game build load, raw speed only. Q4/Q5 numbers above are from Pi runs, logs on file. Other agents untested for measuring speed, no guarantee.
 
 - Site: https://theacidblack.github.io/HyperStrata/
 - Install: https://theacidblack.github.io/HyperStrata/docs/HOW-TO-INSTALL.html

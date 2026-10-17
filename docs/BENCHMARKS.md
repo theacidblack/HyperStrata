@@ -33,29 +33,31 @@ flowchart TD
 
 Numbers live here. README, MODELS and CHANGELOG link here instead of retyping.
 
-| Run | Model | Decode max / low / avg | Prefill | Status |
-| --- | --- | --- | --- | --- |
-| fp16-001 | Q4_K_M MTP, fp16 KV (default) | 91.9 / 55.4 / ~61.5 (41 turns) | ~1.4K (17.3K in ~12 s) | Done, log on file |
-| q8-001 | Q4_K_M MTP, q8_0 KV | 86.5 / 56.3 / ~61.4 (48 turns) | ~1.4K (17.0K in ~12 s) | Done, log on file |
-| q4-001 | Q4_K_M MTP, q4_0 + q4_0 draft | 90.9 / 46.3 / ~55.6 (48 turns) | ~1.33K (17,277 in ~13 s) | REPORTED, no log |
-| q4-002 | Q4_K_M MTP, q4_0 + q4_0 draft | 95.7 / 40.0 / 51.3 (42 turns, 31,160 tok / 607 s) | 1.5K cold (18,557 in ~12 s) | PASS, log on file |
-| q5-001 | Q5_K_M MTP, q4_0 + q4_0 draft, old engine | 63.4 / 31.0 / ~42.7 (69 turns) | ~1.17K (17,591 in ~15 s) | Measured, verdict pending; see q5-002 |
-| q5-002 | Q5_K_M MTP, q4_0 + q4_0 draft | 70.9 / 29.8 / 41.1 (61 turns, 29,615 tok / 721 s) | ~1.1K cold (18,617 in ~17 s) | PASS, log on file |
-| q6-001 | Q6_K base, no draft + Vision | 55.8 / 13.5 / ~35.5 (159 turns) | ~0.88K (17,664 in ~20 s) | Owner verdict in notes, log partial |
-| q4v-001 | Q4_K_M MTP + Vision, partial | peak 92.4 / 47.2 (19 turns) | — | No verdict, unfinished |
+Run ID is log ID only. Model file and KV are separate columns.
+
+| Run | Model file | KV + draft | Decode max / low / avg | Prefill | Status | Provenance |
+| --- | --- | --- | --- | --- | --- | --- |
+| fp16-001 | Q4_K_M MTP | fp16 default | 91.9 / 55.4 / ~61.5 tok/s (41 turns) | ~1.4K tok/s (17.3K tok in ~12 s) | PASS log on file | log on file, LEDGER row |
+| q8-001 | Q4_K_M MTP | q8_0 | 86.5 / 56.3 / ~61.4 tok/s (48 turns) | ~1.4K tok/s (17.0K tok in ~12 s) | PASS log on file | log on file, LEDGER row |
+| q4-001 | Q4_K_M MTP | q4_0 + q4_0 draft | 90.9 / 46.3 / ~55.6 tok/s (48 turns) | ~1.33K tok/s (17,277 tok in ~13 s) | REPORTED no log | REPORTED, no log on file |
+| q4-002 | Q4_K_M MTP | q4_0 + q4_0 draft | 95.7 / 40.0 / 51.3 tok/s (42 turns, 31,160 tok / 607 s) | 1.5K tok/s cold (18,557 tok in ~12 s) | PASS log on file | log on file, LEDGER q4-002 row |
+| q5-001 | Q5_K_M MTP | q4_0 + q4_0 draft, old engine | 63.4 / 31.0 / ~42.7 tok/s (69 turns) | ~1.17K tok/s (17,591 tok in ~15 s) | SUPERSEDED | SUPERSEDED by q5-002, old engine, no log on file, LEDGER row |
+| q5-002 | Q5_K_M MTP | q4_0 + q4_0 draft | 70.9 / 29.8 / 41.1 tok/s (61 turns, 29,615 tok / 721 s) | ~1.1K tok/s cold (18,617 tok in ~17 s) | PASS log on file | log on file, LEDGER q5-002 row |
+| q6-001 | Q6_K base, no draft, NO MTP; Vision server on | KV PENDING (flags not stated in source) | 55.8 / 13.5 / ~35.5 tok/s (159 turns) | ~0.88K tok/s (17,664 tok in ~20 s) | REPORTED partial NO VERDICT | Chat paste 2026-10-18; full console PENDING, no log on file; LEDGER q6-001 row |
+| q4v-001 | Q4_K_M MTP; Vision partial | q4_0 + q4_0 draft | peak 92.4 / 47.2 tok/s low (19 turns in paste) | ~1.3K tok/s (14,548 tok in ~11 s) | REPORTED partial NO VERDICT | partial paste only, unfinished (19 turns), no log on file; full run PENDING |
 
 <details><summary>Run notes</summary>
 
-Notes: fp16-001 hit the thinking cap once (4096, wrapped cleanly). q8-001 never hit the cap, condensed once mid-run and finished. q4-001 cap-hit claim UNVERIFIED (no log). q4-002: 42 turns, zero cancel=True; decode band 40.0–95.7 overlaps q4-001's 46.3–90.9; cold first prefill 1.5K matches q4-001's 1.33K; warm re-reads run to 66.0K on prefix-cache hits and are excluded from the rate. q5-001 ran 69 turns (40,734 tokens / 954 s), context past 69K prompts, no condensation, zero cancel=True. q6-001: late prefills 100+s (swap pressure), max ctx 106,510/131,072; llama ~30 tok/s is not our run. Averages come from different sessions, so cross-row deltas are noise, not rankings. Expert cache: fp16-001 15.7–67.3%, q8-001 16.9–69.7%, q4-002 24.6–71.2%, q5-001 16.4–64.3%, q5-002 17.4–65.4%, q6-001 13.5–62.2% (q4-001/q4v-001 not recorded).
+Notes: fp16-001 hit the thinking cap once (4096, wrapped cleanly). q8-001 never hit the cap, condensed once mid-run and finished. q4-001 cap-hit claim UNVERIFIED (no log). q4-002: 42 turns, zero cancel=True; decode band 40.0–95.7 overlaps q4-001's 46.3–90.9; cold first prefill 1.5K matches q4-001's 1.33K; warm re-reads run to 66.0K on prefix-cache hits and are excluded from the rate. q5-001 ran 69 turns (40,734 tokens / 954 s), context past 69K prompts, no condensation, zero cancel=True; old engine, SUPERSEDED by q5-002, no verdict. q6-001 REPORTED chat-paste only, console PENDING, KV PENDING (flags not stated in source), Vision server on per source; late prefills 100+s (swap pressure), max ctx 106,510/131,072; llama ~30 tok/s is not our run. q4v-001 REPORTED partial paste, NO VERDICT, unfinished (19 turns). Averages come from different sessions, so cross-row deltas are noise, not rankings. Expert cache: fp16-001 15.7–67.3%, q8-001 16.9–69.7%, q4-002 24.6–71.2%, q5-001 16.4–64.3%, q5-002 17.4–65.4%, q6-001 13.5–62.2%, q4v-001 25.8–66.3% (q4-001 not recorded).
 
 </details>
 
-## Not yet run
+## Pending full runs
 
 | Model | Status |
 | --- | --- |
-| Q4-MTP + Vision | Partial run on file (q4v-001, 19 turns); full run pending |
-| Cyber-Tiel | No run yet |
+| Q4-MTP + Vision | 19 turns on file q4v-001, full run PENDING |
+| Cyber-Tiel | PENDING |
 | Other Vision combos | Path works on Q6 and Q4; per-quant numbers pending (low priority) |
 
 ## How to report a run

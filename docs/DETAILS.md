@@ -23,7 +23,7 @@ New here? Start with the [README](../README.md); installing step by step is in [
 > Upstream 12GB/64GB measurements, NOT the 8+32 tier.
 
 RTX 5070 **12 GB**, Ryzen 5 7600 (6 cores), 64 GB DDR5-5200, Windows, engine 0.1.26 with the settings setup writes
-(`--prefill auto`, 8-bit KV above 4K, KV streaming from 64K). One code-agent prompt per length, 256 generated tokens,
+(Base engine only — hyper rejects: `--prefill auto`, 8-bit KV above 4K, KV streaming from 64K). One code-agent prompt per length, 256 generated tokens,
 MTP speculative decoding on. "262K" is the model's full context window (a 259,943-token prompt). The IQ2_XS row was
 measured with Swift 1.5's IQ2_XS, which runs at the original's speed.
 
@@ -79,12 +79,12 @@ accepted, so a different answer to the same prompt moves it by several percent. 
 
 IQ3_XXS and IQ3_S at 262K are not measured: with their 43 / 50 GB of experts, a 260K-token context brings a 64 GB PC
 to its memory limit by setup's estimate (the experts + the context's KV cache + 24 GB), so setup recommends up to 128K
-with them on 64 GB. A longer context you choose (`--context 262144`, or a pick in its list) is kept, with a note: users
+with them on 64 GB. A longer context you choose (`--max-context 262144` on hyper, or a pick in its list) is kept, with a note: users
 ran IQ3_S at 256K on 64 GB with RAM to spare (#406). In the low-RAM mode the KV cache stays in VRAM and the context
 does not count against RAM. IQ3_S (engine 0.1.4 or newer) is published for the original model and for Swift 1.5
 (the same shard layout as Swift's other sizes).
 
-**KV streaming (engine 0.1.5):** at 64K and more, setup keeps the context's KV cache in RAM and only the part the
+**KV streaming (engine 0.1.5, Base engine only — hyper rejects):** at 64K and more, setup keeps the context's KV cache in RAM and only the part the
 attention reads in VRAM (`--kv-resident 32768`), so more experts fit on the GPU. Q2_0 at 262K: 50.9 -> 62.6 tokens/s
 (1,589 -> 3,872 experts in VRAM); at 128K about +6%. The attention reads exactly the same values (only where the KV lives changes); it
 costs ~13.7 KB of RAM per context token (1.7 GB at 128K). Existing installs: run `START-HERE.bat --setup` once to turn
@@ -96,11 +96,11 @@ halves the KV cache's memory with a Hadamard rotation before 4-bit rounding (PR 
 is measurably less precise on long documents (perplexity +8-12%; needle tests still pass). 8-bit stays the default.
 Details: [`bench/results/2026-09-27-kv-q4`](../bench/results/2026-09-27-kv-q4/README.md).
 
-**Hybrid K8V4 KV cache (engine 0.1.25, optional, PR #120):** `--kv k8v4` (`START-HERE.bat --setup --kv k8v4`) keeps
+**Hybrid K8V4 KV cache (engine 0.1.25, optional, PR #120, Base engine only — hyper rejects `--kv k8v4`, exits 2):** `--kv k8v4` (`START-HERE.bat --setup --kv k8v4`) keeps
 the keys at 8 bits and stores the values as rotated 4-bit: 23% less KV memory than 8-bit, so more experts fit in
 VRAM. RTX 3090, the Coder at 198K context: 99 instead of 85 tokens/s output, the same needle results, prompts 2-5%
-slower. It streams its KV cache like the other formats (`--kv-resident N`): on an RTX 2060 SUPER 8 GB at 128K with
-20,480 resident cells, +780 expert slots over resident K8V4, and its long-document scores are higher than 4-bit KV in the linked report.
+slower. It streams its KV cache like the other formats (Base engine only — hyper rejects `--kv-resident N`): on an RTX 2060 SUPER 8 GB at 128K with
+20,480 resident cells, +780 expert slots over resident K8V4, and its long-document scores are higher than 4-bit KV in the linked report. Hyper takes `--kv fp16|q8_0|q4_0` only.
 
 **Reproducible greedy output (0.1.30, opt-in, `STRATA_IQ_MT_MIN=1`):** with the IQ models, the CPU computes an
 expert for one token with ggml's dot product and for several tokens with HyperStrata's multi-token kernels, which round
@@ -113,7 +113,7 @@ without AVX-512, where the AVX-2 kernel gathers the IQ3_S grid, `STRATA_IQ3S_MT1
 kernel for one token, which is the faster one there; it changes a lone token's rounding, so it is off by default. Through the server, two more things carry
 over from one request to the next (#410): the adaptive tier moves experts between RAM and VRAM (the GPU and the CPU
 round an expert differently), and the prompt cache resumes a repeated prompt and reads only its tail through the
-decode path. For byte-identical repeats add `--prompt-cache 0 --adapt-swaps 0 --pcie-frac 0` to the engine's args
+decode path. For byte-identical repeats add `--prompt-cache 0` plus, on hyper, `--expert-swaps 0` (Base engine only — hyper rejects `--adapt-swaps 0 --pcie-frac 0`) to the engine's args
 as well (#410): the PCIe share of the missed experts (computed on the GPU instead of the CPU) still made the first
 answer after a start differ from the next ones. Measured here (IQ3_XXS, a 3.6K-token prompt, 4 repeats): with all
 three switches 1 answer of 4, without `--pcie-frac 0` 2 of 4 (the first one differs), with the defaults 2 of 4.
@@ -127,55 +127,55 @@ id (the Gumbel-max trick; it is still an exact sample of the same distribution).
 walked over the candidates sorted by probability, a draft and a target whose candidate lists differ in one token tend to
 land on different tokens; with noise keyed by the token, a token gets the same noise on both sides, so they agree on the
 tokens they share. Greedy requests are unchanged, and without the variables nothing changes. Measured on a Ryzen AI
-Max+ 395 (Radeon 8060S, Linux, ROCm 7.14.1, the iGPU alone), UD-Q4_K_XL, `--spec 4 --mtp` (the base model's draft
+Max+ 395 (Radeon 8060S, Linux, ROCm 7.14.1, the iGPU alone), UD-Q4_K_XL, Base engine only — hyper rejects `--spec 4 --mtp` (hyper takes `--window`/`--lookup`/`--no-draft`/`--draft-model`; the base model's draft
 layer), temperature 1.0 / top_p 0.95 / top_k 20, a 1.3K-token prompt and 512 output tokens, 12-13 requests per arm:
 drafts accepted 52.8% -> 59.9%, tokens per verify window 2.65 -> 2.88, output 41.1 -> 44.9 tokens/s (+9%); a window
 costs the same (draft 8.8 -> 9.1 ms of 64). `sampler_parity` checks the pick against a host reference on every sampled
-path, and that its frequencies match the softmax. On an RTX 3060 (IQ3_XXS, `--spec 4 --mtp`, temperature 1.0 / top_p 0.95 / top_k 20, 12 interleaved pairs of 200-token story and code requests) `STRATA_SPEC_COUPLED=1` raised the accepted drafts from 62.1% to 66.9% and adding `STRATA_SPEC_GUMBEL=1` to 68.0%, but decode speed did not move beyond the run-to-run spread (median 43.3 tok/s with coupled alone, 42.8 with Gumbel as well): try it on your own card before relying on it.
+path, and that its frequencies match the softmax. On an RTX 3060 (IQ3_XXS, Base engine only — hyper rejects `--spec 4 --mtp`, temperature 1.0 / top_p 0.95 / top_k 20, 12 interleaved pairs of 200-token story and code requests) `STRATA_SPEC_COUPLED=1` raised the accepted drafts from 62.1% to 66.9% and adding `STRATA_SPEC_GUMBEL=1` to 68.0%, but decode speed did not move beyond the run-to-run spread (median 43.3 tok/s with coupled alone, 42.8 with Gumbel as well): try it on your own card before relying on it.
 
-**The draft layer's tokens (0.1.27, `--draft-vocab`):** the MTP draft layer can only propose tokens from a subset
+**The draft layer's tokens (0.1.27, `--draft-vocab N` on hyper — a count of the first tokens, not a name):** the MTP draft layer can only propose tokens from a subset
 of the vocabulary (`mtp/rt/draft_vocab.bin`). Since 0.1.27 the subset includes every Chinese, Japanese and Korean
 token (106,299 ids), so answers in those languages are 15-38% faster (Q2_0, RTX 5070). Its head takes ~180 MiB of
-VRAM, which the expert cache leaves free for it (0.1.28). `START-HERE.bat --setup --draft-vocab en` keeps the
+VRAM, which the expert cache leaves free for it (0.1.28). Base engine only — hyper rejects the words, hyper takes a number: `START-HERE.bat --setup --draft-vocab en` keeps the
 English/code subset from before (40,525 ids, ~110 MiB less VRAM, English answers 1-2% faster; CJK answers get
-almost no drafts). `--draft-vocab cyrillic` takes the English/code subset plus the whole Cyrillic script (58,963
+almost no drafts). Base engine only — hyper rejects `--draft-vocab cyrillic`: it takes the English/code subset plus the whole Cyrillic script (58,963
 ids): the shipped subsets hold 142 of the vocabulary's 18,580 Cyrillic tokens, so Ukrainian or Russian answers got
 1.4 tokens a round; with it 2.1, and 83 -> 109 tokens/s (RTX 5090, the NVFP4 fork), English unchanged.
-`--draft-vocab fr` (0.1.39, #597) takes the English/code subset plus the 5,686 tokens that cover 99% of a French
+Base engine only — hyper rejects `--draft-vocab fr` (0.1.39, #597): it takes the English/code subset plus the 5,686 tokens that cover 99% of a French
 Wikipedia corpus (46,211 ids, `tools/draft_vocab.py --corpus`): 23.6% of French text's tokens were outside the
 English/code subset, 0.7% are outside this one. Drafts accepted in French answers 0.51 -> 0.60 (IQ3_XXS, RTX 5070,
 8 prompts x 2 passes; English 0.61 -> 0.63 and code 0.77 -> 0.78, no loss), and 141 -> 158 tok/s in French on an
 RTX 5090 (IQ3_S, the reporter's measurement).
 `tools/draft_vocab.py` builds and inspects subsets. When the start stops with "the draft head does not fit" (a
 12 GB card with a long context, #474), the engine says how much the head needs, how much VRAM is free and which
-smaller subset fits, and the server's start error repeats it; setup suggests `--draft-vocab en` on cards under
+smaller subset fits, and the server's start error repeats it; setup suggests `--draft-vocab en` (Base engine only — hyper rejects the word, hyper takes a number) on cards under
 14 GB (only a suggestion: nothing changes unless you pass it).
 
-**Serving without the draft layer (`--mtp` is optional):** `serve` runs without `--mtp`. Drafts then come from the
+**Serving with the built-in draft block (hyper):** hyper always runs its built-in guessing block; `--no-draft` turns it off. Drafts then come from the
 suffix/prompt-lookup drafter only (or one token per round), every token is still verified against the model, and the
-draft layer's VRAM (~0.7-1 GiB with its head) goes to the expert cache: 1,000 -> 1,678 slots in one A/B on an 8 GB
-card. The conversation cache (`--conversation-cache-mib`) stays on: a parked conversation then carries no draft K/V.
+draft block's VRAM (~0.7-1 GiB with its head) goes to the expert cache: 1,000 -> 1,678 slots in one A/B on an 8 GB
+card. The conversation cache (`--conversation-cache-mib`) stays on: a parked conversation then carries no draft K/V. (Base engine only — hyper rejects `--mtp`.)
 
-**Low-RAM mode (engine 0.1.26, chosen by setup):** normally all of a model's experts are copied into RAM (23-50 GB,
+**Low-RAM mode (engine 0.1.26, chosen by setup, Base engine only — hyper rejects):** normally all of a model's experts are copied into RAM (23-50 GB,
 pinned) and the GPU holds a copy of the most-used ones. On a PC whose RAM cannot hold them beside the system (the
-experts plus ~10 GB), setup instead maps them from one file in the model's folder (`--mmap-experts`, the pack's
+experts plus ~10 GB), setup instead maps them from one file in the model's folder (Base engine only — hyper rejects `--mmap-experts`, the pack's
 `experts.bin`, +23-50 GB of disk). The OS file cache holds what the GPU does not, and it can give that memory back.
 On the Coder the engine's committed memory drops from 36 to ~13 GB, with the same answers. With a big GPU (an RTX
 5090 holds all of the Coder's experts, most of Q2_0's) it runs at nearly the usual speed. With a small one, most
 experts come from the SSD and it is much slower (setup says so). `START-HERE.bat --setup --low-ram on|off` overrides
-the choice.
+the choice (Base engine only — hyper rejects).
 
-**Low-RAM mode, resident (engine 0.1.30):** when the experts the GPU does not hold fit the RAM (with the same ~10 GB
-beside them), setup picks the resident variant instead (`--resident-experts`): at start the engine copies exactly those
+**Low-RAM mode, resident (engine 0.1.30, Base engine only — hyper rejects `--resident-experts`):** when the experts the GPU does not hold fit the RAM (with the same ~10 GB
+beside them), setup picks the resident variant instead: at start the engine copies exactly those
 experts from `experts.bin` into RAM (page-locked when the driver allows, else locked in RAM), so while it answers
 nothing is read from the SSD, however little RAM the OS leaves for its file cache. Examples with setup's context: a
 32 GB PC with a 24 GB GPU runs Q2_0, IQ2_XS and the Coder this way (~16-18 GB of experts in RAM, the GPU holds the
 other ~18 GB), a 32 GB PC with a 12-16 GB GPU the Coder; IQ3_XXS on a 32 GB PC stays mapped. The details:
 - The prompt path borrows room in the GPU's expert cache for its buffers and puts those experts back after the prompt;
   as far as the RAM allows, their experts are kept in RAM too (so a prompt reads nothing from the SSD either).
-- The cache still follows the conversation (`--adapt-every`): a swap copies the evicted expert back from VRAM into the
+- The cache still follows the conversation (Base engine only — hyper rejects `--adapt-every`): a swap copies the evicted expert back from VRAM into the
   RAM place of the one that replaces it, so the RAM copy keeps holding exactly what the GPU does not.
-- `--adapt-async 1` (opt-in, `--serve`): the swaps of a round advance between decode windows on a helper thread
+- Base engine only — hyper rejects `--adapt-async 1` (opt-in, `--serve`): the swaps of a round advance between decode windows on a helper thread
   (copy back, copy in, move into RAM) instead of one window waiting for the whole round. With `--batch` slots it
   advances between their windows too ([Batching](#batching)); not with `--batch-groups` or `--peer-device` (the blocking
   tier runs there). With `--pipeline-windows 2` (two windows in flight) the copies into the evicted slots and the moves into RAM also wait until the windows
@@ -184,7 +184,7 @@ other ~18 GB), a 32 GB PC with a 12-16 GB GPU the Coder; IQ3_XXS on a 32 GB PC s
   rounds differently from the CPU) depends on when its copy lands.
   It stays on the blocking tier (said in the log) when the exchange buffers are not page-locked; the stats line
   reports ms per round.
-- **The arena too** (one GPU, no layer split): with every expert in RAM `--adapt-async 1` runs the same tier copy-in only:
+- **The arena too** (one GPU, no layer split, Base engine only — hyper rejects `--adapt-async 1`): with every expert in RAM it runs the same tier copy-in only:
   nothing to copy back or move into RAM. The evicted slot is marked non-resident before the round's copies are posted, and an
   expert becomes resident only once its copy has landed; `STRATA_ADAPT_ASYNC_WAIT=1` (the default there) waits for the round at
   the next tick, so the window an expert turns GPU-resident does not depend on timing. The pick runs on the host thread
@@ -192,26 +192,25 @@ other ~18 GB), a 32 GB PC with a 12-16 GB GPU the Coder; IQ3_XXS on a 32 GB PC s
   = all; 16 measured slower). Every K/V grow and the `VRAM` command land the round in flight first. RTX 3090 + Ryzen 5 5600X,
   cold prompts: x1.07-1.11 decode, 12 of 12 prompts faster
   ([report](../bench/results/2026-10-11-community-rtx3090-5600x-arena-async/README.md)).
-- **Pin by need** (`STRATA_PIN_BY_NEED=1`, opt-in, the arena on one GPU): Windows page-locks about half the RAM at most (the
+- **Pin by need** (`STRATA_PIN_BY_NEED=1`, opt-in, the arena on one GPU, Base engine only — hyper rejects `--pcie-frac 0.6`): Windows page-locks about half the RAM at most (the
   WDDM shared budget), so the arena registers its first ~30 GiB and the layers past it get no PCIe share. With the variable
   every blob gets a page-aligned stride (+0.15 % RAM) and the expert profile's non-GPU-resident experts are registered by rank
   instead, up to `STRATA_ARENA_PIN_GIB` (29 by default on Windows). `STRATA_PCIE_MIN1=1` sends one miss over PCIe as soon as a
   layer has two (the share otherwise rounds to 0 at 1-2 misses). RTX 3090 + Ryzen 5 5600X: prompt read +5-7 % at 56K-117K
-  tokens; decode level alone, +2-3 % with `--adapt-async 1` and `--pcie-frac 0.6`
+  tokens; decode level alone, +2-3 % with `--adapt-async 1` and the PCIe share rule
   ([report](../bench/results/2026-10-11-community-rtx3090-5600x-arena-pin-by-need/README.md)).
 - `STRATA_EXCHANGE_ROTATE=1` (opt-in): an adaptive swap hands buffer ownership over instead of copying the evicted
   blob into the RAM copy (equal-size blobs, fully page-locked copy). Same tokens, fewer host copies; it works with
   `--adapt-async 1` too.
 - The answers are the plain mapped mode's for the same expert placement: the bytes are the file's. With a page-locked
-  copy the GPU also takes its usual share of the misses over PCIe (`--pcie-frac`), as with enough RAM; `--pcie-frac 0`
+  copy the GPU also takes its usual share of the misses over PCIe (Base engine only — hyper rejects `--pcie-frac`), as with enough RAM; Base engine only — hyper rejects `--pcie-frac 0`
   (or `STRATA_RESIDENT_PIN=0`) gives the mapped mode's exact tokens.
 - The engine leaves 4 GB of the RAM it finds free (`STRATA_RESIDENT_HEADROOM_GIB`); when even the experts the GPU does
   not hold do not fit, it says so and runs the plain mapped mode. The server log shows, per request, how many expert
   reads went to the file (`resident RAM: ... blob reads from the file`: 0 in steady use).
-- `--low-ram resident|mmap` forces one variant (also on a PC with enough RAM, e.g. to try it).
-- Several GPUs (#364, #384): setup recommends one GPU in the low-RAM mode (the resident variant has no layer split
-  yet), and asks; `--gpus 0,1` (or answering 2) shares the model across them with the mapped variant
-  (`--mmap-experts`): the cards together hold more of the experts, and two users measured it 1.3-1.6x faster than
+- Base engine only — hyper rejects `--low-ram resident|mmap`: it forces one variant (also on a PC with enough RAM, e.g. to try it).
+- Several GPUs (#364, #384, Base engine only — hyper rejects `--gpus 0,1` and `--mmap-experts` here): setup recommends one GPU in the low-RAM mode (the resident variant has no layer split
+  yet), and asks; sharing the model across them uses the mapped variant: the cards together hold more of the experts, and two users measured it 1.3-1.6x faster than
   one card, but the OS file cache can fill the RAM to 0 free during long prompts. `--yes` keeps one GPU. A config
   with `--resident-experts` started with `--gpus` switches to `--mmap-experts` with a note, and the engine runs that
   pair as `--mmap-experts` with a warning instead of refusing it. **Since 0.1.40 (#642, #848)** setup requires an
@@ -221,19 +220,19 @@ other ~18 GB), a 32 GB PC with a 12-16 GB GPU the Coder; IQ3_XXS on a 32 GB PC s
 arena read-only from the pack's `experts.bin` instead of reading it into locked RAM, for a PC whose GPUs hold most
 experts but whose RAM is small (2x 16 GB GPUs with 32 GB of RAM: ~1 GB -> 25 GB available while serving). The first
 start writes `experts.bin` (when the drive has room for it), later starts map it; the pages of the experts a GPU holds
-are handed back to the OS. Run it with `--pcie-frac 0` (the GPUs get no mapped alias). Without the variable nothing
+are handed back to the OS. Run it with `--pcie-frac 0` (Base engine only — hyper rejects; the GPUs get no mapped alias). Without the variable nothing
 changes.
 
 **Releasing mapped expert pages on Windows (opt-in):** `STRATA_FILE_RELEASE=1` lets `FileExpertSource` trim the
 full file-backed pages of experts after their GPU uploads complete, including the slots lent to prefill and then
 refilled. It works with `experts.bin` and the direct GGUF views; shared boundary pages and private/pinned buffers
 are left alone. Unset or `0` keeps the previous behavior. On one 32 GB Windows 11 laptop with an RTX 4080 Laptop
-and a Thunderbolt RTX 3090, IQ2_XS with `--mmap-experts --layer-split 12 --trim-stage-weights` raised median available
+and a Thunderbolt RTX 3090, IQ2_XS with `--mmap-experts --layer-split 12 --trim-stage-weights` (Base engine only — hyper rejects `--mmap-experts` and `--trim-stage-weights`) raised median available
 RAM from 0.51 to 12.19 GiB across 1K/4K/16K prompt trials, with 3.7-4.4% lower prefill throughput. It did not reduce
 committed memory or physical SSD reads. This is a working-set hint, not an unmap or a guarantee that the OS drops
 its file cache. See the [configuration, measurements and limits](../bench/results/2026-10-04-windows-mapped-release/README.md).
 
-**Low-RAM mode without `experts.bin` (engine 0.1.31):** for the native packs (IQ2_XS, IQ3_XXS, IQ3_S, the Coder, Swift,
+**Low-RAM mode without `experts.bin` (engine 0.1.31, Base engine only — hyper rejects):** for the native packs (IQ2_XS, IQ3_XXS, IQ3_S, the Coder, Swift,
 Q2_0 packed by `tools/iq_pack.py`; not the canonical Q2_0 pack setup makes for AVX-512 CPUs) the mapped mode no longer
 needs the pack's `experts.bin`: when the pack has none, the engine
 maps the model's GGUF files themselves and reads each expert's gate, up and down rows from where `native_experts.txt`
@@ -262,10 +261,10 @@ Measured (interleaved A/B, 10 pairs, 200-token greedy medians, page cache droppe
 With the experts warm in the page cache (46 GB on the 3060, 60 GB on the iGPU box) the file tier already runs at the
 resident speed, so there is nothing to win; the gap is the cold start and the low-RAM lanes. So it is off by default, and
 the staging variant is worth trying only on a 32 GB-class box. **iGPU caveat:** on a Radeon 780M, prefetch together with the
-adaptive tier (`--adapt-every`, on by default) under memory pressure reset the GPU in about 7 of 9 runs (the engine
+adaptive tier (Base engine only — hyper rejects `--adapt-every`, on by default there) under memory pressure reset the GPU in about 7 of 9 runs (the engine
 prints a warning and runs as asked); with `--adapt-every 100000` there were no resets in ~40 runs. The cause is not found.
 
-**A RAM budget (engine 0.1.31, `--resident-budget-gib N`):** the resident variant for a model whose experts do not all
+**A RAM budget (engine 0.1.31, Base engine only — hyper rejects `--resident-budget-gib N`):** the resident variant for a model whose experts do not all
 fit: the N GiB of experts the GPU cache does not hold that the expert profile ranks hottest are copied into RAM at
 start (locked; page-locked when the driver allows the whole budget), and the rest are read from the files.
 It implies `--mmap-experts` and leaves 4 GiB of headroom. On Windows, available commit capacity also
@@ -279,11 +278,11 @@ is what runs Unsloth's UD-Q4_K_XL (72 GiB of experts) on a 64 GB PC: 7-8.5 token
 RTX 5070, against ~3 tokens/s before these changes.
 
 **Switches added in 0.1.40 (all off unless noted; none changes the default output):**
-- `--kv-grow` (or `STRATA_KV_GROW=1`; `--no-kv-grow` turns it off): the K/V takes VRAM only for the cells the requests
+- Base engine only — hyper rejects `--kv-grow` (hyper takes `--kv-whole`): the K/V takes VRAM only for the cells the requests
   reach, and the expert cache holds the rest, giving slots back as the context grows. It needs one GPU, an expert
   profile, the whole K/V in VRAM (no KV streaming) and every expert in RAM (not the resident low-RAM mode); otherwise,
   and with `--batch`, `--vram-elastic` or `--peer-device`, the engine says so and stays off.
-- `--host-core last` (or `STRATA_HOST_CORE=last`, Windows): the host thread runs on the last physical core and the
+- Base engine only — hyper rejects `--host-core last` (or `STRATA_HOST_CORE=last`, Windows): the host thread runs on the last physical core and the
   workers take the first. Windows sends a GPU's interrupts to the first core, where a host spinning on the GPU's flags
   waits for them (`--host-core first` is the default; the startup log names the cores).
 - `STRATA_ADAPT_LAG=2` (#764): a window takes the adaptive tier's swaps once they are two windows old (default 1,
@@ -293,9 +292,9 @@ RTX 5070, against ~3 tokens/s before these changes.
 - `STRATA_Q2_BITPLANE=1`: a bit-plane row kernel for Q2_0 on CPUs with AVX2 and no AVX-512 (changes the last bits).
   `STRATA_NO_AVXVNNI=1` turns the AVX-VNNI forms of the i-quant, IQ4_NL and Q2_0 rows off on CPUs that have them
   (Alder Lake, Sapphire Rapids and later); they give the same bits as the AVX2 forms, 4-25% faster rows.
-- Draft layer: `--lookup-chain-min M` (the shortest context match `--lookup-chain` extends, default 3),
+- Draft layer (Base engine only — hyper rejects): `--lookup-chain-min M` (the shortest context match `--lookup-chain` extends, default 3),
   `--mtp-hnorm stream` (one norm per stream, as llama.cpp's MTP graph) and `--mtp-draft-vocab FILE` (a token subset
-  of your own instead of `<mtp>/draft_vocab.bin`).
+  of your own instead of `<mtp>/draft_vocab.bin`). Hyper takes `--lookup N` and `--draft-vocab N` instead.
 - Elsewhere: HIP `STRATA_DENSE_MMQ=1` and `STRATA_HIP_ADAPT_KERNEL_COPY=1`;
   `STRATA_KEEP_EMPTY_TURNS=1` and `STRATA_TOPK_STREAM=0` in [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
 
@@ -313,7 +312,7 @@ blobs ... MB read`), and `GET /metrics` lists `ram_blobs`, `file_blobs` and `fil
 engine 0.1.31 or newer). It also lists each request's speculative drafts, `drafts_offered` and `drafts_accepted`
 (`null` when the engine did not report them), and their sums since the server started in `totals` (#457).
 Its `hit_rate` is the VRAM share of the experts looked up while answering: experts the GPU reads over PCIe
-(`--pcie-frac`) are not in it, so a higher `--pcie-frac` raises it even when decoding gets slower. `pcie_share`
+(Base engine only — hyper rejects `--pcie-frac`) are not in it, so a higher `--pcie-frac` raises it even when decoding gets slower. `pcie_share`
 (engine 0.1.39 or newer, #588) is their share of all routed experts, and the server log and the Monitor tab show it
 beside the hit rate.
 
@@ -323,8 +322,8 @@ beside the hit rate.
 GPU, the CPU expert pool (plan, activation quantization, jobs) and the stage, plus commit and draft - and one
 `strata decode GPU stages (ms/window):` line with the GPU time of each stage (GDN and QSA layers, the VRAM expert
 hits, the router, the head, ...). The GPU profile times every stage with events, so it slows the decode a little:
-use it to compare, not to measure speed. This works with every pack; `--gpu-stages` (a one-token replay of
-per-layer graphs) refuses a native (IQ) pack, which has no such graphs.
+use it to compare, not to measure speed. This works with every pack; Base engine only — hyper rejects `--gpu-stages` (a one-token replay of
+per-layer graphs, which refuses a native (IQ) pack, which has no such graphs).
 
 **How good the next-layer expert prediction is (measurement only):** `STRATA_LOOKAHEAD_STATS=1` runs the router look-ahead on any expert tier and
 scores it against the routing of the next layer: every 100 windows the engine log has a `strata lookahead stats:` line with the experts per layer
@@ -335,7 +334,7 @@ time. `tools/replay_cache_policy.py` replays a `--dump-routing` trace through th
 Time to first token is prompt length / prompt speed: with Q2_0 about 4 s at 4K, 25 s at 32K, under 2 minutes at 128K
 and 4.5 minutes at 262K (engine 0.1.13 made long prompts about twice as fast, below).
 
-**Faster prompts (engine 0.1.13):** the prompt is read in chunks of up to 8,192 tokens instead of 2,048 (`--prefill
+**Faster prompts (engine 0.1.13, Base engine only — hyper rejects `--prefill auto`; hyper takes `--prompt-batch N`):** the prompt is read in chunks of up to 8,192 tokens instead of 2,048 (`--prefill
 auto`: the largest chunk whose buffers fit in the expert-cache slots it borrows, and a request borrows only what its
 prompt needs); the experts are multiplied by llama.cpp's quantized MMQ kernels instead of being expanded to FP16
 first; the next layer's experts stream over PCIe while the current layer's attention runs; the PLE block runs for the
@@ -344,7 +343,7 @@ whole chunk at once; unpinned experts are copied by helper threads. Measured on 
 353 -> 438 tokens/s, 6,927 tokens 529 -> 1,077, 28,584 tokens 584 -> 1,249. Output speed is unchanged. Needles 5/5
 (1K-262K). Details and the quality check:
 [`bench/results/2026-09-28-prefill-speed`](../bench/results/2026-09-28-prefill-speed/README.md). Existing installs
-switch to `--prefill auto` the next time START-HERE / setup.sh starts them. The raw numbers:
+switch to `--prefill auto` the next time START-HERE / setup.sh starts them (Base engine only — hyper rejects). The raw numbers:
 [`bench/results/`](../bench/results/). The [paper](paper/Strata-Paper.pdf) explains every number.
 
 ## Other GPUs (estimated)
@@ -430,11 +429,11 @@ Everything else is installed for you the first time.
 | --- | --- |
 | GPU | NVIDIA **RTX 20, 30, 40 or 50 series**, **12 GB VRAM or more** (upstream number; this fork runs Qwen3.6-35B-A3B on 8 GB VRAM — reference rig RTX 3070 Ti Laptop 8 GB). Measured on an RTX 5070 and an RTX 3090; RTX 20 (Turing, since 0.1.27) was tested by a contributor on an RTX 2070. Or AMD **Radeon RX 7900 XT / XTX, RX 7800 XT / 7700 XT, RX 9060 XT, RX 9070 / 9070 XT, Radeon AI PRO R9700, RX 6800 / 6900 series**. |
 | RAM | **64 GB** recommended upstream (see the table above); this fork: 32 GB DDR5 on the reference rig. |
-| CPU | x86-64 with AVX2 (any Intel/AMD desktop CPU from the last ~8 years). AVX-512 (Ryzen 7000/9000) is a bit faster. Older CPUs without AVX2 are experimental and slow: [Older CPUs](HOW-TO-INSTALL.md#details). |
+| CPU | x86-64 with AVX2 (any Intel/AMD desktop CPU from the last ~8 years). AVX-512 (Ryzen 7000/9000) is a bit faster. Older CPUs without AVX2 are experimental and slow: [Older CPUs](HOW-TO-INSTALL.md). |
 | Disk | ~70-80 GB free for the model, ~6 GB for the MTP layer (+1 GB with images). **Q2_0 on an AVX-512 CPU** also writes a one-time ~40 GB pack for the fast CPU kernel (34 GB of experts in its layout, plus the dense weights). An NVMe SSD is strongly recommended. |
 | OS | Windows 10/11, or Linux (Ubuntu 22.04/24.04 and Debian 12/13 get everything installed automatically). |
 
-What the first start installs: in this folder `.venv/`, `engine-hyper/` and `third_party/` (engine paths/flags: [`--help.md`](../--help.md)); the model files (`models/`,
+What the first start installs: in this folder `.venv/`, `engine-hyper/` and `third_party/` (engine paths/flags: [`--help.md`](../--help.md)), plus `hyper-vision.exe` when images are chosen; the model files (`models/`,
 `packs/`, `mtp/`, 70-120 GB) in **`HyperStrata-data` next to this folder** (a `PolyStrata-data` folder from before the
 rename is discovered and reused in place), so a new copy of HyperStrata (an update unzipped
 elsewhere — steps: [HOW-TO-INSTALL.md](HOW-TO-INSTALL.md)) finds them and sets itself up the same way. The place is remembered per user (`%APPDATA%\HyperStrata\settings.json`,
@@ -476,27 +475,28 @@ app. It has three tabs:
 **Every time after that**, `START-HERE.bat` starts the model (30-90 s to load 34-43 GB into RAM — PENDING: no log on file). Nothing is
 downloaded again. Closing the window stops the model.
 
-```
+```text
 START-HERE.bat --setup                          install another model, or change context / images
 SETUP.bat                                       the same (double-click it)
 START-HERE.bat --model UD-Q4_K_M --context 131072 --vision yes --yes     no questions
-START-HERE.bat --gguf-dir D:\models\UD-Q4_K_M       use GGUF files you already have
-START-HERE.bat --data-dir E:\HyperStrata-data         keep the model files somewhere else
+START-HERE.bat --gguf-dir <folder-with-the-gguf>       use GGUF files you already have
+START-HERE.bat --data-dir <folder-for-model-files>         keep the model files somewhere else
 START-HERE.bat --port 8081                      another port
 START-HERE.bat --gpu 1                          another GPU (numbered as nvidia-smi; setup picks the one with the most VRAM)
 START-HERE.bat --calibrate                      tune the engine for this PC (about 15-30 minutes, longer on a slow card), then start
 ```
 
 Flag list above is usage shorthand; install procedure: [HOW-TO-INSTALL.md](HOW-TO-INSTALL.md).
+The launcher's `--context` writes the engine's `--max-context`.
 
 With more than one model installed, it asks which one to start. `run-<model>.bat` starts a model directly.
 
-**Tuning for your PC (`--calibrate`, engine 0.1.19).** Four engine settings depend on the PC more than on the model:
+**Tuning for your PC (`--calibrate`, engine 0.1.19, Base engine only — hyper rejects except `--threads`, which hyper takes).** Four engine settings depend on the PC more than on the model:
 - the share of the experts missing from VRAM that are copied to the GPU instead of computed by the CPU
-  (`--pcie-frac`: a fast PCIe link and a slower CPU want more, a laptop's narrower link less);
-- how sure the draft layer must be to add another guess to a check (`--spec-min-p`);
-- how many CPU threads compute experts (`--pool-workers`: on CPUs with efficiency cores, fewer can be faster);
-- how busily the VRAM expert cache follows the conversation (`--adapt-every`, `--adapt-swaps`, `--adapt-decay`): a PC
+  (Base engine only — hyper rejects `--pcie-frac`: a fast PCIe link and a slower CPU want more, a laptop's narrower link less);
+- how sure the draft layer must be to add another guess to a check (Base engine only — hyper rejects `--spec-min-p`);
+- how many CPU threads compute experts (Base engine only — hyper rejects `--pool-workers`: on CPUs with efficiency cores, fewer can be faster);
+- how busily the VRAM expert cache follows the conversation (Base engine only — hyper rejects `--adapt-every`, `--adapt-swaps`, `--adapt-decay`): a PC
   whose CPU reads the missed experts slowly (DDR3 or DDR4 in few channels) gains from swapping more. On a Xeon
   E5-2673 v3 with DDR3 and an RTX 4060 Ti on PCIe 3.0 x8, 160 swaps every window measured +7.9% over the default
   (Q2_0, with the swaps taking effect a window later, #764); see #906.
@@ -509,15 +509,15 @@ speed with each setting and keeps one only when it is more than 3% faster. The r
 Measuring the worker count needs a fresh engine, so the model is loaded more than once: the PC is busy, and can
 stop responding for a minute or two, once per restart. It then starts the model, like a plain `START-HERE.bat`.
 
-**Manual CPU task granularity.** `--pool-tasks N` sets the target total number of row tasks in each batched
+**Manual CPU task granularity (Base engine only — hyper rejects `--pool-tasks` / `--pool-workers`).** `--pool-tasks N` sets the target total number of row tasks in each batched
 CPU expert Gate/Up and Down phase, not the number of threads or tasks per expert. The default `0` keeps
 three tasks per participating thread (including the host when enabled). Values `1..4096` are capped by
 each phase's row count; native batches larger than the pool's capacity apply the target to each sub-batch.
-For example, `--pool-workers 13 --pool-tasks 192` uses 14 participating threads with the default host worker.
+For example, `--pool-workers 13 --pool-tasks 192` uses 14 participating threads with the default host worker (Base engine only — hyper rejects).
 More tasks can reduce imbalance between cores, but also add scheduling overhead: compare against `0` with
 the same worker count and workload. This does not change kernels, phase barriers, or PCIe placement, and
 does not affect the legacy single-token/oracle fallback. Setup's `--calibrate` does not tune it yet.
-For the server, add `"--pool-tasks", "192"` to the existing `args` list in its configuration, then restart it.
+For the server, add `"--pool-tasks", "192"` to the existing `args` list in its configuration, then restart it (Base engine only — hyper rejects).
 
 ### Running it at startup (Task Scheduler)
 
@@ -545,7 +545,7 @@ slowly, the engine prints a hint under its `loaded ... GiB at ...` line naming t
 
 ### Chat in the terminal (optional)
 
-```
+```text
 .venv\Scripts\python chat.py
 ```
 
@@ -568,7 +568,7 @@ Terminal chat: `.venv/bin/python chat.py`.
   manager first (Arch: `sudo pacman -S base-devel cuda`); setup finds `nvcc` on PATH, in `/usr/local/cuda*` and in
   `/opt/cuda*`, and does the rest.
 - **WSL** works (Ubuntu 24.04 tested), with one limit: the NVIDIA driver pins only about 1 GB of RAM there, so KV
-  streaming (`--kv-resident`) is off and the KV cache stays in VRAM, and the experts are copied to the GPU from
+  streaming (Base engine only — hyper rejects `--kv-resident`) is off and the KV cache stays in VRAM, and the experts are copied to the GPU from
   unpinned RAM (slower prompts than native Linux).
 
 ---
@@ -594,8 +594,7 @@ the OS file cache, so loading again takes seconds while that RAM is not needed e
 16 GB with Q2_0 in the low-RAM mode: unloading takes ~0.3 s, and a request to an unloaded model answered after
 4.6 s (text) or 14.7 s (a picture, image encoder on the CPU).
 
-**Giving part of the VRAM back while it keeps serving (#533, opt-in, one NVIDIA GPU; every request and answer:
-[VRAM elastic](#vram-elastic)).** With `"vram_elastic": true`
+**Giving part of the VRAM back while it keeps serving ([VRAM elastic](#vram-elastic), #533, opt-in, one NVIDIA GPU; Base engine only — hyper rejects `--vram-elastic`, `--peer-device` and the resident low-RAM mode switches).** With `"vram_elastic": true`
 in the config (the engine flag `--vram-elastic`), the expert cache is allocated in 512 MiB segments
 (`"vram_segment_mib"`), and `POST /v1/vram` with `{"reserve_mib": 8000}` shrinks it between requests until that much
 VRAM is free for another program; `{"reserve_mib": null}` grows it back towards its full size, keeping the reserve
@@ -605,9 +604,9 @@ cache, so answers keep coming, slower; growing back puts the same experts in the
 own. Not with a layer split, the helper caches, `--peer-device` or the resident low-RAM mode. Measured on an RTX 5070
 12 GB with Q2_0 (4.8 GiB cache): `{"reserve_mib": 6000}` took 78 ms and freed 4.3 GiB (the cache keeps 0.5 GiB for
 the prompt path), decode 44 -> 33 tok/s; growing back took 92 ms and the answers were token for token the ones before
-the shrink. Without the flag nothing changes (the same answers as without it).
+the shrink. Without the flag nothing changes (the same answers as without it). Base engine only — hyper exits 2, do not set with hyper.
 
-GLM 5.3 Flash, Qwen3.6-35B-A3B, Ornith 1.5 and Gemma 4 26B-A4B take the same request without a switch in the
+GLM 5.3 Flash, Qwen3.6-35B-A3B, Ornith 1.5, Gemma 4 26B-A4B and DeepSeek V4 Flash (upstream-only setup option `--family deepseek`, untested here) take the same request without a switch in the
 config. Their expert cache is emptied and filled again for the new reserve, with the experts used most so far, and
 on a card without virtual memory management gets no larger than it was at the start; `{"reserve_mib": null}` is
 the reserve the engine started with. Gemma 4
@@ -617,8 +616,8 @@ back, and the next answer came at 74. On its own that engine looks before each r
 keeps half its reserve free, giving up its least used experts when another program takes VRAM and taking the most
 used ones it lacks when VRAM comes free ([BACKENDS.md](BACKENDS.md)). GLM 5.3 Flash was not tried.
 
-**Keep what the expert cache learned across restarts (opt-in, engine 0.1.36, #477):** a start fills the GPU's expert
-cache from the shipped profile, and the adaptive tier (`--adapt-every`) then moves in the experts your requests use.
+**Keep what the expert cache learned across restarts (opt-in, engine 0.1.36, #477, Base engine only — hyper rejects `--adapt-every` and the `expert_profile_save` keys):** a start fills the GPU's expert
+cache from the shipped profile, and the adaptive tier then moves in the experts your requests use.
 With `"expert_profile_save": "expert-profile-learned.bin"` in `strata-<model>.json` the engine saves that as a
 profile - the experts in VRAM first, then the routing it counted since the start, then the shipped order - on a
 clean exit and every 10 minutes between requests (`"expert_profile_save_every": 5` for another interval, `0` for
@@ -629,7 +628,7 @@ before). A relative path is in the HyperStrata folder; one file per model, and a
 Without the key nothing is counted or written. Setup rewrites the config when run again: add the key again then.
 On an Intel Arc card with `STRATA_VERIFY_NO_HOST` (the SYCL default on Battlemage, no adaptive tier) the profile is ranked from the device's own routing counts and applies at the next start; a profile learned from one kind of text speeds that kind up (code, +13-19% decode on the Arc Pro B70, same tokens) and slows other kinds (prose, -18%), so keep one file per kind of work.
 
-**The expert cache size is a budget, and on Windows an over-sized one pages instead of failing.** `--expert-cache N`
+**The expert cache size is a budget, and on Windows an over-sized one pages instead of failing (Base engine only — hyper rejects `--expert-cache`).** `--expert-cache N`
 (`"expert_cache": N`) is `N` times the largest expert blob, and the engine compares it only with the free VRAM it
 reads **before** the slots are written. `--expert-cache auto` (the default) sizes from that same figure but **checks
 again once the slots are actually written** and shrinks if they do not fit; that second check is auto-only (the loop
@@ -685,19 +684,21 @@ engine only says it; the fix is a larger `--vram-reserve-mib`, a smaller `--max-
 
 **A stall named "request" can be the OS paging the engine's own memory.** Before a request that switches
 conversation, the engine parks the outgoing one in RAM: copies of its running checkpoints and K/V, which then sit in
-ordinary memory until the conversation comes back. On a 64 GB PC with `--resident-budget-gib 40`, an 8 GiB conversation
+ordinary memory until the conversation comes back. On a 64 GB PC with `--resident-budget-gib 40` (Base engine only — hyper rejects), an 8 GiB conversation
 cache and a 256K context, the working set was 8-30 GB of 56 GB committed and the engine took about 190 page faults
 a second (under 1 MB/s if each is a pagefile read) in #2049: one silent step of more than 60 s, five times, on 0.1.41
 and 0.1.43 alike (thread dumps: the main thread inside the copy of the checkpoints, at the same instruction each time). The log's `verify window (last window, not the
 current stage) ... host at layer step 48; the GPU rang 48` line in that report is the previous request's last window,
 not the stalled one. From 0.1.43.1 the park is named in the stage (`request: parking the previous conversation`), its
 copies report progress to the watchdog, and Windows counts page faults at 8 a unit instead of 64 when it decides
-whether the file tier is busy. The cure for the slowness itself is memory: a smaller `--resident-budget-gib`, a smaller
+whether the file tier is busy. The cure for the slowness itself is memory: a smaller `--resident-budget-gib` (Base engine only — hyper rejects), a smaller
 `--conversation-cache-mib`, or the pagefile on an SSD.
 
 ---
 
 ## Using it
+
+### Endpoints
 
 The server listens on `http://127.0.0.1:8080` (change with `--port` in setup, or edit the run script).
 
@@ -763,6 +764,8 @@ r = client.chat.completions.create(model="strata", messages=[{"role": "user", "c
 print(r.choices[0].message.content)
 ```
 
+### Thinking and replies
+
 - **Thinking levels: none, low, medium, high.** The model thinks before it answers (streamed as
   `reasoning_content`, Anthropic: `thinking` blocks). Choose how much per request - in the chat page (the "Thinking"
   menu), in `chat.py` (`/think low`), or over the API:
@@ -816,7 +819,7 @@ print(r.choices[0].message.content)
   guard on and off gave byte-identical answers in 3 pairs (one of them with `STRATA_ROUTE_TAIL_SKIP=0`, one with
   `STRATA_SH_STREAM=0`); one more guard-off run differed from all the others from its first answer on, while a second
   guard-off run matched the guard-on runs, so that was a difference between runs, not the guard. Its cost there: 4.8 us of GPU time a window on average (7.8 us at most), 0.009% of the decode
-  time (Nsight Systems, 424 windows). The one-shot command line (`strata` without `--serve`) and the Intel (SYCL) port
+  time (Nsight Systems, 424 windows).   The one-shot command line (`hyper` without `--serve`) and the Intel (SYCL) port
   in `sycl/` do not check.
   Debug switch: `STRATA_NAN_INJECT=<n>[,<n>...]` reports the n-th window the guard checks in the engine process
   (counted from 1 over prompt-tail, decode and batch windows) as non-finite, to exercise the whole path without a real
@@ -865,6 +868,8 @@ print(r.choices[0].message.content)
   stops it and goes first (one sent 3 s after the start waited
   0.5 s), and the part read stays cached. It is off by default because the read keeps the GPU busy at every start,
   also when no agent comes.
+### Streaming and tool calls
+
 - **Streaming.** With `"stream": true` everything arrives as it is made: the thinking, the answer, and tool calls
   (the tool's name first, then its arguments piece by piece, like OpenAI and Anthropic do). While the model reads a
   long prompt the stream sends keep-alives, so agents do not time out; the server window prints progress every
@@ -1002,13 +1007,14 @@ reading after it instead of from token 0. A prompt read from the start is also c
 prompt when that is 2,048 tokens or more (engine 0.1.20; PR #62 + #65), so that root exists for agent clients with long
 system prompts and tool lists. Claude Code stamps its system prompt with a billing header that changes on every
 request (`cch=...`) and every session (the 4th part of `cc_version=`); the server pins both stamps (to `f`s, as
-llama.cpp does), so the system prompt and the tool list in front of it are the same prompt on every turn. Engine options: `--prompt-cache N` (0 = off), `--prompt-cache-every N`,
-`--prompt-cache-root N` (0 = no system-prompt checkpoint), `--turn-token ID`.
+llama.cpp does), so the system prompt and the tool list in front of it are the same prompt on every turn. Engine options: `--prompt-cache N` (0 = off), `--prompt-cache-every N`.
+`--prompt-cache-root N` (0 = no system-prompt checkpoint) and `--turn-token ID` are base-engine only:
+hyper does not take them and exits 2.
 A one-shot request that no later request continues (a classification call, a probe) can send
 `"strata_checkpoint": false` in its body: it saves no checkpoint at its last turn nor every 16K tokens, so what
 follows the reused prefix (or the root) is read in one run, and its session is not kept or parked for a next request.
-It still starts from a checkpoint it matches, and still saves the system-prompt root when that reaches
-`--prompt-cache-root`. Without the field (or with `true`) nothing changes.
+It still starts from a checkpoint it matches, and on the base engine still saves the system-prompt root when that reaches
+`--prompt-cache-root` (base engine only). Without the field (or with `true`) nothing changes.
 
 **One long document, many questions: a pinned shared prefix (opt-in, 0.1.40.2).**
 A request can say where the document ends: `"strata_prefix": {"messages": 1}` (the first message is the document),
@@ -1157,8 +1163,8 @@ sizes and K/V bytes reused during capture. `STRATA_SNAPSHOT_FULL_CAPTURE=1` disa
 retention for diagnostic comparisons. Parked snapshots are not
 persisted across restarts; the session files below are.
 
-**Session files (disk).** The conversation the engine holds can be saved to a file and restored later, also after a
-restart of the same engine version, so a long prompt is not read again. The server exposes the save and restore
+**Session files (disk, base engine only).** The conversation the base engine holds can be saved to a file and restored later, also after a
+restart of the same engine version, so a long prompt is not read again. Hyper does not do this: it speaks `GEN`, `GENI`, `BGEN` and `QUIT` in, and `RESUME`, `PP`, `T`, `DONE` and `ERR` out, with no `SAVE` or `RESTORE`. The server exposes the save and restore
 requests of llama-server's slot API, for its single slot 0, when started with `--slot-save-path DIR` (also
 `"slot_save_path"` in the config); NAME must be a plain file name inside DIR. There is no erase action and the file
 format is HyperStrata's own, not llama.cpp's:
@@ -1216,9 +1222,9 @@ failed after its new file had replaced the old one says so with `error.published
 continue the restored conversation reuses the restored state or its checkpoint; a short tail may be read again (35
 tokens in the measurement below). Only the deepest checkpoint is saved, so an edit further back reads more again.
 Clients still send their messages (and images): the file holds engine state and token/image identity, not a chat
-export. Underneath, `strata --serve` takes `SAVE <path>` and `RESTORE <path>` on stdin between requests and answers
+export. Underneath, the base engine's `--serve` takes `SAVE <path>` and `RESTORE <path>` on stdin between requests and answers
 `SAVED <tokens> <bytes> <ms>`, `RESTORED <tokens> <bytes> <ms>`, `SERR <kind> <published 0|1> <reason>` (failed,
-the engine and the session as they were) or `FATAL <reason>` (then exits). On the way, `SESSION <done> <total>` follows
+the engine and the session as they were) or `FATAL <reason>` (then exits). Hyper does not take `SAVE` or `RESTORE`. On the way, `SESSION <done> <total>` follows
 every block of the file that moved (at most 16 MiB, the last partial block and a small file included), and
 `SWAIT <phase> <seconds>` comes before a step that blocks in one call (`fingerprint`, `capture`, `flush`, `publish`,
 `validate`, `transfer`): that step is allowed those seconds - 60 plus one per 4 MiB it concerns, at most 3600 - by the
@@ -1237,18 +1243,19 @@ this engine wrote. An unknown version is refused; a new format gets a new versio
 
 A file is bound to the model inputs and to the settings that change what the saved bytes mean. The model fingerprint
 samples (size, first and last MiB) every file the engine loads, by its role: the GGUF shards (also
-`--native-dense-gguf`, the head shards and `--embd-gguf`), the PLE shard, the pack's index/dense/embedding files and
+`--native-dense-gguf` (base engine only), the head shards and `--embd-gguf` (base engine only)), the PLE shard, the pack's index/dense/embedding files and
 `native_experts.txt`, every file the expert source resolved - the pack's `experts.bin`, or for a pack read in place each
 layer's gate/up/down GGUF as `native_experts.txt` names it, also one outside the CLI shards - and the MTP's files; not
 other files in those folders, and not the path, so a moved model folder still matches. A
 change in the middle of a file that keeps its size is not seen: do not change model files while their sessions are
 kept. The config fingerprint covers the engine version string (another version is refused; two builds of the same version
 are not told apart - there is no build hash), CUDA or HIP,
-`--kv`, `STRATA_KV_ROT`, `--kv-resident`, `--max-context`, `--mtp-window`, the resolved rope configuration (type,
+`--kv`, `STRATA_KV_ROT`, `--max-context`, the resolved rope configuration (type,
 base, factor, freq scale, original context, the YaRN knobs - the cached K is post-RoPE), the loaded control vector (a
 digest of the tables uploaded: every file's content times its exact scale, the mode, the layer range and the
-direction) and the arithmetic switches (`--native-*`, `--no-ple`, the A/B arms). Sampling, seeds, draft tuning and
+direction) and the arithmetic switches (`--native-*` and `--no-ple` are base-engine only, the A/B arms). Sampling, seeds, draft tuning and
 the expert tier are not in it: they change what comes next, not what the saved cells hold.
+`--kv-resident` and `--mtp-window` are also base-engine only: hyper does not take them and exits 2.
 
 A save writes a temporary file with a new hidden name beside `path` (created exclusively, never an existing file or
 link), flushes it to the disk, renames it over `path` (`MoveFileExW` with write-through on Windows, which promises no transaction
@@ -1265,7 +1272,7 @@ limits (context and cells, checkpoints, layers, each running-state array, each K
 and then the usual snapshot validation - all before any device write, and a refusal leaves the current session as it
 was. A transfer failure after the device writes began ends the engine (`FATAL`) rather than decode from a partial
 state; the server reports `500` and starts it again. A restore does not park the outgoing session. Not supported with
-`--layer-split`, `--peer-device`, `--batch` (the config's `"parallel"`, #465; the server answers `501`) or
+`--layer-split`, `--batch` (the config's `"parallel"`, #465; the server answers `501`) or
 `--prompt-cache 0` (the RAM conversation cache need not be on). On Linux the file
 moves with `O_DIRECT` in 16 MiB blocks when the filesystem takes it (buffered I/O otherwise, or with
 `STRATA_SESSION_BUFFERED=1`); on Windows with buffered I/O. The engine has been run on Linux/CUDA only. An earlier
@@ -1295,8 +1302,7 @@ re-reads the other one unless the opt-in cache above is enabled, or each convers
 seed** are honored per request (OpenAI and Anthropic fields), and so are stop strings (OpenAI `stop`, a string or up
 to 4; Anthropic `stop_sequences`): the answer ends before the first one, which is not sent, and the engine stops
 there (`finish_reason` "stop"; `stop_reason` "stop_sequence" with `stop_sequence` set to the one found); with the default adaptive expert tier a sampled result
-is not reproducible run to run - for seed-reproducible output add `--adapt-every 100000` (static residency) to the
-engine arguments. The run config's optional `sampling` block sets the defaults for requests that leave the fields out
+is not reproducible run to run. (`--adapt-every` is base-engine only; hyper does not take it.) The run config's optional `sampling` block sets the defaults for requests that leave the fields out
 (`"sampling": {"temperature": 1.0, "top_p": 0.95, "top_k": 20}`); a request's own fields always win, and with no
 block at all a request without sampling keys decodes greedy. The penalties (`presence_penalty`, `frequency_penalty`,
 `repetition_penalty`, with `penalty_last_n` capping how many recent tokens they count over, default 64 when any
@@ -1306,11 +1312,11 @@ the speculative decoding checks at once, exactly as if it decoded one token at a
 each batch got them). That makes requests with penalties 1-11% slower than in 0.1.18: the draft layer guesses
 without penalties, so more of its guesses are now rejected. Requests without penalties are unchanged. `top_k` keeps at most 64 candidates: `0` ("off") or anything above 64 uses all 64.
 
-**Batch MTP on a layer split (`--batch-mtp`).** Our measurement on 2x R9700 with all experts in VRAM: 80.2 -> 62.7 tok/s (-21.9%, 0/5 pairs faster) against the pipelined default, so it pays only when the experts do not all fit in VRAM ([Batching](#batching)).
+**Batch MTP on a layer split (`--batch-mtp`, base engine only; hyper does not take it).** Our measurement on 2x R9700 with all experts in VRAM: 80.2 -> 62.7 tok/s (-21.9%, 0/5 pairs faster) against the pipelined default, so it pays only when the experts do not all fit in VRAM ([Batching](#batching)).
 
 **Token biases (opt-in).** The chat API supports request-scoped `logit_bias` objects and token/bias pair lists on supporting CUDA/HIP engines without continuous batching. A value of -100 (or `false` in a pair list) excludes a token. Unsupported engines return an error. See [Logit bias](#logit-bias) for formats, limits and validation.
 
-**Sampled drafting (opt-in, 0.1.40.2).** With temperature above 0 the engine keeps a draft only when it equals the token the model sampled for that position, and the draft layer proposes its best guess. Two opt-in switches change how the draft layer drafts a sampled request; greedy requests (temperature 0) are never touched and stay byte-identical. `STRATA_SPEC_COUPLED=1` (or `--coupled-draft`) drafts by sampling with the request's own settings and the random number the checking row will use; the text for a seed does not change. `STRATA_SPEC_PROB=1` is speculative rejection sampling: the draft layer samples its guess from its own distribution q, the check accepts it with probability min(1, p/q) (p is the model's distribution after penalties, top_k, top_p, min_p and temperature) and otherwise samples the replacement from the leftover distribution, so every token is distributed exactly as without drafts (the text for a seed then depends on the drafts, so it is reproducible only for the same engine, flags and prompt). Guesses without a distribution (prompt lookup, suffix drafts) keep the exact-match rule, which is already exact. Neither is faster in a way that holds up: on an RTX 3060 (IQ3_XXS, 200-token story and code answers, 10 interleaved pairs) the default's median output speed was 42.4 / 43.2 / 43.3 tok/s at temperature 0.3 / 0.7 / 1.0, coupled drafting 40.6 / 42.4 / 43.3 and rejection sampling 41.0 / 42.6 / 42.6, with run-to-run differences of up to 5% between repeats; drafts kept per round fell at 0.3 and rose by about 5 points at 1.0, which the cost of the longer sampled windows ate. `STRATA_SPEC_DEPTH=1` prints the acceptance by draft depth for each request; `STRATA_SPEC_MIN_TEMP=0.9` limits sampled drafting to hotter requests. Proof that the rejection rule keeps the distribution: `spec_prob_test` (chi-square, 2 million trials per case) and `spec_verify_parity` (GPU against the host reference).
+**Sampled drafting (opt-in, 0.1.40.2).** With temperature above 0 the engine keeps a draft only when it equals the token the model sampled for that position, and the draft layer proposes its best guess. Two opt-in switches change how the draft layer drafts a sampled request; greedy requests (temperature 0) are never touched and stay byte-identical. `STRATA_SPEC_COUPLED=1` (or `--coupled-draft`, base engine only; hyper does not take the flag) drafts by sampling with the request's own settings and the random number the checking row will use; the text for a seed does not change. `STRATA_SPEC_PROB=1` is speculative rejection sampling: the draft layer samples its guess from its own distribution q, the check accepts it with probability min(1, p/q) (p is the model's distribution after penalties, top_k, top_p, min_p and temperature) and otherwise samples the replacement from the leftover distribution, so every token is distributed exactly as without drafts (the text for a seed then depends on the drafts, so it is reproducible only for the same engine, flags and prompt). Guesses without a distribution (prompt lookup, suffix drafts) keep the exact-match rule, which is already exact. Neither is faster in a way that holds up: on an RTX 3060 (IQ3_XXS, 200-token story and code answers, 10 interleaved pairs) the default's median output speed was 42.4 / 43.2 / 43.3 tok/s at temperature 0.3 / 0.7 / 1.0, coupled drafting 40.6 / 42.4 / 43.3 and rejection sampling 41.0 / 42.6 / 42.6, with run-to-run differences of up to 5% between repeats; drafts kept per round fell at 0.3 and rose by about 5 points at 1.0, which the cost of the longer sampled windows ate. `STRATA_SPEC_DEPTH=1` prints the acceptance by draft depth for each request; `STRATA_SPEC_MIN_TEMP=0.9` limits sampled drafting to hotter requests. Proof that the rejection rule keeps the distribution: `spec_prob_test` (chi-square, 2 million trials per case) and `spec_verify_parity` (GPU against the host reference).
 
 ---
 
@@ -1449,7 +1455,7 @@ Taken together, use **yarn**. It is still experimental: the numbers come from on
   question when run interactively) and derives the factor from the final context for you (final context /
   262,144, at least 1: 1.5 at 393K, 2 at 512K, 1 inside the trained range; `--rope-scaling`/`--rope-scale`
   override; an explicit `--rope-scale` is kept as given even when it is too small for the context actually
-  served, so check it if you set one). An explicit `--rope-scaling none` for a context past
+  served, so check it if you set one). Setup takes `--context`; the engine takes `--max-context` — that handoff is PENDING here, no log here, re-verify before trusting it. An explicit `--rope-scaling none` for a context past
   262,144 is refused: the setup will not configure a run with the stock angles past the trained range. If
   the RAM check reduces a chosen 384K/512K back inside the trained range, an omitted method adds no
   scaling, and an explicitly chosen one stays at factor 1 - the trained angles, no expansion (not a
@@ -1537,7 +1543,7 @@ in before the first generated token. With the flag off the engine does exactly w
 
 On an 8 GB RTX PRO 2000 Laptop (Windows 11, WDDM, IQ3_XXS, 590 MiB reserve) it let the prompt path use 2,048-token
 chunks instead of 512, and prefill on a 29,854-token prompt rose 292.5 -> 667.1 tok/s (medians of 12 and 6 fresh-engine
-trials). Reads of up to 512 fresh tokens cost about 0.6-0.75 s more per request, and the card had 0 MiB free while
+trials). PENDING here for `hyper`: restated, not measured on `hyper`, no log here. Reads of up to 512 fresh tokens cost about 0.6-0.75 s more per request, and the card had 0 MiB free while
 decoding (no paging symptoms over about 26 hours). The engine refuses the flag, with the reason, without `--serve`, with
 more than one GPU or a layer split, with `--batch`, with `--pipeline-windows`, with `--short-read` above 0, with a fixed
 `--expert-cache` above 1, without `--mtp`, or without the native output head. It was measured only on the 8 GB card
@@ -1573,8 +1579,11 @@ and `{"reserve_mib": 0}` keeps nothing free on purpose. The server's API key app
 a call while a request runs or is queued returns 409, and the engine's reason on a refused resize comes back in the 400
 body with the engine still up.
 
-**Accepted only by the base `strata` engine.** The `hyper` engine rejects both `--vram-elastic` and `--vram-segment-mib`
-as unknown options (`src/poly/main.cpp:1204-1208`), so it never runs this.
+**Base `strata` engine only. Do not set with `hyper`.** The `hyper` engine rejects both `--vram-elastic` and `--vram-segment-mib`
+as unknown options (`src/poly/main.cpp:1204-1208`, exits 2), so it never runs this. The server still adds both flags
+when the config sets them (`serve/server.py:2639-2643`, no `hyper` guard there; the `hyper` check at
+`serve/server.py:2623-2624` covers `--vision` only). Stock runs stay safe because both keys are off unless set.
+Setting `"vram_elastic": true` or `"vram_segment_mib"` with `hyper` would fail. A server-side guard is an open fix, PENDING.
 
 ---
 
@@ -1602,7 +1611,8 @@ or 0 = the plain kernel) is a table indexed by quantisation type (IQ4_XS, Q4_K, 
 count (five classes).
 
 The small-batch table for sm_86 (Ampere consumer) and sm_120 (Blackwell consumer) is `kIlRowsShared`, measured on an
-RTX 3060 and an RTX 5070 together (a cell is non-zero only if the worse of the two cards still gains 3%). sm_89 (Ada)
+RTX 3060 and an RTX 5070 together (a cell is non-zero only if the worse of the two cards still gains 3%). PENDING here
+for `hyper`: restated, not a `hyper` run, no log here. sm_89 (Ada)
 and every other sm_80+ card also use it, though nobody has measured sm_89 yet; sm_75 and older have the path off. A card
 can try a table without rebuilding with `STRATA_MMVQ_IL_ROWS="type:ncols:r0,r1,r2,r3,r4;..."` (each of the five numbers
 is 0, 1, 2 or 4), then A/B the decode with the same flags, set or unset, 10 interleaved pairs, medians.
@@ -1611,12 +1621,16 @@ is 0, 1, 2 or 4), then A/B the decode with the same flags, set or unset, 10 inte
 
 ## Images (vision)
 
-Pictures go through the `hyper-vision` helper + mmproj file — see [BACKENDS.md](BACKENDS.md#how-a-backend-works). It is **optional**: say yes when setup asks "Images?", or rerun with `--vision gpu` (or `--vision cpu`).
+Pictures go through the `hyper-vision` helper + mmproj file — see [BACKENDS.md](BACKENDS.md#how-a-backend-works). It is **optional**: say yes when setup asks "Images?", or rerun with `--vision gpu` (or `--vision cpu`). Picture questions get answers here (PASS, function works).
+
+Speed numbers in this section are PENDING here. The `hyper-vision` binary from this tree is not built (no `build-vision/` dir), so the times below are a restatement, not a run of this tree's binary. No log here. Re-verify after building before claiming.
 
 | Encoder on | Time per picture | Cost |
 | --- | --- | --- |
 | **GPU** (recommended) | **0.1-0.5 s** (up to 1,024 image tokens) | ~1.4 GB of VRAM is kept free for it, so the expert cache is smaller: text output is a few % slower (table below) |
 | CPU | about 3 s at 300 image tokens on 8 cores (6-13 s on 4 threads); more tokens take longer, in proportion (#767, #625) | nothing on the GPU |
+
+PENDING here: both rows above are restated, not measured on this tree's `hyper-vision` binary (not built). Re-verify, no log here.
 
 A picture becomes up to 1,024 tokens of the context (a 640x480 photo: 300). The same picture sent again, as chat apps
 do on every turn, is encoded only once.
@@ -1658,6 +1672,8 @@ AVX-512 and leaves it at `auto` (on) otherwise; `--flash-attn on|off|auto` overr
 | AVX-512 (from source) | on | 43.5 s | 1,152 MiB | 26% |
 | AVX-512 (from source) | off (default) | 13.3 s | 2,195 MiB | - |
 
+PENDING here: the table above is restated, not measured on this tree's `hyper-vision` binary (not built). Re-verify, no log here.
+
 The last column is the relative L2 distance of the embeddings from the AVX-512 run without flash attention; two builds
 differ by about 1% anyway.
 
@@ -1667,20 +1683,22 @@ like `nvidia-smi`) to the `"vision"` section of `strata-<model>.json`: the encod
 encoder's card needs code in the ready-made encoder (RTX 20/30/40/50).
 
 **The encoder only while there are pictures (opt-in, `"elastic": true` in the `"vision"` section, with the config's
-`"vram_elastic": true`; [VRAM elastic](#vram-elastic)):** the GPU encoder does not start
+`"vram_elastic": true`; [VRAM elastic](#vram-elastic)):** base `strata` engine only — do not set with `hyper`
+(`hyper` rejects `--vram-elastic`, see above). The GPU encoder does not start
 with the server, so the expert cache keeps all of the VRAM. The first picture's turn makes the cache keep
 `"elastic_mib"` (default 2048) free and starts the encoder there (a few seconds); later pictures use it as it is, and
 after `"elastic_idle_s"` (default 120) without a picture it stops and the cache takes the VRAM back. Measured on an R9700
 32 GB (gfx1201, Linux, UD-IQ4_XS, the BF16 encoder at up to 1,024 tokens, #2189 for HIP's virtual memory): the encoder
 took 1,339 MiB and started in 4.7 s (2.7 s the next time); a request with one picture took 8.6 s with the start and
 5.0 s on a later cold start, and 2 / 5 / 10 pictures with the encoder running took 3.8 / 5.6 / 9.0 s (~0.45 s to encode
-each, the same as on a second card). Without the key nothing changes.
+each, the same as on a second card). Without the key nothing changes. PENDING here for `hyper`: restated, not measured
+with `hyper`, no log here.
 
 ### Sending a picture
 
 **Terminal chat:** type `/image <path to a picture>`, press Enter, then type your question.
 
-```
+```text
 you> /image C:\Users\me\Pictures\receipt.jpg
 (picture attached: receipt.jpg - now type your question)
 you> What is the total on this receipt?
@@ -1704,7 +1722,9 @@ print(r.choices[0].message.content)
 JPEG, PNG, BMP, GIF, WebP, TIFF and AVIF work (the last ones are converted to PNG first; agents such as omp send
 WebP). Chat apps with image upload work the same way.
 
-### Speed with images on (4K context, measured)
+### Speed with images on (4K context, PENDING here)
+
+PENDING here: both tables below are restated, not measured on this tree's `hyper-vision` binary (not built, no `build-vision/` dir). No log here. Re-verify after building before claiming.
 
 | Model | Prompt tok/s, images off | Prompt tok/s, images on | Output tok/s, images off | Output tok/s, images on |
 | --- | ---: | ---: | ---: | ---: |
@@ -1764,7 +1784,8 @@ read the same either way. `auto` picks the share from wall-clock timings, so the
 differently - and answer differently - from one run to the next (a resumed conversation's re-read differed in 31 of
 1,536 teacher-forced argmax tokens, #1684); a fixed share repeats, `0` gives the exact bytes of a run without it.
 
-Prompt time, medians of 10 interleaved pairs (off / auto, ms, `--expert-cache 1500`):
+Prompt time, medians of 10 interleaved pairs (off / auto, ms, `--expert-cache 1500`).
+PENDING here for `hyper`: base-engine restatement, no log here.
 
 | machine | 512 tokens | 1,000 tokens | 2K / 4K / 16K |
 |---|---|---|---|
@@ -1783,6 +1804,7 @@ expert here: none was page-locked):
 
 A coding agent's recorded conversation on the two cards (a 100K-token start, then 8 turns of 1-5K tokens of code, 128
 tokens written a turn, the same tokens read by both): 137.4 s off, 130.6 s auto (reading 121.1 -> 114.3 s).
+PENDING here for `hyper`: restated, no log here.
 
 ## Missed experts in a verify window: the tail is skipped (on by default on CUDA, `STRATA_ROUTE_TAIL_SKIP`)
 
@@ -1827,13 +1849,14 @@ RTX 3060 76 and 78 of 82 / 78 of 82, reasoning 27 and 27 / 29; RTX A4000 76 and 
 (one run each; a change of 3 reasoning tasks is noise).
 
 Decode speed, `STRATA_ROUTE_TAIL_SKIP` default against `=0`, 5 interleaved rounds on fresh engines, a story, a code answer and a 6K-token document, 200 tokens each,
-median over the rounds (ratio of tokens/s, default over `=0`; rounds in which the default was faster):
+median over the rounds (ratio of tokens/s, default over `=0`; rounds in which the default was faster).
+PENDING here for `hyper`: base-engine restatement, not a `hyper` run, no log here.
 
 | machine | story | code | 6K document | all three |
 |---|---|---|---|---|
 | RTX 3060 12 GB, IQ3_XXS, resident experts | 1.104 (5/5) | 1.197 (5/5) | 1.241 (5/5) | **1.156 (5/5)** |
 | RTX A4000 16 GB alone, Q2_0 | 1.151 (5/5) | 1.135 (5/5) | 1.101 (5/5) | **1.129 (5/5)** |
-| Tesla P100 16 GB, IQ3_XXS, `--pcie-frac 0.29` | 1.149 (5/5) | 1.182 (5/5) | 1.118 (5/5) | **1.146 (5/5)** |
+| Tesla P100 16 GB, IQ3_XXS, `--pcie-frac 0.29` (base engine only; `hyper` has no `--pcie-frac`, `src/poly/main.cpp:1031-1102`) | 1.149 (5/5) | 1.182 (5/5) | 1.118 (5/5) | **1.146 (5/5)** |
 | two RTX A4000, layer split (hit rate 99.7%) | 0.987 (0/5) | 1.004 (5/5) | 1.002 (3/5) | 0.998 (1/5) |
 
 The gain follows how much of a token is spent waiting for missed experts (hit rate 75-90% on the single cards in the profile, `phaseA-tests/cuda-profile.md`); a 2-GPU
@@ -1853,7 +1876,8 @@ decoding), and only by a full step. Each change prints one `PCIe share:` line. A
 **`--pcie-frac N` always wins; `STRATA_PCIE_FRAC_DEFAULT=old` keeps the 0.1.41 rule.** Not used with a layer split, `--batch`, a peer GPU, when every
 expert is in VRAM, or on SYCL or on HIP other than gfx1200 / gfx1201 (RDNA4, where the measured share is the default since 0.1.43; `STRATA_PCIE_FRAC_DEFAULT=old` opts out). The canonical Q2_0 pack uses it on CUDA since 0.1.43, on Linux by default and on Windows with `STRATA_PCIE_AUTO_CANON=1` (an RTX 5070 there: code +2.5%, a short answer -3.3%). The constant 1.85 is a fit to three machines, so it lands within a step of each machine's best, not on it. On HIP, `STRATA_PCIE_AUTO_SPLIT=1` (opt-in, 0.1.43) also refines a two-stage layer split: the pool speed is read once and each stage takes the share its own probed link gives (2x R9700 at 16 GB-eq, tail skip on: Q2_0 story +4.5%, code +9.9%, 4K +8.8%; IQ3_S story -2.1%, code +8.0%, 4K +23.3%; with three or more stages the pipelined loop does not run it).
 
-Measured (interleaved pairs of whole engine runs, new default against `STRATA_PCIE_FRAC_DEFAULT=old`, medians, route tail skip on):
+Measured (interleaved pairs of whole engine runs, new default against `STRATA_PCIE_FRAC_DEFAULT=old`, medians, route tail skip on).
+PENDING here for `hyper`: base-engine restatement, not a `hyper` run, no log here.
 
 | card | the pool takes | share (old -> new) | decode, new / old | pairs faster |
 |---|---|---|---|---|
@@ -1871,6 +1895,7 @@ The sweeps behind the constant: `phaseA-tests/notes-142-pciefrac.md`.
 None of these changes the default answers; each was measured against the default with interleaved off/on pairs of whole
 engine runs (a fresh engine per side, warmed, 200-token greedy answers on three fixed prompts, medians; "pairs faster" counts
 the pairs in which the switched arm won). They are here so you can try them on your own card.
+PENDING here for `hyper`: base-engine restatements, not `hyper` runs, no log here.
 
 - **`STRATA_GDN_CHUNKED=1`: the DeltaNet recurrence of the prompt in chunks of 32 tokens** (sergiywith, #1372; WY form, FP32,
   other bits than the default: first-token KL against the default was 0.002-0.009 nats on average, the same top token in
@@ -1960,7 +1985,7 @@ never changes a result.
   N threads placed so far)`, or `(off at start; a request's aux_cpus=1 turns it on)`. A request that changes the state
   prints `strata serve: aux cpus ON/off for this request`.
 - **Not covered.** Other processes (the Python launcher, a container runtime) and the engine's host thread.
-- **Measured.** One machine: 2x RTX 3080 20 GB at 220 W, Xeon E5-2696 v4 (24 logical CPUs in the container, 16 pool
+- **Measured.** PENDING here for `hyper`: base-engine restatement, no log here. One machine: 2x RTX 3080 20 GB at 220 W, Xeon E5-2696 v4 (24 logical CPUs in the container, 16 pool
   workers each on its own CPU), UD-Q4_K_XL, layer split 23, `--batch-mtp`, two slots, adaptive tier on. `auto` put the
   host thread on CPU 2 and the helper threads on CPU 24. Same binary in every arm, only the flag differs. Two pairs of
   whole engine restarts in the order `auto`, off, `auto`, off (12 solo decodes and 10 two-stream rounds per restart,
@@ -1996,7 +2021,7 @@ so measure it on your own prompts; the Monitor marks every request ESP or stock.
 no), or pass `--experimental-speed-projection on` (`off`, or a path to another vector GGUF). Only for the original
 Qwen3.8-Flash-Next, not Swift 1.5. It writes these engine flags (llama.cpp's) into `strata-<model>.json`:
 
-```
+```text
 --control-vector-scaled <HyperStrata>\data\experimental-speed-projection\Qwen3.8-Flash-Next-experimental-speed-projection.gguf:1.0
 --control-vector-layer-range 4 44 --cvec-mode project --cvec-dir per-layer
 ```
@@ -2029,15 +2054,15 @@ the document, +0.4% on the chat. Details: `bench/results/2026-09-27-esp/`.
 | The PC freezes for a few minutes at the start | Normal, most of all the first time (the server window says when it happens): the engine loads the experts into RAM, pins part of it for the GPU and sizes the expert cache. Wait; don't close the window. Still frozen after 10 minutes: restart the PC, close other programs, try again, or pick a smaller size. |
 | `the engine stopped unexpectedly (exit code ...)` | The engine process ended mid-answer - usually out of RAM (Linux ends the biggest program: `sudo dmesg \| grep -i 'killed process'`). The next request starts it again by itself. If it repeats: close other programs or pick a smaller size. The server also warns at start when the model's experts leave less than ~6 GB of RAM for everything else. |
 | Slow output, disk light busy | Not enough free RAM: close other programs, or choose UD-Q3_K_M / UD-Q2_K_XL. |
-| `prompt ... exceeds the context` | The request is longer than the context you chose: run setup again with a bigger `--context`. |
-| `the setup refuses --rope-scaling none for a past-trained context` | A context past the trained 262,144 needs the rotary angles rescaled (experimental rope scaling, upstream-only, untested here; the fork's measured context is 131072), and the setup will not configure one with the stock angles there. Let it pick (`START-HERE.bat --setup --context 393216` adds yarn and a covering factor), or pass `--rope-scaling linear` or `yarn` yourself. |
+| `prompt ... exceeds the context` | The request is longer than the context you chose: run setup again with a bigger `--context` (setup flag; the engine flag is `--max-context` — that handoff is PENDING here, no log here). |
+| `the setup refuses --rope-scaling none for a past-trained context` | A context past the trained 262,144 needs the rotary angles rescaled (experimental rope scaling, upstream-only, untested here; the fork's measured context is 131072), and the setup will not configure one with the stock angles there. Let it pick (`START-HERE.bat --setup --context 393216` adds yarn and a covering factor; `--context` to engine `--max-context` handoff PENDING here, no log here), or pass `--rope-scaling linear` or `yarn` yourself. |
 | Slower than the tables | The monitor plugged into the GPU and other GPU programs take VRAM from the expert cache; RAM running below its rated speed (enable EXPO/XMP in the BIOS) slows the CPU half. |
 | `this server was started without the vision encoder` | The model was set up for text only: run setup again with `--vision gpu`. |
 | Setup puts the model on an old drive after you moved or reinstalled HyperStrata (#1070) | Setup remembers the data folder you used last in its settings file (`%APPDATA%\HyperStrata\settings.json` on Windows, `~/.config/hyperstrata/settings.json` on Linux; the `data_dir` entry) and uses it again. Choose another place with `--data-dir DIR` (model files, packs, MTP layer) or `--models-dir DIR` (the GGUF files only), or delete the `data_dir` line; `--gguf-dir DIR` uses GGUF files you already have without copying. To move a model, copy its folder and run setup with the new `--data-dir`. |
 | A picture is refused or `cannot read the image` | The file is not a picture Pillow can open (JPEG, PNG, WebP, GIF, BMP, TIFF, AVIF work). |
 | Pictures are slow (3-30 s) | The encoder runs on the CPU: run setup again with `--vision gpu` (needs ~1.4 GB of VRAM). |
 | A request never finishes: "reading the prompt", GPU "100%" at low power | The GPU ran out of VRAM (engines before 0.1.9 could end with ~30 MiB free at large contexts). Run `START-HERE.bat` once to get engine 0.1.9 or newer; the log then says `... MiB of VRAM free with everything loaded` (a few hundred) and names the `--vram-reserve-mib` to add if it is low. |
-| Output much slower than the tables above, only with a large `--context`, and the start says a small `... MiB of VRAM free with everything loaded` | The expert cache does not fit the card at that context. With `--expert-cache auto` the engine shrinks it to fit; with a fixed number it does not check again after the slots are written, and on Windows the extra is put in system memory instead of failing, so only the speed shows it. Use `auto`, a smaller number, or raise `--vram-reserve-mib` (it is deducted before the cache is sized). See "The expert cache size is a budget" under Sharing the GPU. |
+| Output much slower than the tables above, only with a large `--context`, and the start says a small `... MiB of VRAM free with everything loaded` | The expert cache does not fit the card at that context. With `--expert-cache auto` the engine shrinks it to fit; with a fixed number it does not check again after the slots are written, and on Windows the extra is put in system memory instead of failing, so only the speed shows it. Use `auto`, a smaller number, or raise `--vram-reserve-mib` (it is deducted before the cache is sized). See "The expert cache size is a budget" under Sharing the GPU. PENDING here: speed tables above are restated, not `hyper` runs, no log here. |
 | Generation stops mid-answer, GPU "100%", one CPU core busy | Fixed in engine 0.1.12 (issue #29, a race in the CPU expert pool on big-VRAM cards). Since then a request that stops moving ends with an error instead of hanging (after 2 minutes; 1 minute from 0.1.13): the log says `no progress for ... s ... (issue #29)` with where it stopped, and the next request starts the engine again. Engine 0.1.13 adds a stall report under it (what every expert-pool thread and the GPU handshake were doing, memory and page faults) and, on Windows, a `strata-stall-<pid>.dmp` file with every thread's stack: attach both. (`STRATA_WATCHDOG_S` sets the time in seconds; 0 turns it off.) Engine 0.1.14 fixes the stall those reports found (issue #31: with the IQ packs the host could wait forever inside the NVIDIA driver while copying experts in a verify window; the experts are now copied by a GPU kernel, `--pcie-mode dma` restores the old way). |
 | `no progress for 60 s ... reading the prompt` on Linux, and the stall report says `threads waiting on the disk (state D): 16 ...` | The engine waits for the drive, not a deadlock: the n-gram table is read at random (`--ple-io direct`), which a rotational disk cannot keep up with (#605). The engine warns at start when the table is on one; `--ple-io ram` (Linux, needs RAM for the table) or the model on an SSD fixes it. Setup adds `--ple-io ram` itself on a rotational disk when the RAM holds the table (0.1.39). |
 | `the engine said nothing for ... s during the request` or `... did not finish the request after it was stopped (STOP)` | Issue #481: the engine and the server lost step (the engine waits for its next command, the server for the request's end; GPU at 0 %, nothing in the log). The server ends the engine after 300 s without a line from it during a request (while a prompt is read: each chunk may take three times the previous one's time, the first one up to its tokens at 50 tok/s more), the request ends with an error and the next request starts the engine again. `"engine_silence_s": 600` in `strata-<model>.json` sets the time (0 = wait forever, as before). If you see it, please add the end of the engine log to #481. |
@@ -2110,7 +2135,7 @@ HyperStrata itself: [MIT](../LICENSE). The model files are not part of it; their
 
 ### Start the API without loading the model
 
-`serve/server.py --engine hyper --config hyper-<model>.json --lazy` (or `"lazy_load": true` in that
+`serve/server.py --engine hyper --config strata-<model>.json --lazy` (or `"lazy_load": true` in that
 config; engine paths/flags: [`--help.md`](../--help.md)) starts the lightweight HTTP API without starting the native engine or the vision encoder. The first
 generation request, or `POST /load`, starts the vision encoder first when configured, then loads the engine through
 the existing reload path, including `before_load` and `min_free_vram_mib`. This also works with image requests:

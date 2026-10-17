@@ -1,13 +1,29 @@
-authors:
-  - alias: theacidblack
-    website: https://github.com/theacidblack
 cff-version: 1.2.0
 title: HyperStrata
-message: If you use this software, please cite it as below.
+version: 1.0.0
+date-released: 2026-10-17
+message: >-
+  Personal experiments, live in public repo. Not competing, just learning
+  for fun on my rig. Tuned for one rig only: RTX 3070 Ti Laptop 8GB plus
+  32GB RAM. Runs on other RTX cards in theory, no proof, no promise.
+  Upstream never approved, supported, or endorsed this fork. If you use
+  it, cite it as below.
 type: software
-authors:
-  - family-names: Black
+license: MIT
 repository-code: https://github.com/theacidblack/HyperStrata
+authors:
+  - given-names: Acid
+    family-names: Black
+    alias: theacidblack
+    email: itsmyacidblack@gmail.com
+    website: https://github.com/theacidblack
+abstract: >-
+  HyperStrata is a personal learning fork for running 35-billion-parameter
+  models on 8 GB VRAM plus 32 GB RAM on Windows with NVIDIA CUDA. It forks
+  PolyStrata 0.1.44.1 at commit 51dc2427 (https://github.com/VecSzn/PolyStrata),
+  which builds on Strata (https://github.com/Niko1221/Strata). Chain is
+  Strata to PolyStrata to HyperStrata. Version 1.0.0 is the first public
+  run, 2026-10-17. No wide support, no maintenance promise.
 keywords:
   - local-llm-inference
   - qwen3

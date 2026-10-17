@@ -66,7 +66,7 @@ Most-used flags (kept visible):
 
 These live inside the JSON `"args"` list. Source of truth is the
 engine's own usage text in `src/poly/main.cpp`.
-Checked against hyper.exe --help output captured 2026-10-17.
+REPORTED against hyper.exe --help output 2026-10-17, no log on file.
 
 ```json
 "args": [
@@ -193,7 +193,7 @@ Top-level launcher keys. Types: `str` = text, `int`/`num` = number,
 | Key | Type / default | What it does |
 | --- | --- | --- |
 | `"exe"` (`serve/server.py:6977,2790+`) | `str`, required | Engine binary. Relative paths resolve against `"cwd"`. |
-| `"args"` (`serve/server.py:2611-2645`) | list of `str`, required | Engine flags from section 1, plus auto-added `--layer-split`, `--batch` (from `"parallel"`), `--vram-elastic`. |
+| `"args"` (`serve/server.py:2611-2645`) | list of `str`, required | Engine flags from section 1, plus what the server adds itself: `--layer-split`, `--batch` (from `"parallel"`), `--vision` (non-poly engines only), and the opt-in strata-only keys `--split-skip-if-fits`, `--vram-elastic` / `--vram-segment-mib`, `--expert-profile-save` — the `hyper` engine rejects those three, so leave them off for hyper. |
 | `"cwd"` (`serve/server.py:2697-2702,6975-6977`) | `str`, default server's folder | Engine's working directory; relative `"exe"`/vision paths resolve here. |
 | `"tokenizer"` (`serve/server.py:7149-7154`) | `str` | Pack tokenizer dir (must hold `vocab.json`). |
 | `"model_name"` / `"display_name"` | `str` | API model id / browser tab name. |
@@ -326,7 +326,7 @@ root (`serve/server.py:2248-2265`).
 | --- | --- | --- |
 | `"reasoning_budget_tokens"` (`serve/server.py:3454-3465,7283-7291`; editable, `serve/runconfig.py:25`) | Caps every request's thinking at N tokens (`0`/absent = no cap; a request can set its own or `0` to opt out; non-integer = 400). When the budget would eat the answer, at least `512` tokens stay for it (`serve/server.py:158,4415`). Thinking closes with the model's end tag (`serve/server.py:159-163`). | The second knob worth turning: lower = sooner answers, higher = harder problems. Reference install uses `4096`. |
 | `"reasoning_effort"` (`serve/server.py:7192-7199`; allowed `none\|low\|medium\|high`, `serve/server.py:6788-6826`) | Thinking level for requests naming none. Per-request `reasoning_effort` / Responses-style `reasoning.effort` / `chat_template_kwargs` win (`serve/frontend.py:576-586`). Budget asks imply thinking (`serve/frontend.py:678-685`). | Taste / task difficulty. Usually the budget matters more. |
-| `"effort_position"` (`"start"` default / `"end"`; `serve/server.py:2536-2558`) | Where non-default effort goes. `"end"` keeps the cached chat when effort changes (needs engine `--tail-role-token`, i.e. 0.1.39+). | Cache-sensitive apps. Usually never. |
+| `"effort_position"` (`"start"` default / `"end"`; `serve/server.py:2536-2558`) | Where non-default effort goes. `"end"` keeps the cached chat when effort changes (needs engine `--tail-role-token`, i.e. 0.1.39+; strata-only — on hyper it falls back to `"start"` with a notice). | Cache-sensitive apps. Usually never. |
 | `"reasoning_loop_recovery"` / `"reasoning_close_retry"` | Loop handling (`false`/`"stop"`/`"recover"`) and one continuation when a reply stops inside `<think>` (both opt-in, off default). | Stuck-thinking diagnoses. Usually never. |
 
 Effort sentences (low/medium/xhigh) are fixed prompts
@@ -425,9 +425,7 @@ never.
 
 ---
 
-*Counts: 18 server CLI flags, 30+ engine `args` flags, 10 sampling keys
-(+2 aliases), 11 vision keys, 4 thinking keys, 20+ env vars, 25+ setup
-flags. Sources: `serve/server.py` (CLI `7093-7136`; sampling
+*Flag counts not checked here — count from the tables above. Sources: `serve/server.py` (CLI `7093-7136`; sampling
 `6862-6925`; engine keys `1160-1236`; vision `2267-2290,2891-2904`;
 parallel `2648-2669`; engine-args `2611-2645`; budget `3454-3465`;
 timeouts `250-280`), `src/poly/main.cpp` (usage `1029-1102`), `setup.py`

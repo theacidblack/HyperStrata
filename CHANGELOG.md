@@ -5,9 +5,7 @@
 
 *Needs: the launcher flags reference (--help) · Gives: what changed in each release · Next: Upstream divergence*
 
-Keywords: Qwen3.6-35B-A3B MoE GGUF, Unsloth UD quantization, q4_0 KV cache, 8 GB VRAM Windows CUDA local inference.
-
-HyperStrata runs Qwen3.6-35B-A3B (MoE) on one hardware tier: 8 GB VRAM + 32 GB RAM PCs.
+HyperStrata runs Qwen3.6-35B-A3B on 8 GB VRAM + 32 GB RAM PCs. House-tested on UD-Q4_K_M with MTP; other quants measured when possible, rest PENDING.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Fork changes only; upstream history is the git log. Each entry ships in the
@@ -25,8 +23,14 @@ read it as "aligned to upstream `0.1.44.1`, serial 0".
 
 Built from PolyStrata `0.1.44.1` (frozen, no sync this release).
 
+Personal experiments, live in public repo.
+No sync with upstream from here.
+No wide support, no maintenance promise.
+Not competing, just learning for fun on my rig.
+Tuned for one rig only: RTX 3070 Ti Laptop 8GB + 32GB RAM. Other RTX cards unmeasured, no promise.
+
 > [!NOTE]
-> Every number below was measured on the reference rig and carries its log. Anything unmeasured is marked PENDING.
+> Every number below was measured on the reference rig and carries its log. Anything unmeasured is marked REPORTED or PENDING.
 
 ### Added
 
@@ -35,7 +39,7 @@ Built from PolyStrata `0.1.44.1` (frozen, no sync this release).
   reserve): UD-Q4_K_M MTP (95.7 max / 40.0 low / 51.3 avg tok/s, 42 turns,
   31,160 tok / 607 s; prefill 1.5K cold) and UD-Q5_K_M MTP (70.9 / 29.8 /
   41.1, 61 turns, 29,615 tok / 721 s; prefill ~1.1K cold). Both finished
-  clean with zero errors; logs in `benchmarks/v1.0.0/`.
+  clean with zero errors; rows in `docs/BENCHMARKS.md` Results table; server logs are workspace-only and do not ship.
 - Published test bench spec (`docs/BENCHMARKS.md`, README speed box): the
   locked parameters behind every number; stock machines read lower.
 - Run records are server-log-only; the 4-phase game build generates load for
@@ -48,33 +52,27 @@ Built from PolyStrata `0.1.44.1` (frozen, no sync this release).
 
 ### Fixed (claim audit, 2026-10-18 — no engine change)
 
-- `docs/BENCHMARKS.md:20` q6-001 row was stale ("no run yet") — now MEASURED, rates as in BENCHMARKS.md at the time (chat-paste provenance, console archive PENDING); llama ref kept
-  labeled NOT-our-run. README states current stage: interactive learning of
-  repo structure, needs first — no optimization, no new models yet.
+- `docs/BENCHMARKS.md` q6-001 row was stale ("no run yet") — now REPORTED, rates as in BENCHMARKS.md at the time (chat-paste only, full console archive PENDING); llama ref kept
+  labeled NOT-our-run. Current stage: interactive learning of
+  repo structure comes first — no optimization, no new models yet.
 - q4-001 retagged REPORTED (not measured) in `docs/KV_CACHE.md`,
   `docs/BENCHMARKS.md`, and here; cap-hit/zero-error claims UNVERIFIED
   (no log on file); at-run-context GiB figures withdrawn to PENDING — sizes live in `docs/KV_CACHE.md`.
 - `docs/BENCHMARKS.md` sections repaired (measured rows to Results,
   Not-yet-run holds Q4-MTP+Vision / Cyber-Tiel / other-Vision PENDING).
-- Coverage reference notes rewritten to committed paths or tagged
-  workspace-only/unverifiable.
+- Coverage notes PENDING (no coverage file in this tree to cite).
 - Inherited upstream promises narrowed to house stance (8 GB VRAM + 32 GB
-  RAM tested/supported; wider RTX = goal not promise):
-  `docs/HOW-TO-INSTALL.md`, `docs/MODELS.md`, `docs/BACKENDS.md`,
-  `docs/TROUBLESHOOTING.md`,
-  `docs/BENCHMARKS.md` (llama numbers now qualified
-  reported-NOT-re-verified), `tools/make_poly_release.py` docstring.
-- Consistency: v1.0.0 documented as first-public flag-plant; `v0.1.45.87`
-  example rebased off non-PARKED `v0.1.44.1.N`; issue templates follow
-  issues-DISABLED stance; README upstream line states sync frozen at
-  `0.1.44.1`; `cd PolyStrata` → `cd HyperStrata` in MAC/STRIX_HALO docs.
+  RAM tested; wider cards = goal, not promise).
+- Consistency: v1.0.0 documented as first-public flag-plant; `v0.1.44.1.N`
+  example uses the non-PARKED base; `cd HyperStrata` in `docs/archive/MAC.md:46`
+  and `docs/archive/STRIX_HALO.md:60`.
 
 ### Verified
 
-- UD full-ladder decode present in code for all 44 files (both pages):
-  Header probe 2026-10-17 (workspace-only, artifacts not in repo) found no unsupported type id in the 44 probed files. Decode-kernel need PENDING the 228-cell oracle + live runs; all non-q4-001 files code-complete-unmeasured.
+- Weight files load: the loader accepts each listed file. Decode and fast
+  paths stay PENDING the 228-cell oracle + live runs; all files except the
+  house runs below are code-done-unmeasured.
   Hardware runs after our changes: q4-001 (UD-Q4_K_M + q4_0 KV) only — REPORTED, no log, PENDING verification.
-  All other files: loader accepts file per 2026-10-17 probe; decode/fast-path pinned only by PENDING 228-cell oracle + PENDING live runs.
 - MTP delta is wired: 20 draft tensors per MTP file
   (`7×F32 + 8×Q8_0 + 2–3×recipe + 2×BF16`) covered by `load_drafter`,
   `block_kv`, and the draft-KV knob.
@@ -86,14 +84,14 @@ Built from PolyStrata `0.1.44.1` (frozen, no sync this release).
 
 ### Known issues
 
-- Vision launchers need the vision program built; it isn't yet. Vision itself
-  is tested and working. Not part of this release either way.
+- Vision launchers need the vision program built; it isn't yet. Vision path
+  runs without a verdict; full runs PENDING. Not part of this release either way.
 - The server passes three advanced flags the engine doesn't know; the engine
-  quits on unknown flags. Normal setups never send them, so nothing breaks
-  unless you turn those keys on by hand.
+  quits on unknown flags (UNVERIFIED — no engine log on file). Normal setups
+  never send them. PENDING verification.
 - CI badge is red (repo-side issue, zero jobs ran). The numbers above were
   checked by hand against the logs.
-- One experimental model file sits in git history decisions pending.
+- One experimental model file is noted in history; status PENDING (UNVERIFIED — no log on file).
 
 ## [v0.1.44.1.1] — 2026-10-17 (canonical q4_0 tag)
 
@@ -121,7 +119,7 @@ all in-tag, verified by ancestry check 2026-10-17. Exact build-time HEAD unrecor
   oracle, byte layout, ring, attend/attend_batch).
 - `poly_kv_q8_test`: PASS (91,530 values). `poly_attend_test`: all passed.
 - `poly_draft_race_test`: PASS (7 repeated runs match, 5/5 knob pairs,
-  save/load rows bit-exact 6/6, no acceptance drop over 5pp on any pair) on post-f72a15e9 rebuild sm_86. Full suite ctest status: see `docs/BENCHMARKS.md`.
+  save/load rows bit-exact 6/6, no acceptance drop over 5pp on any pair) on post-f72a15e9 rebuild sm_86. Unit tests above PASS; full `ctest` PENDING, see `docs/BENCHMARKS.md:277`.
 
 ### Reported (not log-verified)
 
@@ -162,5 +160,9 @@ above, which is the canonical q4_0 tag (older, superseded — listed below becau
   byte-identical per poly_kv_q8_test 12/12 short-prompt check + review trace post-f72a15e9; re-run poly_kv_q8_test + poly_attend_test after any engine edit; `--kv` / prompt-batch handling unchanged.
 - Frozen baseline kept at upstream commit 51dc2427 (baseline lives in git history); no further syncs,
   clean break per the 8 GB target.
+
+## Where this comes from
+
+HyperStrata is a fork of PolyStrata, which is a fork of Strata. Built from Strata via PolyStrata: https://github.com/Niko1221/Strata and https://github.com/VecSzn/PolyStrata. Upstream never approved, supported, or endorsed this fork.
 
 ← [Prev](--help.md) · [Index](docs/INDEX.md) · [Next](UPSTREAM_DIVERGENCE.md) →

@@ -3,6 +3,8 @@
 
 # Docs index
 
+*Needs: project overview · Gives: doc map in read order · Next: HOW-TO-INSTALL.md*
+
 Site (same docs, black theme): https://theacidblack.github.io/HyperStrata/
 
 Start at README, follow Next page by page.

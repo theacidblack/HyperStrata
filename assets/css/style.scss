@@ -1,0 +1,104 @@
+---
+---
+
+@import "{{ site.theme }}";
+
+/* Black page, light grey words. Plain words only. */
+html,
+body,
+#main_content_wrap,
+.outer {
+  background: #000;
+  color: #e6e6e6;
+}
+
+/* Main text column: fits a printed A4 line, centred. */
+#main_content,
+.inner {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 20px;
+  line-height: 1.6;
+  color: #e6e6e6;
+}
+
+/* Links: blue, underline when hovered. */
+a {
+  color: #58a6ff;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+/* Tables: fill the column, scroll sideways on small screens. */
+table {
+  width: 100%;
+  max-width: 100%;
+  display: block;
+  overflow-x: auto;
+  border-collapse: collapse;
+  margin: 0 0 20px 0;
+  background: #000;
+  color: #e6e6e6;
+}
+th,
+td {
+  padding: 8px 12px;
+  border: 1px solid #30363d;
+  text-align: left;
+}
+th {
+  background: #161b22;
+  color: #e6e6e6;
+}
+
+/* Code blocks: dark grey box, light words, scroll sideways. */
+pre,
+pre.highlight,
+div.highlight {
+  background: #0d1117;
+  color: #e6e6e6;
+  border: 1px solid #30363d;
+  padding: 12px;
+  overflow-x: auto;
+  font-size: 14px;
+  line-height: 1.5;
+}
+div.highlight pre,
+pre code {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: inherit;
+}
+
+/* Small code in text: dark box, light words. */
+code {
+  background: #161b22;
+  color: #e6e6e6;
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+
+/* Keep the theme code colours. They read well on dark. */
+/* Only make sure plain code text stays light. */
+.highlight {
+  color: #e6e6e6;
+}
+
+/* Diagrams: clear back, light words, fits the black page. */
+.mermaid {
+  background: transparent;
+  color: #e6e6e6;
+  max-width: 100%;
+  overflow-x: auto;
+}
+.mermaid text {
+  fill: #e6e6e6 !important;
+}
+
+/* Pictures: never wider than the column. */
+img {
+  max-width: 100%;
+  height: auto;
+}

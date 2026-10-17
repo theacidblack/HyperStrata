@@ -1,5 +1,5 @@
 
-← [Prev](../README.md) · [Index](INDEX.md) · [Next](MODELS.md) →
+← [Prev](INDEX.md) · [Index](INDEX.md) · [Next](MODELS.md) →
 
 # How to install HyperStrata
 
@@ -17,8 +17,9 @@ launcher, the server up, one agent chatting with it.
 
 ## What you need in hand (both methods)
 
-- Your specs: GPU model, VRAM, RAM, Windows version. Read them with
-  `nvidia-smi` (prints GPU + driver) — named in `BUILD_HYPER.bat`.
+- Your specs: GPU model, VRAM, RAM, Windows version. Run `nvidia-smi`
+  yourself for GPU + driver. `BUILD_HYPER.bat` checks the build tools
+  (compiler, CUDA, cmake + ninja), not your specs.
 - Floor: Windows 10/11 x86-64, 32 GB RAM, ~80 GB free disk (NVMe ideal),
   AVX2 CPU, NVIDIA driver 580 or newer. Measured rig only; rest untested
   (see `docs/BENCHMARKS.md`, Wanted hardware).
@@ -68,7 +69,7 @@ What the agent must hand back: built engine (`engine-hyper\hyper.exe`),
 working launcher (JSON + bat), server up on `127.0.0.1:8080`, first chat
 answered in the browser.
 
-## Method 2 — manual (same stages, you type)
+## Method 2 — manual (same stages, you type; untested here, no log on file)
 
 1. **Prereqs.** Windows 10/11 x86-64, NVIDIA driver 580 or newer (yours: the
    only thing you install yourself; `START-HERE.bat` installs Python 3.12 for
@@ -82,27 +83,33 @@ answered in the browser.
    or download the zip and unzip it.
 3. **Build the engine.** Close any running server window first (a loaded model
    holds 35–55 GB of RAM the build reuses). Open `BUILD_HYPER.bat`, set
-   `CUDA_ARCH` to your card, double-click (`BUILD_HYPER.bat:28-31`):
+   `CUDA_ARCH` to your card, double-click (`BUILD_HYPER.bat:26-31`):
    `75` = RTX 20 · `86` = RTX 30 (reference RTX 3070 Ti Laptop) ·
    `89` = RTX 40 · `120` = RTX 50. Unknown card or several cards:
-   `75;86;89;120` (slow build, runs anywhere). Other cards than sm_86 are
-   untested here (goal, not promise; see `docs/BENCHMARKS.md`). First build needs internet
+   `75;86;89;120` (slow build, runs anywhere sm_75 and newer). sm_60/sm_61/sm_70
+   (older than RTX 20) are excluded: they need CUDA 12.x plus the two
+   uncommented lines at `BUILD_HYPER.bat:50-53`. Other cards than sm_86 are
+   untested here (goal, not promise; `BUILD_HYPER.bat` names
+   `docs/TEST_REQUESTS.md`, which now lives in `docs/BENCHMARKS.md`
+   Wanted hardware). First build needs internet
    once (pinned ggml fetch) and takes a while; later builds reuse what
    compiled. Success = `engine-hyper\hyper.exe` exists and `hyper.exe
    --help` prints `usage:` (exit code 2 is normal — the text match is the
    check, `BUILD_HYPER.bat` step 8).
 4. **Config + launcher.** Copy `examples/model.example.json` to
-   `<your-model>.json` and make its 3 edits (header lines 2–7): (1) `"exe"`
+   `<your-model>.json` and make its 3 edits (header lines 2–8): (1) `"exe"`
    = your engine exe (`engine-hyper\hyper.exe`), absolute path; (2) `"args"`
    `"--model"` = your model `.gguf`, absolute path, keep
    `"--max-context" 131072` unless setup told you otherwise; (3) `"vision"`
    = your `.mmproj` for pictures, or delete the whole `"vision"` block for
    text-only. MTP files keep `"--kv"` + `"--draft-kv"`; base (no-MTP) files
-   use `"--no-draft"` instead (`--help.md` intro). Copy
+   use `"--no-draft"` instead and delete the whole `"vision"` block plus
+   `"reasoning_budget_tokens"` (`--help.md` intro). Copy
    `examples/run-model.example.bat` and make its 3 edits (lines 8–10):
    `REPO_ROOT` = install folder (holds `serve\server.py`), `MODEL_JSON` =
    your copied `.json` name, `PY` = install's `.venv\Scripts\python.exe`.
-   Port taken: change `--port` / `"port"` (default `8080`, `--help.md` §2).
+   Port taken: change `--port` / `"port"` (server default `8095`,
+   installs use `8080`; `--help.md` §2).
    No browser window: drop `--open` (`--help.md` §2).
 5. **Serve.** Run your bat. It runs `python serve/server.py --engine hyper
    --config <yours>.json --port 8080 --open`
@@ -120,11 +127,11 @@ answered in the browser.
    five words.` Chats live in the browser only (clearing the site's data
    deletes them).
 
-## Setup path (START-HERE instead of hand edits)
+## Setup path (START-HERE instead of hand edits; untested here, no log on file)
 
 Same end state as Method 2, driven by setup instead of hand edits:
 
-```
+```text
 START-HERE.bat --check            only check the PC
 START-HERE.bat --yes --family qwen36 --model UD-Q4_K_M --context 131072 --gguf-dir <folder-with-the-gguf> --no-start
 ```
@@ -165,8 +172,8 @@ starts, minutes the first time — poll, don't restart).
 3. **Model list.** `curl http://127.0.0.1:8080/v1/models` — copy the
    `"id"` exactly. That id (not the `.gguf` filename) is what clients send.
 4. **One chat.**
-   ```
-   curl http://127.0.0.1:8080/v1/chat/completions -H "Content-Type: application/json" -d "{\"model\": \"<id from step 3>\", \"messages\": [{\"role\": \"user\", \"content\": \"Say hello in five words.\"}], \"max_tokens\": 64, \"reasoning_effort\": \"none\"}"
+    ```text
+    curl http://127.0.0.1:8080/v1/chat/completions -H "Content-Type: application/json" -d "{\"model\": \"<id from step 3>\", \"messages\": [{\"role\": \"user\", \"content\": \"Say hello in five words.\"}], \"max_tokens\": 64, \"reasoning_effort\": \"none\"}"
    ```
    With a key set, add `-H "Authorization: Bearer <key>"`. Browser-first
    equivalent: open the chat page, type `Say hello in five words.`
@@ -245,4 +252,4 @@ print(r.choices[0].message.content)
 - Assistant-run install/start/stop (management MCP): `docs/DETAILS.md` (MCP assistant control).
 - Something failed: `docs/TROUBLESHOOTING.md`.
 
-← [Prev](../README.md) · [Index](INDEX.md) · [Next](MODELS.md) →
+← [Prev](INDEX.md) · [Index](INDEX.md) · [Next](MODELS.md) →

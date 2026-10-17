@@ -1,5 +1,5 @@
 
-← [Index](docs/INDEX.md) →
+← [Prev](UPSTREAM_DIVERGENCE.md) · [Index](docs/INDEX.md) · [Next](AGENTS.md) →
 
 # Third-party attributions
 
@@ -27,4 +27,4 @@ Python: every package above installs into `.venv` and is never committed (`/.ven
 
 Fetch policy: `/third_party/llama.cpp*` is git-ignored (`.gitignore:32`) and fetched reproducibly at build/setup time from the pinned ZIPs. Deliberate policy: the repo stays small and the build stays reproducible. Not a hole. `third_party/ggml/VERSION.txt` carries the same pin as `LLAMA_CPP_COMMIT`.
 
-← [Index](docs/INDEX.md) →
+← [Prev](UPSTREAM_DIVERGENCE.md) · [Index](docs/INDEX.md) · [Next](AGENTS.md) →

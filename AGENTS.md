@@ -1,6 +1,8 @@
 
 # AGENTS.md
 
+*Needs: code task · Gives: how to contribute and report · Next: none (end of chain)*
+
 HyperStrata is an experimental inference engine for the 8 GB VRAM + 32 GB RAM
 tier: Qwen3.6-35B-A3B (Unsloth UD quants, q4–q6) on one NVIDIA card on Windows,
 via CUDA. Reference rig: RTX 3070 Ti Laptop 8 GB + 32 GB RAM. It has a C++/CUDA
@@ -52,3 +54,5 @@ the server, and connect the user's apps. Never expose the server beyond
 - Change a default only where you measured it faster, and show the numbers with what they were measured on.
 - A report from hardware the owner does not have is unverified here. Fake numbers close the report.
 - Open test requests and the hardware that is wanted are listed in [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
+
+← [Prev](THIRD_PARTY.md) · [Index](docs/INDEX.md) →

@@ -1,5 +1,5 @@
 
-← [Prev](CHANGELOG.md) · [Index](docs/INDEX.md) →
+← [Prev](CHANGELOG.md) · [Index](docs/INDEX.md) · [Next](THIRD_PARTY.md) →
 
 # Upstream Divergence Registry
 
@@ -16,7 +16,7 @@ breaks if removed, and how to validate removal. Unknowns are marked, never guess
 ## Comparison baseline (established 2026-10-16, re-baselined 2026-10-16)
 
 - Upstream: `https://github.com/VecSzn/PolyStrata`, tracked branch `upstream/main`.
-- OG upstream: `https://github.com/Niko1221/Strata` — chain Strata → PolyStrata → HyperStrata, no endorsement either way.
+- OG upstream: `https://github.com/Niko1221/Strata` — chain Strata → PolyStrata → HyperStrata. Upstream authors never approved, supported, or endorsed HyperStrata.
 - Upstream HEAD audited: `f72a15e9` ("setup, docs: what parallel requests gain on a small card now", 2026-10-16) — 13 commits since the previous baseline, all parallel/batch serving for strata-poly + MXFP4-on-GPU + per-model joint-head support.
 - Previous baseline: `51dc2427` (2026-10-15), at full parity (zero fork-only, zero upstream-only).
 - Our branches at re-baseline: sync branch `upstream-sync/0.1.44.1-poly.6` merged cleanly (no conflicts; upstream touched 27 engine/setup/docs files, we touched only README/divergence docs — disjoint sets). Audit: `merge-base HEAD upstream/main` = `f72a15e9`, upstream-only = 0 commits.
@@ -41,11 +41,11 @@ breaks if removed, and how to validate removal. Unknowns are marked, never guess
 - **Status:** active
 - **Location:** `README.md` (English only; the six translated READMEs were removed in `da46e080`, English-only by design until content stabilizes)
 - **Origin:** fork design decision 2026-10-16 (identity task)
-- **Reason:** the fork needs a public identity that states what it is (personal
-  hardware-optimization experiment on fixed hardware) without claiming upstream
+- **Reason:** personal experiments, live in public repo. No sync with upstream
+  from here. No wide support, no maintenance promise. Not competing, just
+  learning for fun on my rig. States what it is without claiming upstream
   authorship, endorsement, or universal gains.
-- **Behavioral difference:** documentation only. Engine code, server, installer,
-  and in-code `PolyStrata` naming are untouched; no runtime behavior differs.
+- **Behavioral difference:** documentation only. Engine behavior unchanged; names are dual (hyper new, strata/poly compat) per DIV-003; no runtime behavior differs.
 - **Hardware relevance:** no code effect; documents the 8 GB VRAM / 32 GB RAM target.
 - **Evidence:** `git diff upstream/main -- README.md`; `LICENSE` byte-identical to upstream.
 - **Dependencies:** none
@@ -69,7 +69,7 @@ breaks if removed, and how to validate removal. Unknowns are marked, never guess
 - **Reason:** upstream `strata-poly` offers exactly one KV choice (`fp16`, or `q8_0` on qwen35moe) shared by target layers and the draft block. On an 8 GB card the KV cache competes with the expert cache; a q4_0 option at 9/32 of fp16 per row (ggml-true transcription of `quantize_row_q4_0_ref`) plus an independent draft knob lets small/draft traffic run cheap while keeping target precision — mixable per block, both knobs omitted = fp16 exactly as before.
 - **Behavioral difference:** two new opt-in flags; per-block formats in alloc/save/load/attend; setup writes/carries them; new docs. No-flag behavior unchanged per review trace + post-f72a15e9 rebuild: `poly_kv_q8_test` PASS 91530 values + `poly_attend_test` all passed; `poly_kv_q4_test` PASS 112010 values incl. store→attend round-trip vs ggml oracle through both the key and value readers; `poly_draft_race_test` PASS with 5/5 knob pairs and bit-exact save/load rows 6/6). Full ctest not green: ple_parity needs Q2_0 fixture by design. Re-run after any engine edit.
 - **Hardware relevance:** yes (8 GB VRAM) — REPORTED once live (q4-001, 2026-10-17, REPORTED not log-verified, reference rig ctx 131072 temp 0.6: 90.9 max / 46.3 low / ~55.6 avg tok/s, 48 turns — all REPORTED, no log). At-run-context GiB figures PENDING recomputation (≈1.9 / ≈6.7 / ≈3.6 GiB withdrawn 2026-10-18: not recomputable without the log). Frozen-fixture A/B pending. No Perf-record claimed.
-- **Evidence:** `poly_kv_q4_test: PASS (112010 values checked)`; `poly_kv_q8_test: PASS (91530 values)`; `poly_attend_test: all passed`; `poly_draft_race_test: PASS (race 7 runs match, mixed 5/5 pairs, rows round-trip 6/6)`; full test_setup_* battery: 667 PASS (session record — rerun on release day); engine oracle arms as above; q4-001: REPORTED zero errors, raw server log NOT on file.
+- **Evidence:** `poly_kv_q4_test: PASS (112010 values checked)`; `poly_kv_q8_test: PASS (91530 values)`; `poly_attend_test: all passed`; `poly_draft_race_test: PASS (race 7 runs match, mixed 5/5 pairs, rows round-trip 6/6)`; full test_setup_* battery: PENDING rerun, no log on file; engine oracle arms as above; q4-001: REPORTED zero errors, raw server log NOT on file.
 - **Dependencies:** none
 - **Upstream status:** no equivalent in strata-poly (verified at `f72a15e9`: `KvFmt` is `{kFp16, kQ8_0}`, no `--draft-kv`). Upstream's `--kv q4_0` is the main Strata engine's (Hadamard-rotated, different engine, unrelated). Its parallel/batch work at `f72a15e9` is orthogonal and merged.
 - **Maintenance cost:** rebase surface is the per-block branches in `qwen35.cpp` + kernel arms; upstream batch-slot `step()` path is format-agnostic (selection is per-block, never per-sequence). Known deferred gap (documented, not silent): cross-format blob loads rely on `row_bytes` inequality + never-cross-processes, with no enforced format tag in `load_rows` — a signature change across four upstream cards, parked for post-release.
@@ -139,7 +139,7 @@ no registry change is needed. Status changes (`needs-review`, `upstream-equivale
 
 Run from any worktree root (`main/`, `dev/`, or `preview/`):
 
-```
+```text
 git fetch upstream --prune
 git rev-parse upstream/main
 git log --oneline upstream/<last-baseline>..upstream/main   # what upstream did since
@@ -161,4 +161,4 @@ commits, fork-only/upstream-only counts, our changed files vs merge-base, regist
 DIV ids + statuses, and changed files not mentioned in the registry (review candidates).
 It never deletes code, resolves conflicts, rewrites history, or changes statuses.
 
-← [Prev](CHANGELOG.md) · [Index](docs/INDEX.md) →
+← [Prev](CHANGELOG.md) · [Index](docs/INDEX.md) · [Next](THIRD_PARTY.md) →

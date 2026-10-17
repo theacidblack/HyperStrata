@@ -6,12 +6,10 @@
 *Needs: KV setup chosen, engine running · Gives: engine layout, model recognition, switching models · Next: DETAILS.md*
 *Run 4/13*
 
-The older upstream binary `strata-poly` runs several families. This fork measures Qwen3.6-35B-A3B only. This page says which, how the engine is put together so that it can,
+The older upstream binary `strata-poly` runs several families. This fork runs Qwen3.6-35B-A3B only on the house rig. This page says which, how the engine is put together so that it can,
 how a model is recognized, how to add one, and how to change the model that answers.
 
-One model is in memory at a time. Upstream measurements (RTX 5090/Linux), NOT this fork's rig. On that card the three new models fit in VRAM whole.
-[One section](#with-8-gb-of-vram) holds the 5090 to 8 GB, and [one section](#on-a-laptop-with-8-gb-of-vram) is from
-a second machine, a Windows laptop whose card has 8 GB.
+One model is in memory at a time. House rig is RTX 3070 Ti Laptop 8 GB + 32 GB RAM, Windows, CUDA 13.3. House runs are Qwen3.6 Q4, Q5, Q6, and Q4+Vision only. All RTX 5090, emulated-8 GB, and RTX 4070 laptop tables below are upstream-only, NOT the house rig.
 
 ```mermaid
 flowchart TD
@@ -33,17 +31,16 @@ flowchart TD
 
 | Model | Architecture | Engine | File it was checked with | Guesses ahead |
 | --- | --- | --- | --- | --- |
-| Qwen3.6-35B-A3B | `qwen35moe` | `hyper` | Unsloth UD-Q3_K_M, UD-Q2_K_XL and UD-Q4_K_M, 12.6 to 22.7 GB (LOADS-only) | draft block in the file |
-| Other upstream families | — | — | upstream families, untested here. | — |
+| Qwen3.6-35B-A3B | `qwen35moe` | `hyper` | House Q4, Q5, Q6, Q4+Vision runs only; file sizes PENDING (per-file sizes not yet recorded) | draft block in the file |
+| Other upstream families | — | — | Upstream-only, untested here, no log, PENDING | — |
 
 `strata` is the older upstream engine and runs Qwen3.8 only; nothing in it changed. `hyper` is the engine that reads a
-GGUF in place (the older upstream binary `strata-poly`), and it now has five architectures. It was called `strata-glm`, after its first model; an install
-from then keeps its engine and moves to the new name the next time setup updates it.
+GGUF in place (the older upstream binary `strata-poly`), and it has five architecture classes in code. The five names are code-true; only `qwen35moe` runs here, the rest are PENDING with no house log. Non-fp16 KV knobs run on `qwen35moe` only.
 
 ## Install
 
-Upstream setup installs all eight — in this fork only Qwen3.6-35B-A3B is measured (LOADS-only, see table above); the rest are untested here. The four new models are in its list of models, and each has a family name that goes
-straight to it. GLM 5.3 Flash and DeepSeek V4 Flash, the two large ones, have their own archived notes, unmaintained. Below is upstream install reference; only `qwen36` has fork coverage:
+Upstream setup installs all eight — in this fork only Qwen3.6-35B-A3B house runs count; the rest are untested here with no house log. The four new models are in its list of models, and each has a family name that goes
+straight to it. GLM 5.3 Flash and DeepSeek V4 Flash, the two large ones, have their own archived notes, unmaintained. Below is upstream install reference; only `qwen36` has fork coverage. File sizes and RAM figures below are upstream-only, PENDING on THIS tree:
 
 ```bash
 ./setup.sh --family qwen36
@@ -65,7 +62,9 @@ straight to it. GLM 5.3 Flash and DeepSeek V4 Flash, the two large ones, have th
 ./setup.sh --family minicpmv
 ```
 
-| Family | Model | File | Download | RAM beside an 8 GB card (estimate, upstream — untested here except Qwen3.6 LOADS) |
+### Families and files
+
+| Family | Model | File | Download (upstream-only, PENDING here) | RAM beside an 8 GB card (upstream-only, PENDING here) |
 | --- | --- | --- | --- | --- |
 | `qwen36` | Qwen3.6-35B-A3B | Unsloth UD-Q3_K_M | 17.1 GB | about 21 GB |
 | | | Unsloth UD-Q2_K_XL | 12.6 GB | about 17 GB |
@@ -92,6 +91,8 @@ peculiar-ragdoll with an importance matrix of its own and a chat template for sh
 routed experts as IQ3_XXS with IQ4_XS where they write, UD-IQ3_XXS as IQ2_S with IQ3_XXS, UD-Q4_K_XL as Q4_K
 with Q5_K. The i-quants are slower on the CPU than the K-quants, which shows when the card is small: held to
 8 GB, Ornith's I-Mini writes more slowly than its I-Compact with more of its experts on the card. Estimates from upstream laptop, not THIS 8+32 rig. Replace with PENDING VRAM_BUDGET pointer.
+
+### What setup does
 
 The steps are GLM's. Setup asks the context and whether to keep several conversations in
 RAM, compiles `hyper`, downloads the model's file from a pinned revision (for Gemma 4 also its draft model,
@@ -121,13 +122,10 @@ The five new models read pictures. Say yes to setup's question about images, or 
 ./setup.sh --family qwen36 --vision yes
 ```
 
-Setup then downloads the model's image encoder too (0.9 GB, Gemma 4's 1.2 GB), compiles `hyper-vision` beside
-the engine and writes both into the run config. On the GPU the encoder holds 1.6 GB of VRAM (Gemma 4's 2.4 GB),
-which a small card needs for the model, so on a card with less than 16 GB it runs on the CPU and a picture takes
-a few seconds. `--vision gpu` and `--vision cpu` choose the place. GLM 5.3 Flash reads no pictures.
+Setup then downloads the model's image encoder too. House vision is the 0.6 GB mmproj on the CPU with zero VRAM. The 0.9, 1.2, 1.6, and 2.4 GB figures and `--vision gpu` / `--vision cpu` are upstream-only, not THIS tree. GLM 5.3 Flash reads no pictures.
 
-The RAM column is the experts an 8 GB card does not hold, plus 10 GB for the rest. It is setup's estimate. The
-nine sizes ran on the [laptop](#on-a-laptop-with-8-gb-of-vram), which has 32 GB. The machine's RAM in use, 9 GiB
+The RAM column is setup's upstream estimate, PENDING on THIS tree. The
+nine sizes ran on the upstream laptop below, which has 32 GB. The machine's RAM in use, 9 GiB
 with no model, was at most 22.5, 26.6 and 31.3 GiB with Qwen3.6's three sizes in the benchmark there, 23.9, 26.7
 and 31.4 with Ornith's and 22.6, 24.6 and 28.6 with Gemma 4's, of its 31.8. Tiel Coder's three, measured later
 with the engine of 1212621baadf, took it to 21.8, 24.9 and 29.9 GiB. Setup does not stop a PC below the 32 GB that
@@ -226,6 +224,8 @@ key, so a model the engine cannot run is listed as unavailable with the reason i
 | `deepseek4` | `DeepSeek4` |
 | `lfm2moe` | `Lfm2Moe` |
 
+The five rows are code-true. Only `qwen35moe` runs on THIS tree; the rest are PENDING with no house log.
+
 Within an architecture the shape comes from the file: layer counts, widths, head counts, expert counts, which
 layers have which attention, whether there is a draft block. Qwen3.6 and Ornith 1.5 are one class because their
 files describe the same layout with other weights.
@@ -241,14 +241,15 @@ and, by the tokenizer's `pre` name, how the model writes its reasoning and its t
 | DeepSeek V4 | the prompt opens it, `</think>` ends it | `<｜DSML｜invoke name="NAME"><｜DSML｜parameter name="K" string="true">V...` |
 | LFM2.5 | the prompt opens it, `</think>` ends it | `<\|tool_call_start\|>[NAME(K='V', ...), NAME2()]<\|tool_call_end\|>` |
 
+Tool-call shapes above are upstream code, PENDING on THIS tree with no house log.
+
 Gemma 4's template thinks only when it is told to, reads a tool in OpenAI's shape and starts with the tokenizer's
 `<bos>`; the server gives it all three. A tool's answers are put in the order of their calls for every model,
 because a model reads them by position.
 
 ## The registry
 
-`serve/models.py` lists the installation's models. A model is a run config, `strata-<name>.json`, beside
-`setup.py`: the engine, its arguments, the tokenizer directory. An entry has:
+Upstream the server lists the installation's models from run configs, `strata-<name>.json`. House chain is the engine binary plus the server plus the JSON config. An entry has:
 
 | Field | From |
 | --- | --- |
@@ -318,16 +319,16 @@ All three ways go through `Service.switch_model()` in the server. A switch:
 5. on failure starts the earlier model again and says which one is loaded
 6. on success takes over the new model's tokenizer, chat template, stop tokens, sampling defaults and aliases
 
-Measured: 8 to 16 s a switch between the four models on the machine above, with their files in the page cache (upstream measurement).
+Measured: 8 to 16 s a switch between the four models on the machine above, with their files in the page cache. Upstream-only, PENDING on THIS tree with no house log.
 
 With `"memory_debug": true` in a run config, or `STRATA_MEMORY_DEBUG=1`, a switch prints the free VRAM before it,
 after the old engine ended and with the new one:
 
-```
+```text
 [strata] memory: 18095 MiB of VRAM free with gemma-4-26b-a4b, 32109 MiB after it stopped, 12197 MiB with qwen3.6-35b-a3b
 ```
 
-> Upstream benchmark archive, NOT measured on THIS tree. THIS-tree numbers: BENCHMARKS.md only.
+> Upstream benchmark archive, NOT measured on THIS tree, NOT the house rig. THIS-tree numbers live elsewhere, PENDING here.
 
 ## Benchmark
 
@@ -346,7 +347,7 @@ context is sent again at 95%, 90% and 85% of its text.
 The first run after the PC starts reads the model file from the disk again. A user's GLM 5.3 Flash on Windows wrote
 at 14 to 24 tokens/s in that run and at 28 to 29 in the next one, so run the benchmark twice and keep the second.
 
-Tokens per second on the machine above, context 32768, every expert in VRAM for the three new models, as setup
+Upstream-only benchmark on the RTX 5090 machine above, NOT the house rig. Context 32768, every expert in VRAM for the three new models, as setup
 installs them. The first build of each backend read the longest prompt at 636, 632 and 213 tokens/s and wrote
 after it at 68, 54 and 55; [What was tuned](#what-was-tuned) has the steps between.
 
@@ -469,11 +470,11 @@ over both files, taken from a sample of their pages, and said 99%. The block's e
 before the swaps' one pass and the picks were measured that way; the ones in the table, and the builds they
 are compared with from there on, were not.
 
-llama.cpp (Unsloth's fork at 86ebfef) with every layer on the same card is REPORTED at about 180 tokens/s with Qwen3.6 and Ornith and 165 with Gemma 4, reading prompts at 6000 to 9000 — REPORTED, no same-day/same-rig log on file. It cannot do that on a card the model does not fit, which is the case this engine is for.
+Upstream llama parity is REPORTED at about 180 tokens/s with Qwen3.6 and Ornith and 165 with Gemma 4, reading prompts at 6000 to 9000. Upstream-only, PENDING on THIS tree with no house log.
 
 ### With 8 GB of VRAM
 
-Emulated-8GB only (RTX 5090 held to ~8GB via reserve, Xeon + 120GiB RAM, NOT the 8+32 tier). Not an 8GB-PC run. Untested on THIS tier — see BENCHMARKS.md PENDING. The table is the engine of 2ba29a383baf, the last of 2026-10-11, one run of each.
+Upstream-only, NOT the house rig. Emulated-8GB only (RTX 5090 held to ~8GB via reserve, Xeon + 120GiB RAM, NOT the 8+32 tier). Not an 8GB-PC run. PENDING on THIS tree with no house log. The table is the engine of 2ba29a383baf, the last of 2026-10-11, one run of each.
 300-token answers, tokens per second; the two numbers are without and with guessed tokens.
 
 | Model | Experts from VRAM | Writes after a short prompt | after about 2,100 tokens | after about 7,700 | Reads about 2,100 tokens | about 7,700 |
@@ -741,12 +742,12 @@ attention and not the experts' copies. They wrote as the builds after them did, 
 guess costs.
 
 A run with the picture encoder left on the card is not
-in the table: the encoder holds 1.6 GB there, no expert fit beside it, and Qwen3.6 wrote 127 tokens/s and read
+in the table: the upstream GPU encoder holds VRAM there, no expert fit beside it, and Qwen3.6 wrote 127 tokens/s and read
 the prompt at 2,023, with the build before a prompt batch's attention took its rows a block at a time.
 
 ### On a laptop with 8 GB of VRAM
 
-The kind of PC the four smaller models are for: an RTX 4070 Laptop with 8 GB, an i7-14700HX (8 performance cores
+Upstream-only, NOT the house rig. The kind of PC the four smaller models are for upstream: an RTX 4070 Laptop with 8 GB, an i7-14700HX (8 performance cores
 of two threads each and 12 efficiency cores, AVX2 and no AVX-512), 32 GB of RAM, Windows 10, driver 610.74,
 CUDA 13.0. Setup installed the twelve sizes of the four models: a context of 32,768, the picture encoder on the
 CPU, and 13 threads for the experts that are not in VRAM. The numbers are the benchmark's through the server, as
@@ -1022,13 +1023,7 @@ Not run on this laptop: GLM 5.3 Flash, for which it has not the RAM.
 
 #### Longer contexts on the laptop
 
-Setup asks for the context. The engine keeps the keys and values of the context in fp16 on the card, about 20 KB a
-token for each of the three models (ten layers of full attention with two key and value heads of 256 in Qwen3.6
-and Ornith; Gemma 4's five global layers, plus about 0.2 GB for its sliding layers of 1,024 tokens). So every 32K
-tokens of a conversation take about 0.7 GB from the cache of experts on an 8 GB card. The release's engine takes
-that VRAM as the conversation grows, not at load: with a context of 32K it starts with 3.2 GiB of Qwen3.6's experts
-on the laptop's card, 3.8 GiB of Ornith's and 2.3 GiB of Gemma 4's. The table below is from the engine before,
-which took the whole context at load.
+Setup asks for the context. House KV is q4_0: on Qwen3.6 288 bytes a K or V row, 0.77 GiB by row arithmetic at full 131072 context and 0.91 GiB measured reserved, with VRAM reserve 256 MiB. At-run context GiB figures are WITHDRAWN, PENDING with no house log. The table below is upstream-only, NOT the house rig.
 
 Measured on the laptop on 2026-10-10 with the engine of 27f9ec9dd4d0: `hyper.py benchmark --prompt-tokens N`
 with `--max-context` set in the model's config, one run each, with a prompt of about nine tenths of the context.

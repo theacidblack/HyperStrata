@@ -13,12 +13,10 @@ fp16. There are two independent knobs: `--kv fmt` for the target model and `--dr
 that guesses ahead, each `fp16 | q8_0 | q4_0`, mixable (e.g. `--kv q8_0 --draft-kv q4_0`). A knob left out
 is `fp16`. The default (both knobs fp16) is byte-identical to pre-q4_0 build per 12/12 short-prompt check (poly_kv_q8_test + fp16/Q8_0 reply comparison); re-run after any engine edit.
 
-q8_0 is measured (single-knob engine): see [q8_0](#q8_0) below. q4_0 is REPORTED once (no server log on file —
-NOT measured): a live agent run under `--kv q4_0 --draft-kv q4_0` (q4-001, see [BENCHMARKS.md](BENCHMARKS.md)
-for numbers — all REPORTED, unverified; thinking-cap and zero-error claims UNVERIFIED, no log), plus kernel
+q8_0 is measured on upstream rigs only (see [q8_0](#q8_0) — Tiel/Ornith/Occamy on RTX 3070, NOT the house 3070 Ti + Q4 MTP + reserve 256 rig). q4_0 is live on the house rig: q4-002 PASS (95.7 / 40.0 / 51.3, 42 turns) + q5-002 PASS (70.9 / 29.8 / 41.1, 61 turns), both under `--kv q4_0 --draft-kv q4_0` — see [BENCHMARKS.md](BENCHMARKS.md) + LEDGER q4-002 / q5-002 rows. (q4-001 REPORTED-only is stale history, not a finding.) Plus kernel
 unit tests (`poly_kv_q4_test`: key and value readers against the ggml oracle, 112,010 values) and a
 mixed-knob engine test (`poly_draft_race_test`: PASS, 5/5 pairs, rows round-trip 6/6). A frozen-fixture A/B
-against fp16/q8_0 is still pending — figures that need one stay marked **PENDING**.
+against fp16/q8_0 is still PENDING (LEDGER Phase-0 NOT CAPTURED) — figures that need one stay marked **PENDING**.
 
 ## The three formats
 
@@ -59,14 +57,14 @@ a knob omitted is `fp16`. Unknown values exit 2.
 | target (`--kv`) | draft (`--draft-kv`) | answers / speed |
 | --- | --- | --- |
 | fp16 | fp16 | The default (both knobs fp16) is byte-identical to pre-q4_0 build per 12/12 short-prompt check (poly_kv_q8_test + fp16/Q8_0 reply comparison); re-run after any engine edit. |
-| fp16 | q8_0 | mixed-knob engine test only (draft_race, acceptance +6.25pp vs control, rows exact); no live run |
-| fp16 | q4_0 | unmeasured (PENDING) |
-| q8_0 | fp16 | mixed-knob engine test only (acceptance +12.50pp vs control, rows exact); no live run |
-| q8_0 | q8_0 | unmeasured as a combination (PENDING): the single-knob `--kv q8_0` parity in [q8_0](#q8_0) is the nearest measured result, not this combination |
-| q8_0 | q4_0 | mixed-knob engine test only (acceptance +12.50pp vs control, rows exact); no live run |
-| q4_0 | fp16 | unmeasured (PENDING) |
-| q4_0 | q8_0 | mixed-knob engine test only (acceptance +2.08pp vs control, rows exact); no live run |
-| q4_0 | q4_0 | REPORTED once live (q4-001, REPORTED not log-verified, section above) + engine test (acceptance +2.08pp, rows exact) |
+| fp16 | q8_0 | mixed-knob engine test only (draft_race, acceptance +6.25pp vs control, rows exact); no live run (PENDING; frozen A/B TBD) |
+| fp16 | q4_0 | unmeasured (PENDING; frozen A/B TBD) |
+| q8_0 | fp16 | mixed-knob engine test only (acceptance +12.50pp vs control, rows exact); no live run (PENDING; frozen A/B TBD) |
+| q8_0 | q8_0 | unmeasured as a combination (PENDING; frozen A/B TBD): the single-knob `--kv q8_0` parity in [q8_0](#q8_0) is upstream-only, not this combination |
+| q8_0 | q4_0 | mixed-knob engine test only (acceptance +12.50pp vs control, rows exact); no live run (PENDING; frozen A/B TBD) |
+| q4_0 | fp16 | unmeasured (PENDING; frozen A/B TBD) |
+| q4_0 | q8_0 | mixed-knob engine test only (acceptance +2.08pp vs control, rows exact); no live run (PENDING; frozen A/B TBD) |
+| q4_0 | q4_0 | live on house rig: q4-002 PASS + q5-002 PASS (see top) + engine test (acceptance +2.08pp, rows exact) |
 
 ## q8_0
 
@@ -74,11 +72,13 @@ A q8_0 row is cut into 32-value blocks; the format is defined under [The three f
 `--kv q8_0` needs `n_kv * head_dim` to be a multiple of 32; the models here are. A shape that is not gets a
 clear error rather than a wrong answer. The engine prints its row size at load:
 
-```
+```text
 hyper: q8_0 KV cache: 544 bytes a row
 ```
 
 544 = 512 codes + 2 blocks × 2 scales, a head, K and V.
+
+Upstream-only, NOT the house rig: the three models below are Tiel/Ornith/Occamy on an RTX 3070 (Linux, `/opt/cuda`), NOT Qwen3.6-35B-A3B MTP on the house 3070 Ti Laptop + 32 GB with ctx 131072 / temp 0.6 / cap 4096 / reserve 256. Do not use these rows as house Q4 MTP proof.
 
 All three models loaded and answered with `--kv q8_0` at the full 131072-token context, and with a picture
 through the vision encoder (`hyper-vision`), each replying `KV OK` to the fixed prompt.
@@ -131,7 +131,7 @@ The engine's default KV cache grows as the conversation does, so a short prompt 
 expert cache — but with `--kv-whole`, which reserves the whole context's KV at load, the freed VRAM goes to
 experts. At 131072 the expert cache under `--kv-whole` rose
 
-```
+```text
 Tiel   fp16: 1237 of 10496 experts (1.5 GiB)   q8_0: 2319 of 10496 (2.8 GiB)   +1082 experts
 Ornith fp16: 1237 of 10496 experts (1.5 GiB)   q8_0: 2313 of 10496 (2.8 GiB)   +1076 experts
 Occamy fp16: 1503 of 10240 experts (1.8 GiB)   q8_0: 2480 of 10240 (2.9 GiB)    +977 experts
@@ -170,7 +170,7 @@ The three run configs (`strata-tiel.json`, `strata-ornith.json` and `strata-occa
 
 ### Comparison with another implementation
 
-`llama.cpp` (the in-tree build `runners/llama.cpp/build/bin/llama-cli`) reads the same `qwen35moe` files and
+`llama.cpp` (the in-tree `llama-cli` tool) reads the same `qwen35moe` files and
 accepts `-ctk q8_0 -ctv q8_0`. Given a Q8_0 KV cache it answered the two short fixed prompts
 (`Reply with exactly: KV OK` → `KV OK`; `What is 17 + 25? Answer with just the number.` → `42`), the same
 tokens the `hyper` engine's `--kv q8_0` produced on all three models. It was run on the CPU (`-ngl 0`) because the
@@ -223,15 +223,13 @@ flowchart TD
 
 ### What q4_0 costs
 
-One REPORTED data point (no log on file — UNVERIFIED), no controlled comparison: q4-001 numbers live in
-[BENCHMARKS.md](BENCHMARKS.md) (not retyped here) — no speed claim either way; "in line with fp16/q8_0 scatter" is
-UNVERIFIED without the log, not a finding. Per-pair ms/round from the engine test: 54–89 ms/round across knobs (mildly
-slower on quantized drafts, slowness alone is not gated). Frozen-fixture decode numbers: PENDING.
+Two live house points (q4-002 + q5-002, logs on file, see [BENCHMARKS.md](BENCHMARKS.md) — not retyped here), no controlled comparison — no speed claim either way. Per-pair ms/round from the engine test: 54–89 ms/round across knobs (mildly
+slower on quantized drafts, slowness alone is not gated). Frozen-fixture decode numbers: PENDING (LEDGER Phase-0 NOT CAPTURED).
 
 ## Gates, and what was left alone
 
-- qwen35moe-only, per knob: `--kv <val> is only supported for qwen35moe models in v1; this is a '<arch>'
-  model` (the same with `--draft-kv`), not run.
+- qwen35moe-only, per knob (code-true, not run here): `--kv <val> is only supported for qwen35moe models in v1; this is a '<arch>'
+  model` (the same with `--draft-kv`). PENDING re-verify after any engine edit — BACKENDS lists Gemma4 support, which contradicts this gate.
 - CUDA-only, per knob: `--kv <val> is not supported on this backend (CUDA only)` (the same with
   `--draft-kv`), and the engine exits, rather than doing something different. The HIP build itself was not
   run here (no ROCm on this machine).
@@ -240,7 +238,7 @@ slower on quantized drafts, slowness alone is not gated). Frozen-fixture decode 
 - The `strata` engine, and its own `--kv int8`. Nothing in it changed.
 - `glm5next` / GLM 5.3 Flash (`dsa_attend`): its attention is not the one these caches quantize, so
   neither knob is offered for it.
-- **Gemma 4 is out of v1**, per knob as with q8_0.
+- **Gemma 4 is out of v1**, per knob as with q8_0. PENDING re-verify after any engine edit (BACKENDS lists Gemma4 support).
 - The default (both knobs fp16) is byte-identical to pre-q4_0 build per 12/12 short-prompt check (poly_kv_q8_test + fp16/Q8_0 reply comparison); re-run after any engine edit.
 
 ## Where it lives
@@ -252,8 +250,8 @@ slower on quantized drafts, slowness alone is not gated). Frozen-fixture decode 
   (`draft_race_test.cpp`).
 - `setup.py` — the `--kv` / `--draft-kv` writer, reader, and keep-paths.
 - `CMakeLists.txt` — the `poly_kv_q8_test` and `poly_kv_q4_test` targets and their `add_test`.
-- `strata-tiel.json`, `strata-ornith.json`, `strata-occamy.json` — the run configs carry `--kv q8_0` and
-  `--vram-reserve-mib 512`.
+- `strata-tiel.json`, `strata-ornith.json`, `strata-occamy.json` — upstream run configs carry `--kv q8_0` and
+  `--vram-reserve-mib 512`. House configs: Qwen3.6-MTP + Qwen3.6-base, all 8 `--kv q4_0`, reserve 256.
 - Docs — this file for both formats and knobs.
 
 ← [Prev](MODELS.md) · [Index](INDEX.md) · [Next](BACKENDS.md) →

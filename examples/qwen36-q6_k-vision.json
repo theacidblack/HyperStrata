@@ -1,0 +1,39 @@
+{
+  "_header": [
+    "Preset qwen36-q6_k-vision (base + images, UD-Q6_K, no MTP). Copy next to your install. 5 EDITS, every path absolute:",
+    "1. \"exe\": your engine exe (engine-hyper\\hyper.exe inside your install folder).",
+    "2. \"args\" \"--model\": your base UD-Q6_K .gguf file. Keep \"--max-context\" 131072, \"--kv\" q4_0, \"--no-draft\" (no \"--draft-kv\").",
+    "3. \"vision\" \"mmproj\": your mmproj-Q8_0 file for pictures; \"vision\" \"model\" must match \"--model\"; \"gpu\" stays false (CPU encoder).",
+    "4. \"cwd\" + \"tokenizer\" + \"log\": your install folder, packs-dir tokenizer, and log path.",
+    "Start it with run-qwen36-q6_k-vision.bat. Proof it runs: http://127.0.0.1:8080/health says loaded:true."
+  ],
+  "exe": "OWN-PATHS-HERE\\engine-hyper\\hyper.exe",
+  "args": [
+    "--model",
+    "OWN-PATHS-HERE\\model-file.gguf",
+    "--max-context",
+    "131072",
+    "--kv",
+    "q4_0",
+    "--no-draft",
+    "--vram-reserve-mib",
+    "256"
+  ],
+  "cwd": "OWN-PATHS-HERE\\install-folder",
+  "tokenizer": "OWN-PATHS-HERE\\packs-dir\\tokenizer",
+  "model_name": "qwen3.6-35b-a3b-ud-q6_k-vision",
+  "display_name": "Qwen3.6-35B-A3B UD-Q6_K-Vision",
+  "log": "OWN-PATHS-HERE\\install-folder\\qwen36-q6_k-vision.log",
+  "port": 8080,
+  "gpu": 0,
+  "sampling": {
+    "temperature": 0.6
+  },
+  "reasoning_budget_tokens": 4096,
+  "vision": {
+    "exe": "OWN-PATHS-HERE\\engine-hyper\\hyper-vision.exe",
+    "mmproj": "OWN-PATHS-HERE\\mmproj-file.gguf",
+    "model": "OWN-PATHS-HERE\\model-file.gguf",
+    "gpu": false
+  }
+}

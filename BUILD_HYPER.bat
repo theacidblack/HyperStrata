@@ -15,7 +15,10 @@ rem ".venv\Scripts\python.exe -m pip install cmake ninja"). The first build also
 rem CMake fetches the pinned ggml commit by itself (see STRATA_GGML_DIR below).
 rem
 rem If a step fails, the message says what is missing and what to paste in a report - see each :fail block.
-setlocal
+rem Delayed expansion ON: inside parenthesized blocks, references to paths containing
+rem   parentheses (notably %ProgramFiles(x86)%) must use !VAR! form — %VAR% expands while
+rem   the block is parsed and its ")" ends the block early. Line-level %VAR% is unaffected.
+setlocal EnableDelayedExpansion
 title HyperStrata - build engine
 cd /d "%~dp0"
 
@@ -65,6 +68,9 @@ rem   tools\vision (STRATA_VISION_CUDA) that setup builds on demand when you pic
 set "EXTRA_DEFS="
 
 set "SRC=%~dp0"
+rem Strip the trailing backslash %~dp0 carries: "...\dev\" would escape its own closing
+rem quote and swallow the rest of the cmake line. Same for every path cmake receives.
+if "%SRC:~-1%"=="\" set "SRC=%SRC:~0,-1%"
 set "BUILDDIR=%~dp0build-hyper"
 set "ENGDIR=%~dp0engine-hyper"
 set "SMOKE=%TEMP%\hyper-smoke.txt"
@@ -73,15 +79,12 @@ rem cmake/ninja from setup's private environment first, so they work even when n
 if exist "%~dp0.venv\Scripts\cmake.exe" set "PATH=%~dp0.venv\Scripts;%PATH%"
 
 rem ---- 1. Visual Studio (gives vcvars64.bat, the compiler environment) ----
+rem NOTE: the lookup lives in :find_vcvars below, never inline here. %ProgramFiles(x86)%
+rem   breaks inside a parenthesized block (its ")" ends the block early), so it must
+rem   only ever expand at subroutine line level.
 set "VCVARS="
 if defined STRATA_VCVARS if exist "%STRATA_VCVARS%" set "VCVARS=%STRATA_VCVARS%"
-if not defined VCVARS (
-  set "VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
-  if exist "%VSWHERE%" (
-    for /f "usebackq delims=" %%i in (`""%VSWHERE%" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath"`) do set "VSINSTALL=%%i"
-    if defined VSINSTALL if exist "%VSINSTALL%\VC\Auxiliary\Build\vcvars64.bat" set "VCVARS=%VSINSTALL%\VC\Auxiliary\Build\vcvars64.bat"
-  )
-)
+if not defined VCVARS call :find_vcvars
 if not defined VCVARS goto fail_vcvars
 
 rem ---- 2. CUDA toolkit (gives nvcc, the GPU compiler) ----
@@ -108,6 +111,11 @@ echo Building the HyperStrata engine for sm_%CUDA_ARCH% ...
 echo   compiler: %VCVARS%
 echo   cuda:     %NVCC%
 echo.
+rem Short (8.3) forms of the tool paths: no spaces, so neither cmake's command line
+rem nor the generated build files can split them. Harmless when already space-free.
+for %%i in ("%CMAKE_BIN%") do set "CMAKE_BIN=%%~si"
+for %%i in ("%NINJA_BIN%") do set "NINJA_BIN=%%~si"
+for %%i in ("%NVCC%") do set "NVCC=%%~si"
 
 rem ---- 4. compiler environment (this window only; needed for every compile below) ----
 call "%VCVARS%" >nul
@@ -144,6 +152,24 @@ echo The engine is ready. Start a model the usual way (START-HERE.bat or a run-*
 echo This window can be closed.
 pause
 exit /b 0
+
+:find_vcvars
+set "VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
+set "VSINSTALL="
+if exist "%VSWHERE%" "%VSWHERE%" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath > "%TEMP%\hyper-vsinstall.txt" 2>nul
+if exist "%TEMP%\hyper-vsinstall.txt" set /p VSINSTALL=<"%TEMP%\hyper-vsinstall.txt"
+del "%TEMP%\hyper-vsinstall.txt" >nul 2>nul
+if defined VSINSTALL if exist "%VSINSTALL%\VC\Auxiliary\Build\vcvars64.bat" set "VCVARS=%VSINSTALL%\VC\Auxiliary\Build\vcvars64.bat"
+if defined VCVARS goto :eof
+rem vswhere missing or found nothing: try the default install folders, both Program
+rem Files roots, newest first. The (x86) root travels in !PF86! (delayed) because its
+rem ")" cannot survive block-parse-time %expansion%.
+set "PF86=%ProgramFiles(x86)%"
+for %%v in ("2022\BuildTools" "2022\Community" "2022\Professional" "2022\Enterprise" "2019\BuildTools" "2019\Community" "2019\Professional" "2019\Enterprise") do (
+  if not defined VCVARS if exist "%ProgramFiles%\Microsoft Visual Studio\%%~v\VC\Auxiliary\Build\vcvars64.bat" set "VCVARS=%ProgramFiles%\Microsoft Visual Studio\%%~v\VC\Auxiliary\Build\vcvars64.bat"
+  if not defined VCVARS if exist "!PF86!\Microsoft Visual Studio\%%~v\VC\Auxiliary\Build\vcvars64.bat" set "VCVARS=!PF86!\Microsoft Visual Studio\%%~v\VC\Auxiliary\Build\vcvars64.bat"
+)
+goto :eof
 
 :fail_vcvars
 echo.

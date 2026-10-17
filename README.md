@@ -44,7 +44,8 @@ reusing a locally stored model file. The generated `run-*.bat` starts
 config, injecting `"sampling": {"temperature": 0.6}` and
 `"reasoning_budget_tokens": 4096`, plus `--vram-reserve-mib 256`. The default
 run uses engine-default fp16 KV (no `--kv` flag); the comparison run adds only
-`--kv q8_0`. KV format is the only variable between runs.
+`--kv q8_0`. KV format is the only variable between runs. `--kv q4_0` and
+`--draft-kv` are implemented but unmeasured on this box (`docs/KV_CACHE.md`).
 
 **Test.** Same day, same machine, same model file. An agent session builds a
 small browser game start to finish with zero mid-run interaction. All metrics
@@ -99,7 +100,8 @@ criteria, validation). Please read it before assuming any file differs on purpos
 
 ## 8. Limitations
 
-No fork engine changes published yet. Windows + NVIDIA only here; Linux, AMD,
+No fork engine changes published yet. The q4_0 KV cache is implemented but not yet
+benchmarked here. Windows + NVIDIA only here; Linux, AMD,
 and multi-GPU paths are upstream's and untested in this fork. Long contexts on
 32 GB may fail — physics, not a bug.
 

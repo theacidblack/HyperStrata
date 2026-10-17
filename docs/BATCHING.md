@@ -1,3 +1,8 @@
+← [Prev](MCP_SERVER.md) · [Index](INDEX.md) · [Next](MULTI_GPU.md) →
+
+*Needs: working server · Gives: parallel slots serving N requests together · Next: MULTI_GPU.md*
+*Run 9/13*
+
 # Several requests at once (batch slots)
 
 > Upstream runs on upstream rigs/commits — NOT HyperStrata reference-rig runs; PENDING re-measure before any ranking claim.
@@ -374,3 +379,5 @@ On top of `GEN` / `GENI`:
 
 `tools/batch_test.py` drives the engine directly: the same prompts alone, then together, compared token by token,
 and the aggregate rate.
+
+← [Prev](MCP_SERVER.md) · [Index](INDEX.md) · [Next](MULTI_GPU.md) →

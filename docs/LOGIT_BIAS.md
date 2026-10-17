@@ -1,3 +1,8 @@
+← [Prev](LLAMA_SWAP.md) · [Index](INDEX.md) · [Next](BENCHMARKS.md) →
+
+*Needs: running server · Gives: per-request logit_bias token steering · Next: BENCHMARKS.md*
+*Run 12/13*
+
 # Per-request token biases
 
 `POST /v1/chat/completions` accepts `logit_bias` with a supporting CUDA or HIP
@@ -74,3 +79,5 @@ restrictive list may reduce draft acceptance. Ordinary MTP was tested. The
 experimental coupled/rejection-sampling combinations and multi-GPU execution
 were not validated in this campaign. There is no startup bias-file option in
 this change: send the field with each request.
+
+← [Prev](LLAMA_SWAP.md) · [Index](INDEX.md) · [Next](BENCHMARKS.md) →

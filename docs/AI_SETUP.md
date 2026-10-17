@@ -1,3 +1,8 @@
+← [Prev](INSTALL.md) · [Index](INDEX.md) · [Next](MODELS.md) →
+
+*Needs: install method chosen, agent ready to run · Gives: agent-run PC check, setup, verified server · Next: MODELS.md*
+*Start 3/4*
+
 # Installing PolyStrata for a user (instructions for AI agents)
 
 This page is written for an AI coding assistant (Claude Code, Cursor, Codex, GitHub Copilot, ...) that a user asked to
@@ -484,7 +489,7 @@ each call timing out after `timeout_s` (default 60 s) into an `error:
 ...` result, results cut at `max_result_chars` (default 20,000)
 (`serve/mcp.py:37`, [DETAILS.md](DETAILS.md#tools-from-mcp-servers)).
 
-### 8.9 When the agent says something stupid
+### 8.9 When the agent output looks wrong
 
 Work top-down; change one thing, retry the same prompt:
 
@@ -572,3 +577,5 @@ collect `strata-<model>.log` and the setup output, and if the public repo has is
 PolyStrata also has an MCP server, so an AI tool can check, install, start and stop PolyStrata through tool calls
 (`strata_status`, `strata_models`, `strata_install`, `strata_start`, `strata_stop`, `strata_logs`) instead of the
 shell commands above. See [MCP_SERVER.md](MCP_SERVER.md).
+
+← [Prev](INSTALL.md) · [Index](INDEX.md) · [Next](MODELS.md) →

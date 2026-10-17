@@ -30,6 +30,8 @@ the server, and connect the user's apps. Never expose the server beyond
   [docs/DETAILS.md](docs/DETAILS.md) and the [paper](docs/paper/Strata-Paper.pdf).
 - Which weight files load and which paths are still slow:
   [docs/COVERAGE.md](docs/COVERAGE.md).
+- Full doc map: [docs/INDEX.md](docs/INDEX.md).
+- Experiment-first, no guarantees: house rig measured only; rest untested/PENDING.
 - Setup's own tests run without a GPU or downloads:
   `python tools/test_setup_<name>.py` (for example `tools/test_setup_amd.py`,
   `tools/test_setup_choices.py`).

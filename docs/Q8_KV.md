@@ -1,3 +1,8 @@
+← [Prev](KV_CACHE.md) · [Index](INDEX.md) · [Next](BACKENDS.md) →
+
+*Needs: KV formats overview from KV_CACHE · Gives: halved KV VRAM with unchanged answers · Next: BACKENDS.md*
+*Run 3/13*
+
 # The Q8_0 KV cache (`hyper --kv q8_0`)
 
 `hyper` can store its attention K and V caches in the ggml **Q8_0** format instead of fp16. It is
@@ -152,3 +157,5 @@ file is far larger than the card; only the short deterministic answers are a mea
   `poly_kv_q8_test` passes (0.23 s).
 - **HIP:** build deferred — this machine has no ROCm. The clean-rejection guard above is in place.
 - **SYCL:** not applicable; that is a separate engine.
+
+← [Prev](KV_CACHE.md) · [Index](INDEX.md) · [Next](BACKENDS.md) →

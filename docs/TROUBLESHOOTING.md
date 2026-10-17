@@ -1,7 +1,15 @@
+← [Prev](TEST_REQUESTS.md) · [Index](INDEX.md) · [Next](FAQ.md) →
+
+*Needs: symptom or error message · Gives: fixes for common install/start failures · Next: FAQ.md*
+*Measure 3/6*
+
 # Something went wrong?
 
 The common problems and what to do. Back to the [README](../README.md#something-went-wrong). The full table of
 error messages, with the older engine fixes, is in the [details](DETAILS.md#troubleshooting).
+
+> [!WARNING]
+> 8 GB VRAM + 32 GB RAM is tight: long contexts can page to swap or fail. Close the server when done to free RAM.
 
 ## While installing or starting
 
@@ -62,7 +70,7 @@ Install what it names (links are printed), then run it again. Everything already
 It is reading 34-55 GB into RAM; the second start is faster while the files are in the OS cache. Started from Task
 Scheduler, it can be 24x slower: see [Running it at startup](DETAILS.md#running-it-at-startup-task-scheduler).
 On Linux the engine now asks the kernel to read the model files ahead (a cold start went from ~920 s to 70 s on one
-PC); `STRATA_READ_AHEAD=0` turns that off. On Linux with transparent huge pages on `always`, the arena no longer asks
+PC; REPORTED, no log on file); `STRATA_READ_AHEAD=0` turns that off. On Linux with transparent huge pages on `always`, the arena no longer asks
 for `MADV_HUGEPAGE` on top (a fragmented machine spent minutes compacting memory, #771); `STRATA_NO_ARENA_THP=1` skips
 that request on any setting.
 
@@ -96,7 +104,7 @@ The prompt's top-k selection takes a wider kernel there, with the same ids. `STR
 **Decode is several times slower with `--expert-cache N` than with `auto` (#781, #831).**
 An explicit N is a byte budget that is not checked against the free VRAM once the slots are written. On a card it
 fills (the log says `0 MiB of VRAM free with everything loaded - LOW`), Windows pages the GPU's memory and decode drops
-from 100 to 14 tok/s with only a few hundred slots too many. Use `--expert-cache auto`, or a smaller N.
+from 100 to 14 tok/s with only a few hundred slots too many (REPORTED, no log on file). Use `--expert-cache auto`, or a smaller N.
 
 **A low-RAM PC (about 32 GB) stalls with `--resident-budget-gib N` (#649).**
 The budget is pinned (locked) in RAM, which leaves the OS and the CPU workers little room. `STRATA_RESIDENT_PIN=0` keeps
@@ -107,7 +115,7 @@ The start line "the file tier reads unbuffered" means the experts outside the RA
 0.1.40 chose that whenever the free RAM could not hold all of them; but the same few come back token after token, and
 a cache a twentieth of their size serves most of the repeats. 0.1.40.2 asks for that much (at least 1.5 GiB beside the
 4 GiB headroom) and reads through the cache otherwise, which measured 7% to 118% faster decode with a third to a sixth of
-the drive traffic on a 20 to 32 GB box. On 0.1.40 / 0.1.40.1: `STRATA_UNBUFFERED_LOAD=0` does the same, `=1` forces the
+the drive traffic on a 20 to 32 GB box (REPORTED, no log on file). On 0.1.40 / 0.1.40.1: `STRATA_UNBUFFERED_LOAD=0` does the same, `=1` forces the
 unbuffered reads.
 
 **Linux: the start is OOM-killed while the engine allocates the page-locked expert copy (#1250).**
@@ -133,7 +141,7 @@ setup warns when it finds 13.2.0 or 13.2.1 for such a card, and takes an older 1
 **Pictures are refused, or slow.**
 "this server was started without the vision encoder": the model was set up for text only - run setup again with
 `--vision gpu` (or `--vision cpu`). Pictures that take several seconds (about 3 s at 300 image tokens on 8 cores, more with more tokens) are read by the encoder on the CPU; `--vision gpu`
-(NVIDIA, ~1.4 GB of VRAM) makes it 0.1-0.5 s.
+(NVIDIA, ~1.4 GB of VRAM) makes it 0.1-0.5 s (REPORTED, no log on file).
 
 ## AMD cards
 
@@ -192,3 +200,5 @@ R9700) in the `env` block of the server JSON, then a restart. Experimental, one 
 ## Still stuck?
 
 Look in the [full troubleshooting table](DETAILS.md#troubleshooting).
+
+← [Prev](TEST_REQUESTS.md) · [Index](INDEX.md) · [Next](FAQ.md) →

@@ -27,6 +27,7 @@ rem CUDA_ARCH - which card generation to build code for. This MUST match your ca
 rem   is 120 (RTX 50), which will not run on older cards. When to change it: set it to YOUR card.
 rem   75 = RTX 20 series, 86 = RTX 30 series (incl. the reference RTX 3070 Ti Laptop, Ampere SM86),
 rem   89 = RTX 40 series, 120 = RTX 50 series. Several cards / unknown card: 75;86;89;120 (slower build).
+rem   Other cards than the sm_86 reference are untested on this tree (goal, not promise; see docs/TEST_REQUESTS.md).
 set "CUDA_ARCH=86"
 rem BUILD_TYPE - Release = fast, optimized engine. When to change it: Debug only if a developer asks
 rem   for a debuggable build (it runs much slower). CMake defaults to Release on its own too.
@@ -51,6 +52,7 @@ rem   because CUDA 13 cannot compile for them. Uncomment both lines:
 rem set "CUDA_ARCH=60;61;70"
 rem set "EXTRA_DEFS=-DSTRATA_EXPERIMENTAL_SM60=ON"
 rem For a card you don't know: build for all supported generations (slow build, runs anywhere sm_75+):
+rem   Other cards than the sm_86 reference are untested on this tree (goal, not promise; see docs/TEST_REQUESTS.md).
 rem set "CUDA_ARCH=75;86;89;120"
 rem Portable engine for OTHER PCs (AVX2 baseline + static MSVC runtime, no redistributable needed):
 rem set "EXTRA_DEFS=-DSTRATA_PORTABLE=ON"
@@ -189,6 +191,7 @@ echo Install the NVIDIA CUDA Toolkit 13.x (13.0 is what the ready-made engine us
 echo file again. If it is installed somewhere unusual, set STRATA_NVCC to its nvcc.exe and retry.
 echo (RTX 50 cards need CUDA 13.0 or newer; cards older than RTX 20 need CUDA 12.x plus the
 echo STRATA_EXPERIMENTAL_SM60 lines at the top of this file.)
+echo Pre-RTX and non-reference cards are untested on this tree.
 echo What to paste in a report: this whole window text, your GPU model, and your driver version
 echo ("nvidia-smi" in a terminal prints both).
 pause

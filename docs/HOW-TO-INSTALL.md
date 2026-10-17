@@ -1,11 +1,15 @@
+← [Prev](../README.md) · [Index](INDEX.md) · [Next](INSTALL.md) →
+
+*Needs: PC specs, install folder, model files location · Gives: built engine, working server, one agent chatting · Next: INSTALL.md*
+*Start 1/4*
+
 # How to install HyperStrata
 
 The one install page. Two ways to the same end: a built engine, a working
 launcher, the server up, one agent chatting with it.
 
-> **Guarantee rule (both methods):** only the models on the coverage list
-> (`docs/COVERAGE.md` §§1–3: Unsloth Qwen3.6-35B-A3B GGUFs, MTP page + base
-> page) are expected to run. Anything else is untested here, not guaranteed —
+> **Guarantee rule (both methods):** only house-model UD-Q4_K_M with MTP is expected to run. Rest of coverage list
+> (`docs/COVERAGE.md` §§1–3) is oracle-only/occasional, never gating. Anything else is untested here, not guaranteed —
 > engine changes can break what upstream once supported.
 
 ## What you need in hand (both methods)
@@ -15,6 +19,9 @@ launcher, the server up, one agent chatting with it.
 - An install folder (a drive with room for tens of GB of model files).
 - Your model situation: either the folder holding your `.gguf` file(s), or
   "download them for me".
+
+> [!TIP]
+> House preset uses `--kv q4_0 --draft-kv q4_0`: 0.77 GiB full-context KV fits 8 GB cards where fp16 (≈2.75 GiB) OOMs.
 
 ## Method 1 — an agent installs it (recommended)
 
@@ -71,7 +78,8 @@ answered in the browser.
    (`BUILD_HYPER.bat:23-27`):
    `75` = RTX 20 · `86` = RTX 30 (reference RTX 3070 Ti Laptop) ·
    `89` = RTX 40 · `120` = RTX 50. Unknown card or several cards:
-   `75;86;89;120` (slow build, runs anywhere). First build needs internet
+    `75;86;89;120` (slow build, runs anywhere). Other cards than the sm_86 reference are untested here
+    (goal, not promise; see TEST_REQUESTS.md). First build needs internet
    once (pinned ggml fetch) and takes a while; later builds reuse what
    compiled. Success = `engine-hyper\hyper.exe` exists and `hyper.exe
    --help` prints `usage:` (exit code 2 is normal — the text match is the
@@ -131,4 +139,6 @@ Still PENDING — full list in `docs/ONBOARDING_GAPS.md`:
   floor.
 - Old-GPU / no-AVX2 opt-in wording; AMD + iGPU verdicts; Linux as appendix.
 - README/AI_SETUP leftovers: read order, per-flag lines, old names, failure
-  rows, log name, MCP decision line.
+   rows, log name, MCP decision line.
+
+← [Prev](../README.md) · [Index](INDEX.md) · [Next](INSTALL.md) →

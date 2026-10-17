@@ -1028,7 +1028,7 @@ int check_batch(Engine& engine, const std::vector<int32_t>& ids, int k, long lon
 
 void usage() {
     std::fprintf(stderr,
-                 "usage: strata-poly --model FILE.gguf (--serve | --tokens ID,ID,... [--max-new N])\n"
+                 "usage: hyper --model FILE.gguf (--serve | --tokens ID,ID,... [--max-new N])\n"
                  "  --max-context N        tokens the attention caches hold (default 8192)\n"
                  "  --threads N            CPU threads for the experts that are not in VRAM (default: all usable)\n"
                  "  --vram-reserve-mib N   VRAM left free beside the expert cache, 256 at least (default: a\n"

@@ -1,3 +1,5 @@
+← [Prev](SECURITY.md) · [Index](docs/INDEX.md) →
+
 # Upstream Divergence Registry
 
 Tracks every substantial difference between this fork (`theacidblack/HyperStrata`)
@@ -155,3 +157,5 @@ output is review input, not proof.
 commits, fork-only/upstream-only counts, our changed files vs merge-base, registered
 DIV ids + statuses, and changed files not mentioned in the registry (review candidates).
 It never deletes code, resolves conflicts, rewrites history, or changes statuses.
+
+← [Prev](SECURITY.md) · [Index](docs/INDEX.md) →

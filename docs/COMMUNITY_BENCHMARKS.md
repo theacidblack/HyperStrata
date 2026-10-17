@@ -1,3 +1,8 @@
+← [Prev](BENCHMARKS.md) · [Index](INDEX.md) · [Next](TEST_REQUESTS.md) →
+
+*Needs: own measured numbers · Gives: report format and upstream records · Next: TEST_REQUESTS.md*
+*Measure 1/6*
+
 # Community benchmark results
 
 > Upstream history — runs below were measured on upstream builds, kept as records. New HyperStrata reports use the same format.
@@ -53,11 +58,11 @@ the medians. With a size that setup has installed:
 
    ```json
    {
-    "gguf": "D:/PolyStrata-data/models/qwen36-UD-Q3_K_M/Qwen3.6-35B-A3B-UD-Q3_K_M.gguf",
+    "gguf": "<HyperStrata-data folder>/models/<model-file>.gguf",
     "llama_server": "D:/llama.cpp/llama-server.exe",
-    "strata_cfg": "D:/PolyStrata/strata-qwen36-ud-q3_k_m.json",
-    "serve": "D:/PolyStrata/serve",
-    "cwd": "D:/PolyStrata",
+    "strata_cfg": "<HyperStrata folder>/strata-<size>.json",
+    "serve": "<HyperStrata folder>/serve",
+    "cwd": "<HyperStrata folder>",
     "configs": [
      {"name": "polystrata", "kind": "strata", "args": [], "override": {"--max-context": "36864"}},
      {"name": "llama-mtp", "kind": "llama", "args": ["--fit", "on", "-c", "36864", "-fa", "on",
@@ -185,7 +190,7 @@ To share, keep your folder with your log; no review service promised here. Add w
 To compare with an earlier run on the same machine (before and after an update or a setting change):
 
 ```bash
-python tools/strata_bench.py --compare bench/results/2026-10-01-community-rtx-3060-qwen3-8-flash-next
+python tools/strata_bench.py --compare bench/results/2026-10-09-community-rtx-3060-0141
 python tools/strata_bench.py --compare OLD_FOLDER --compare-only NEW_FOLDER   # two saved runs, nothing is started
 ```
 
@@ -330,3 +335,5 @@ measured, with units and timing boundaries. List failures and skipped cases.
 
 Describe checks, expected answers, observed results, and untested behavior.
 ````
+
+← [Prev](BENCHMARKS.md) · [Index](INDEX.md) · [Next](TEST_REQUESTS.md) →

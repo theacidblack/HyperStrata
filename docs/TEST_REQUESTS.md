@@ -1,3 +1,8 @@
+← [Prev](COMMUNITY_BENCHMARKS.md) · [Index](INDEX.md) · [Next](TROUBLESHOOTING.md) →
+
+*Needs: matching hardware, COMMUNITY_BENCHMARKS format · Gives: wanted-report list, no promise · Next: TROUBLESHOOTING.md*
+*Measure 2/6*
+
 # Test requests and hardware wanted
 
 Upstream PolyStrata was built/measured on a few machines (not THIS fork). Wanted reports below are PENDING for HyperStrata; no support implied until measured on THIS tree. Write a report as described in
@@ -19,3 +24,5 @@ Better rigs are welcome to report, but they sit outside what this is for, so the
 | Pascal (sm_61: Tesla P40, P100, GTX 10 series) | Older cards run on the fp32 path and can behave differently from newer ones | #875, #876 |
 | A Linux host with 32 GB of RAM or less | The expert file tier and the resident mode depend on how much of the model fits in RAM | #1194 |
 | A long soak (an hour or more of back-to-back requests) on a split or resident setup | Shows crashes, drift and heat that a short run does not | #848 |
+
+← [Prev](COMMUNITY_BENCHMARKS.md) · [Index](INDEX.md) · [Next](TROUBLESHOOTING.md) →

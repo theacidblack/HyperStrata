@@ -1,3 +1,8 @@
+← [Prev](MODELS.md) · [Index](INDEX.md) · [Next](KV_CACHE.md) →
+
+*Needs: finished Start path, model picked · Gives: what loads, what runs, what stays pending · Next: KV_CACHE.md*
+*Run 1/13*
+
 # Qwen3.6-35B-A3B (Unsloth UD GGUF) coverage on 8 GB VRAM + 32 GB RAM
 
 This is the public quant/GPU coverage statement. Plain words, every number
@@ -112,7 +117,7 @@ per `kv_weight_attend` design) is IN PROGRESS (source: master plan Phase 1).
 | `UD-Q4_K_M.gguf` | LOADS | Q4_K asymmetric pair, no wrong-answer failure observed via oracle arms; slower than symmetric — PENDING 228-cell oracle.; live file: q4_0 KV pinned by poly_kv_q4_test + q4-001 REPORTED run — PENDING frozen-fixture A/B + log verification. | q4_0 DONE (q4-001); rest of matrix IN PROGRESS |
 | `UD-Q4_K_S.gguf` | LOADS | Q4_K asymmetric pair, no wrong-answer failure observed via oracle arms; slower than symmetric — PENDING 228-cell oracle. | 228-cell matrix IN PROGRESS |
 | `UD-Q4_K_XL.gguf` | LOADS | Q4_K asymmetric pair, no wrong-answer failure observed via oracle arms; slower than symmetric — PENDING 228-cell oracle. | 228-cell matrix IN PROGRESS |
-| `UD-Q5_K_M.gguf` | LOADS | Q5_K grouped present; Q5_1 asymmetric where hit — IN PROGRESS; live MTP run MEASURED 2026-10-18 (max 63.4 / avg ~42.7, q4_0 + q4_0 draft, 69 turns; §5) | 228-cell matrix IN PROGRESS |
+| `UD-Q5_K_M.gguf` | LOADS | Q5_K grouped present; Q5_1 asymmetric where hit — IN PROGRESS; live MTP run q5-001 MEASURED 2026-10-18, previous engine; hyper re-run PENDING (max 63.4 / avg ~42.7, q4_0 + q4_0 draft, 69 turns; §5) | 228-cell matrix IN PROGRESS |
 | `UD-Q5_K_S.gguf` | LOADS | Q5_K grouped present; Q5_1 asymmetric where hit — IN PROGRESS | 228-cell matrix IN PROGRESS |
 | `UD-Q5_K_XL.gguf` | LOADS | Q5_K grouped present; Q5_1 asymmetric where hit — IN PROGRESS | 228-cell matrix IN PROGRESS |
 | `UD-Q6_K.gguf` | LOADS | Q6_K grouped via `STRATA_Q6K_EXPERTS=ON` (confirmed ON) — CURRENT STATUS | 228-cell matrix IN PROGRESS |
@@ -141,7 +146,7 @@ per `kv_weight_attend` design) is IN PROGRESS (source: master plan Phase 1).
 | `UD-Q5_K_M.gguf` | LOADS | Q5_K grouped present; Q5_1 asymmetric where hit — IN PROGRESS | 228-cell matrix IN PROGRESS |
 | `UD-Q5_K_S.gguf` | LOADS | Q5_K grouped present; Q5_1 asymmetric where hit — IN PROGRESS | 228-cell matrix IN PROGRESS |
 | `UD-Q5_K_XL.gguf` | LOADS | Q5_K grouped present; Q5_1 asymmetric where hit — IN PROGRESS | 228-cell matrix IN PROGRESS |
-| `UD-Q6_K.gguf` | LOADS | Q6_K grouped via flag ON — CURRENT STATUS; engine live run MEASURED 2026-10-18 (§5) | 228-cell matrix IN PROGRESS |
+| `UD-Q6_K.gguf` | LOADS | Q6_K grouped via flag ON — CURRENT STATUS; engine live run MEASURED 2026-10-18, previous engine; hyper re-run PENDING (§5) | 228-cell matrix IN PROGRESS |
 | `UD-Q6_K_XL.gguf` | LOADS | Q6_K grouped via flag ON — CURRENT STATUS | 228-cell matrix IN PROGRESS |
 | `UD-Q8_K_XL.gguf` | LOADS | Q8_0 path present — CURRENT STATUS (oracle-only, no live run planned) | 228-cell matrix IN PROGRESS |
 
@@ -178,12 +183,12 @@ not count (per master plan testing doctrine): RTX 3070 Ti Laptop 8 GB +
 | --- | --- | --- |
 | q4-001: UD-Q4_K_M live, `--kv q4_0 --draft-kv q4_0` | REPORTED (NOT log-verified) | 90.9 max / 46.3 low / ~55.6 avg tok/s over 48 turns; prefill 17,277 tokens in ~13 s (~1.33K tok/s); thinking cap hit once and wrapped; zero errors (source: `docs/KV_CACHE.md` + `README.md`, reference rig above). Kernel unit tests: key and value readers vs ggml oracle, 112,010 values, PASS (source: `docs/KV_CACHE.md`). |
 | UD-Q6_K @131072 ctx, llama.cpp | BASELINE (not our run) | ≈30 tok/s on the owner rig (source: master plan Phase 2). Never tested on HyperStrata. Reference: ~30 tok/s (llama.cpp, same file/ctx, not our run), q4_0 KV. |
-| UD-Q5_K_M with MTP, q5-001 (same harness as q4-001: fixed config, max/low/avg, prefill, zero-error bar) | MEASURED 2026-10-18 | 63.4 max / 31.0 low / ~42.7 avg tok/s over 69 turns, `--kv q4_0 --draft-kv q4_0`; prefill 17,591 tokens in ~15 s (~1.17K tok/s); expert cache 16.4–64.3%; zero errors, zero cancel=True; game verdict (SHIP/punch-list) pending user (source: server log measured 2026-10-18). |
-| UD-Q6_K without MTP, engine run q6-001 (same harness: fixed config, max/low/avg, prefill, expert cache) | MEASURED 2026-10-18 | 55.8 max / 13.5 low / ~35.5 avg tok/s (mean of 159 done-line rates; wall secs include prefill on big-context turns) over 159 turns, `--no-draft`, NO MTP, + Vision server (mmproj-Q8_0, CPU encoder, `images on`); KV flags not stated in source; prefill 17,664 tokens in ~20 s (~0.88K tok/s) initial, late-run prefills 100+s (swap pressure, owner-diagnosed); expert cache 13.5–62.2%; max ctx 106,510/131,072, no OOM; no-Playwright game-build run; owner verdict (quoted): "Q6 worth using without Vision; usable with Vision too; lowest dip at swap page." SHIP/punch-list NOT stated (source: chat paste measured 2026-10-18; full console archive PENDING, not on file). |
+| UD-Q5_K_M with MTP, q5-001 (same harness as q4-001: fixed config, max/low/avg, prefill, zero-error bar) | MEASURED 2026-10-18, previous engine; hyper re-run PENDING | 63.4 max / 31.0 low / ~42.7 avg tok/s over 69 turns, `--kv q4_0 --draft-kv q4_0`; prefill 17,591 tokens in ~15 s (~1.17K tok/s); expert cache 16.4–64.3%; zero errors, zero cancel=True; game verdict (SHIP/punch-list) pending user (source: server log measured 2026-10-18). |
+| UD-Q6_K without MTP, engine run q6-001 (same harness: fixed config, max/low/avg, prefill, expert cache) | MEASURED 2026-10-18, previous engine; hyper re-run PENDING | 55.8 max / 13.5 low / ~35.5 avg tok/s (mean of 159 done-line rates; wall secs include prefill on big-context turns) over 159 turns, `--no-draft`, NO MTP, + Vision server (mmproj-Q8_0, CPU encoder, `images on`); KV flags not stated in source; prefill 17,664 tokens in ~20 s (~0.88K tok/s) initial, late-run prefills 100+s (swap pressure, owner-diagnosed); expert cache 13.5–62.2%; max ctx 106,510/131,072, no OOM; no-Playwright game-build run; owner verdict (quoted): "Q6 worth using without Vision; usable with Vision too; lowest dip at swap page." SHIP/punch-list NOT stated (source: chat paste measured 2026-10-18; full console archive PENDING, not on file). |
 
 Read the README table straight (source: `README.md`): fp16 KV did
 91.9 max / 55.4 low / ~61.5 avg tok/s (41 turns), q8_0 KV did 86.5 max /
-56.3 low / ~61.4 avg tok/s (48 turns), q4_0 KV did the q4-001 row above.
+56.3 low / ~61.4 avg tok/s (48 turns), q4_0 KV did the q4-001 row above. LOGGED, log on file.
 Quantization buys no decode speed here; maxima are single-turn peaks within
 noise and averages come from different agent trajectories. What q4_0 buys is
 room — see `docs/KV_CACHE.md` for the layer math.
@@ -228,4 +233,6 @@ Explicitly not covered, not tested, not documented beyond this list:
   decode tok/s over 159 turns, prefill 17,664 tok in ~20 s (~0.88K tok/s),
   expert cache 13.5–62.2%, max ctx 106,510/131,072 no OOM; full console
   archive PENDING (not on file). Q4-MTP +
-  Vision test queued next. No verdict beyond the owner's quoted words (§5).
+   Vision test queued next. No verdict beyond the owner's quoted words (§5).
+
+← [Prev](MODELS.md) · [Index](INDEX.md) · [Next](KV_CACHE.md) →

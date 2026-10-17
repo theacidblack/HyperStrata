@@ -3,6 +3,7 @@
 #   python tools/make_tiny_model.py
 bench/tiny-*.gguf
 bench/wide-*.gguf
+data/**/*.gguf
 bench/micro/*.exe
 bench/micro/*.obj
 bench/micro/*.bin

@@ -1,3 +1,8 @@
+← [Prev](BATCHING.md) · [Index](INDEX.md) · [Next](LLAMA_SWAP.md) →
+
+*Needs: two or more NVIDIA GPUs · Gives: layer-split run across cards · Next: LLAMA_SWAP.md*
+*Run 10/13*
+
 # HyperStrata on two or more GPUs (layer split)
 
 > Upstream multi-GPU archive — untested in THIS fork (README: Windows + NVIDIA single card). PENDING.
@@ -440,3 +445,5 @@ Not done yet:
 - Only two cards under Linux have run it. Three cards and Windows were not tried.
 - A long prompt with experts outside VRAM, and an answer, have the cards take turns (above). The other engine's
   chunk pipeline, `--pipeline-windows`, `"split_skip_if_fits"` and its `STRATA_*` variables are not in strata-poly.
+
+← [Prev](BATCHING.md) · [Index](INDEX.md) · [Next](LLAMA_SWAP.md) →

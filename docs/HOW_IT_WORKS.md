@@ -1,3 +1,8 @@
+← [Prev](DETAILS.md) · [Index](INDEX.md) · [Next](IMAGES.md) →
+
+*Needs: technical reference from DETAILS skimmed · Gives: PC-wide expert sharing in plain words · Next: IMAGES.md*
+*Run 6/13*
+
 # How does HyperStrata work?
 
 Models like Qwen3.8-Flash-Next normally run on servers with hundreds of gigabytes of graphics memory. Your graphics
@@ -39,16 +44,16 @@ This works the same on NVIDIA (CUDA) and AMD (HIP) cards: the same engine, compi
 - **Guess, then check.** A small, fast helper built into the model guesses the next few words, and the big model
   checks all the guesses in one go. It keeps the ones it agrees with and writes the next word itself - so one step
   often produces several words. The helper only guesses - the big model decides every word - so you get the same
-  quality answer, 1.6-1.8x sooner.
+   quality answer, 1.6-1.8x sooner (general MTP behavior).
 - In technical terms: the model's own MTP layer drafts up to 3 tokens; one pass over all 48 layers checks them, 2.4-3.2
-  tokens per pass on average. When the reply repeats the context (code edits, quoted text), **prompt lookup** drafts
+   tokens per pass on average (general MTP behavior). When the reply repeats the context (code edits, quoted text), **prompt lookup** drafts
   up to 5 tokens from the earlier copy, but only where its measured acceptance and cost say it pays: code edits 6-11%
-  faster, other text unchanged. The drafts are checked like the MTP's, so the output is the same.
+   faster, other text unchanged (general behavior). The drafts are checked like the MTP's, so the output is the same.
 
 ## Reading long texts
 
 **Long texts are read in big pieces** (up to 8,192 tokens - pieces of words - at a time), which is why a long
-document or code base is read at over 1,000 tokens per second. The experts of the next layer stream to the GPU over
+document or code base is read at over 1,000 tokens per second (general behavior). The experts of the next layer stream to the GPU over
 PCIe while the current layer's attention runs. After the first message, HyperStrata keeps the conversation and reads only
 what is new, so follow-ups start in seconds.
 
@@ -79,3 +84,5 @@ HyperStrata is open source under the [MIT License](../LICENSE). A few parts carr
 (MIT, llama.cpp / ggml), the web app's font (SIL Open Font License 1.1) and the experimental speed projection's
 vector in `data/experimental-speed-projection` (Qwen Community License 1.0, from the model's activations). The
 models are not part of this repository; each model's own license applies to its files.
+
+← [Prev](DETAILS.md) · [Index](INDEX.md) · [Next](IMAGES.md) →

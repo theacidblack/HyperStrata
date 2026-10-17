@@ -1,3 +1,8 @@
+← [Prev](HOW_IT_WORKS.md) · [Index](INDEX.md) · [Next](MCP_SERVER.md) →
+
+*Needs: working server · Gives: /v1/images endpoint via Qwen-Image-2.1-Turbo (opt-in) · Next: MCP_SERVER.md*
+*Run 7/13*
+
 # Image generation (Qwen-Image-2.1-Turbo)
 
 > Upstream archive — untested in THIS fork, see COVERAGE §6.
@@ -88,3 +93,5 @@ Seconds per image through the API, Q8_0, 8 steps (one `sd-cli` process per image
 
 On the 780M HIP is faster but runs through the ROCm path whose queue evictions reset this GPU on current firmware
 (a driver/firmware defect, not this feature; no reset was seen in these image runs); Vulkan is setup's default there, `--image-backend hip` picks HIP.
+
+← [Prev](HOW_IT_WORKS.md) · [Index](INDEX.md) · [Next](MCP_SERVER.md) →

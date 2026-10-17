@@ -1,3 +1,8 @@
+← [Prev](Q8_KV.md) · [Index](INDEX.md) · [Next](DETAILS.md) →
+
+*Needs: KV setup chosen, engine running · Gives: engine layout, model recognition, switching models · Next: DETAILS.md*
+*Run 4/13*
+
 # Models and backends
 
 Upstream strata-poly runs several families. This fork measures Qwen3.6-35B-A3B only. This page says which, how the engine is put together so that it can,
@@ -100,7 +105,7 @@ The five new models read pictures. Say yes to setup's question about images, or 
 ./setup.sh --family gemma4 --vision yes
 ```
 
-Setup then downloads the model's image encoder too (0.9 GB, Gemma 4's 1.2 GB), compiles `hyper-vision` beside
+Setup then downloads the model's image encoder too (0.9 GB, Gemma 4's 1.2 GB), compiles `strata-vision` beside
 the engine and writes both into the run config. On the GPU the encoder holds 1.6 GB of VRAM (Gemma 4's 2.4 GB),
 which a small card needs for the model, so on a card with less than 16 GB it runs on the CPU and a picture takes
 a few seconds. `--vision gpu` and `--vision cpu` choose the place. GLM 5.3 Flash reads no pictures.
@@ -122,7 +127,7 @@ lines is a backend to the server. Changing the model stops the child and starts 
 memory and its file mappings are given back by the operating system when the process ends, not by cleanup code
 that could miss something.
 
-A picture goes through a second child, `hyper-vision`: llama.cpp's image code with the model's encoder file. It
+A picture goes through a second child, `strata-vision`: llama.cpp's image code with the model's encoder file. It
 turns the picture into rows as wide as a token's embedding. The server puts one placeholder token a row into the
 prompt and sends `GENI` with the rows' file and `image_pad=`, the placeholder's id; the engine reads a row where
 a placeholder stands. The template says where a picture goes: Qwen's writes the tokens around it, Gemma 4's
@@ -157,7 +162,7 @@ An architecture is a class derived from `Engine` (`Glm5Next`, `Qwen35`, `Gemma4`
 
 A layer's own weights live in the class's `Block`, one a layer, beside the shared `Layer`. The engine calls a hook
 once a layer or once a call, never inside a kernel, so the calls cost nothing that can be measured: GLM writes at
-the same speed before and after the split (51.8, 50.6 and 46.1 tokens/s against 50.7, 49.5 and 45.8).
+the same speed before and after the split (51.8, 50.6 and 46.1 tokens/s against 50.7, 49.5 and 45.8; upstream measurement).
 
 Nothing in the shared code asks which model it runs. What differs between architectures is a hook or a value the
 architecture sets (`gelu_` for the experts' activation, the distance between experts in a fused tensor).
@@ -276,7 +281,7 @@ All three ways go through `Service.switch_model()` in the server. A switch:
 5. on failure starts the earlier model again and says which one is loaded
 6. on success takes over the new model's tokenizer, chat template, stop tokens, sampling defaults and aliases
 
-Measured: 8 to 16 s a switch between the four models on the machine above, with their files in the page cache.
+Measured: 8 to 16 s a switch between the four models on the machine above, with their files in the page cache (upstream measurement).
 
 With `"memory_debug": true` in a run config, or `STRATA_MEMORY_DEBUG=1`, a switch prints the free VRAM before it,
 after the old engine ended and with the new one:
@@ -1995,3 +2000,5 @@ Setup knows the files in the table above. Another file of one of these architect
 - No test runs the engine without a GPU and the model files: what is said of it here was measured by hand on the
   two machines.
 - The benchmark's VRAM and RAM figures are the machine's, not the engine's alone.
+
+← [Prev](Q8_KV.md) · [Index](INDEX.md) · [Next](DETAILS.md) →

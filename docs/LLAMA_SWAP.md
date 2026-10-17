@@ -1,3 +1,8 @@
+← [Prev](MULTI_GPU.md) · [Index](INDEX.md) · [Next](LOGIT_BIAS.md) →
+
+*Needs: installed HyperStrata, llama-swap · Gives: HyperStrata as one llama-swap model · Next: LOGIT_BIAS.md*
+*Run 11/13*
+
 # Running HyperStrata behind llama-swap
 
 [llama-swap](https://github.com/mostlygeek/llama-swap) puts several model servers behind one address and starts the one a
@@ -64,3 +69,5 @@ otherwise, so HyperStrata thinks at its highest level (seen by logging the reque
 `low`) in the client's environment changes it. One measurement, for scale only: on one real coding task in our setup,
 `medium` finished in 6.5 min against 9.7 min at `high`, both correct; `low` took 10.1 min (more trial-and-fix steps).
 One run each -- not a general result.
+
+← [Prev](MULTI_GPU.md) · [Index](INDEX.md) · [Next](LOGIT_BIAS.md) →

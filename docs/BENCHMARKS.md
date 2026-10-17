@@ -1,8 +1,15 @@
+← [Prev](LOGIT_BIAS.md) · [Index](INDEX.md) · [Next](COMMUNITY_BENCHMARKS.md) →
+
+*Needs: reference rig, finished bench runs · Gives: measured gen/prefill rates and SHIP verdicts · Next: COMMUNITY_BENCHMARKS.md*
+*Run 13/13*
+
 # Qwen3.6-35B-A3B benchmarks on RTX 3070 Ti Laptop 8 GB VRAM: q4_0 KV cache runs
 
 The RTS bench builds a mini-RTS browser game (Three.js + vanilla JS/CSS/HTML) in four phases — scaffold + scene, units + orders, combat + objective, playability pass — ending in a SHIP READY verdict or a punch list. Fixed config for every run below: ctx 131072, temp 0.6, thinking cap 4096, 256 MiB VRAM reserve. KV format is the only variable. Rig for all runs: RTX 3070 Ti Laptop 8 GB VRAM + 32 GB DDR5.
 
 ## Results
+
+Canonical table — README, COVERAGE and CHANGELOG link here, never retype numbers.
 
 | Run | Date | Model file | KV | gen tok/s max/low/avg | Prefill | VRAM / experts | Verdict | Provenance |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -12,7 +19,11 @@ The RTS bench builds a mini-RTS browser game (Three.js + vanilla JS/CSS/HTML) in
 | q5-001 | 2026-10-18 | `UD-Q5_K_M.gguf` (MTP page) | q4_0 + q4_0 draft (`--kv q4_0 --draft-kv q4_0`) | 63.4 / 31.0 / ~42.7 (69 turns) | 17,591 tok in ~15 s (~1.17K tok/s) | expert cache 16.4–64.3% | game verdict pending user, zero errors | server log measured 2026-10-18; game verdict (SHIP/punch-list) pending user |
 | q6-001 | 2026-10-18 | `UD-Q6_K.gguf` (base page, no MTP, `--no-draft`) + Vision server (mmproj-Q8_0, CPU encoder, `images on`) | KV flags not stated in source | 55.8 / 13.5 / ~35.5 (159 turns, mean of done-line rates; wall secs include prefill on big-context turns) | 17,664 tok in ~20 s (~0.88K tok/s) initial; late-run prefills 100+s (swap pressure, owner-diagnosed) | expert cache 13.5–62.2%; max ctx 106,510/131,072, no OOM | Owner verdict (quoted): "Q6 worth using without Vision; usable with Vision too; lowest dip at swap page." SHIP/punch-list NOT stated | Chat paste measured 2026-10-18, no-Playwright game-build run; full console archive PENDING; reference ~30 tok/s (llama.cpp, same file/ctx) is NOT our run |
 
+<details><summary>Run notes</summary>
+
 Notes: fp16-001 hit the thinking cap once (4096, wrapped cleanly). q8-001 never hit the cap. q4-001 cap-hit claim UNVERIFIED (no log). q5-001 ran 69 turns (40,734 tokens / 954 s), context past 69K prompts, no condensation, zero cancel=True. Averages come from different agent trajectories, so cross-row avg/max deltas are noise, not rankings.
+
+</details>
 
 ## Not yet run
 
@@ -25,3 +36,5 @@ Notes: fp16-001 hit the thinking cap once (4096, wrapped cleanly). q8-001 never 
 ## Docs honesty
 
 Every number above carries its source in the Provenance column. Numbers without a server log on file are marked reported, not measured. PENDING means code-done-unmeasured: the loader accepts the file, no live run has happened. No lemma or projected numbers appear here.
+
+← [Prev](LOGIT_BIAS.md) · [Index](INDEX.md) · [Next](COMMUNITY_BENCHMARKS.md) →

@@ -1,3 +1,8 @@
+← [Prev](AI_SETUP.md) · [Index](INDEX.md) · [Next](COVERAGE.md) →
+
+*Needs: installed engine, model choice pending · Gives: right Unsloth UD quant for your RAM · Next: COVERAGE.md*
+*Start 4/4*
+
 # Which model fits 8 GB VRAM + 32 GB RAM (Qwen3.6-35B-A3B Unsloth UD quants)
 
 This page is upstream's Qwen3.8-first guide, kept as archive. This fork measures Qwen3.6-35B-A3B only — see COVERAGE.md for the ladder.
@@ -172,3 +177,5 @@ Qwen family only — nothing outside it is considered yet.
 4B and below: not supported, no plans.
 
 Candidate, not committed, no timeline: Qwen 9B lineup, MTP and without.
+
+← [Prev](AI_SETUP.md) · [Index](INDEX.md) · [Next](COVERAGE.md) →

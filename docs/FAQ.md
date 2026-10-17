@@ -1,3 +1,8 @@
+← [Prev](TROUBLESHOOTING.md) · [Index](INDEX.md) · [Next](../--help.md) →
+
+*Needs: none, browse as needed · Gives: answers on fork, engines, correctness checks · Next: ../--help.md*
+*Measure 4/6*
+
 # Questions people ask
 
 Answers to what people asked about HyperStrata when it was first posted. The numbers are measured on the machines
@@ -81,7 +86,7 @@ People have, on their own PCs. On Reddit, one ran HauhauCS's uncensored Qwen3.6-
 tried here, and another Tiel Coder 35B-A3B, a quantization of Ornith 1.5 that setup now installs (`--family tiel`).
 Their numbers are in the
 [community results](COMMUNITY_BENCHMARKS.md#the-models-polystrata-adds). The engine reads the architecture and the
-weights from the GGUF, so a fine-tune that keeps the architecture of Qwen3.6, Ornith 1.5 or Gemma 4 should run.
+weights from the GGUF, so a fine-tune that keeps the architecture of Qwen3.6, Ornith 1.5 or Gemma 4 may run (untested here, best-effort only).
 Setup only knows the files it offers. To give it another, put the file in a folder under the name of the size
 closest to it, `Qwen3.6-35B-A3B-UD-Q4_K_M.gguf` for a Q4_K_M of Qwen3.6, and run setup with
 `--family qwen36 --model UD-Q4_K_M --gguf-dir <that folder>`.
@@ -160,3 +165,5 @@ On a card that holds most of the model's experts that writes more tokens a secon
 
 Me, and it's MIT licensed. Strata's engine inside it comes from Strata's releases, and the added engine is all in
 `src/poly`.
+
+← [Prev](TROUBLESHOOTING.md) · [Index](INDEX.md) · [Next](../--help.md) →

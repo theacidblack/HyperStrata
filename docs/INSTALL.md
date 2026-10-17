@@ -1,3 +1,8 @@
+← [Prev](HOW-TO-INSTALL.md) · [Index](INDEX.md) · [Next](AI_SETUP.md) →
+
+*Needs: chosen install method from HOW-TO-INSTALL · Gives: detailed agent and manual install steps · Next: AI_SETUP.md*
+*Start 2/4*
+
 # Installing HyperStrata
 
 Canonical entry: **[HOW-TO-INSTALL.md](HOW-TO-INSTALL.md)** — start there. Detail below is kept, not duplicated there.
@@ -7,7 +12,7 @@ Chain: Strata (https://github.com/Niko1221/Strata) → PolyStrata (https://githu
 Installing HyperStrata on Windows + NVIDIA (8+32 tier). Linux/AMD paths are upstream's, untested here. The short version is in the [README](../README.md#how-i-run-it); an AI coding assistant can do all of
 this for you with [AI_SETUP.md](AI_SETUP.md).
 
-> **Guarantee rule (both paths):** only the models on the coverage list (`docs/COVERAGE.md` §§1-3: Unsloth Qwen3.6-35B-A3B GGUFs, MTP page + base page) are expected to run. Anything else is not guaranteed — engine changes can break what upstream once supported.
+> **Guarantee rule (both paths):** only house-model UD-Q4_K_M with MTP is expected to run. Rest of coverage list (`docs/COVERAGE.md` §§1-3) is oracle-only/occasional, never gating. Anything else is not guaranteed — engine changes can break what upstream once supported.
 
 ## Path A — an agent installs it for you (recommended)
 
@@ -24,13 +29,12 @@ Same guarantee rule as Path A: only `docs/COVERAGE.md` §§1-3 models are expect
 
 1. Prereqs: Windows 10/11 x86-64, a current NVIDIA driver, free disk for tens of GB of model files. `START-HERE.bat` installs Python 3.12 for your user account when missing — the driver is the only thing you install yourself.
 2. Get the source: `git clone https://github.com/theacidblack/HyperStrata.git`, or download the zip and unzip it.
-3. Install: `START-HERE.bat --yes --family qwen36 --model UD-Q4_K_M --context 131072 --gguf-dir <folder-with-the-gguf> --no-start` (command shape: `README.md` How I run it; flags: `setup.py`). Without `--gguf-dir`, setup downloads instead. Setup provides the engine in `engine-hyper/` (`BUILD.json` stamp; `setup.py` `build_engine_poly` / `get_poly_prebuilt`). PENDING: no standalone `BUILD_HYPER.bat` exists yet — `setup.py` already writes a lowercase `build-hyper.bat` during compiles (same file on Windows), so a second build bat waits on that clash being resolved.
+3. Build: `BUILD_HYPER.bat` builds `engine-hyper\hyper.exe` from stock CUDA into `build-hyper\` (`-j8`, `--help` smoke); `CUDA_ARCH` per card (75 RTX20 / 86 RTX30 ref / 89 RTX40 / 120 RTX50, multi for unknown). Then install: `START-HERE.bat --yes --family qwen36 --model UD-Q4_K_M --context 131072 --gguf-dir <folder-with-the-gguf> --no-start` (command shape: `README.md` How I run it; flags: `setup.py`). Without `--gguf-dir`, setup downloads instead. Alternative engine path: setup prebuilt in `engine-hyper/` (`BUILD.json` stamp; `setup.py` `build_engine_poly` / `get_poly_prebuilt`).
 4. Config + launcher: copy `examples/model.example.json` + `examples/run-model.example.bat`, make the 3 path edits named in each 5-line header (engine exe, model `.gguf`, optional `.mmproj`), run the bat. It runs `python serve/server.py --engine hyper --config <yours>.json --port 8080 --open` (`serve/server.py` CLI; shape: `run-qwen36-ud-q4_k_m.bat`).
 5. Open `http://127.0.0.1:8080`. Check `curl http://127.0.0.1:8080/health` (says `loaded: true` when ready). Close the server window to stop.
 
 ## PENDING (onboarding only, no dates)
 
-- Standalone `BUILD_HYPER.bat`: missing, see Path B step 3.
 - `--help.md`: not written yet — until then `START-HERE.bat --help` (setup flags) plus `serve/server.py` flags `--engine --config --port --open --host --api-key`.
 - Per-model VRAM budget table: PENDING (`docs/COVERAGE.md` §5). Fit questions go through Path A.
 
@@ -167,7 +171,7 @@ What differs in that build (`STRATA_ISA_FLOOR=avx` or `none`, chosen from the CP
 - Speed: the GPU part is unchanged and the CPU part is slower, so a GPU with more VRAM (more experts cached there)
   helps most. With the older paths forced on a Ryzen 5 7600 + RTX 5070 and the expert cache held at 1500 slots, greedy
   decode went from 26 to 11-17 tok/s with the AVX build and to 3.5-3.8 tok/s with the SSE4.2 build (Coder and IQ3_XXS,
-  10 prompts each, one run). An old Xeon with DDR3 will be slower than these.
+  10 prompts each, one run; REPORTED-upstream, no run id/log on file). An old Xeon with DDR3 will be slower than these.
 - Untested on a real old CPU by us. It was checked here by forcing the older paths on a Ryzen 5 7600
   (`STRATA_FORCE_ISA=avx` or `sse`): the answers were sane and passed the engine's checks, but not the same token for
   token as the normal build (ggml-cpu rounds the CPU experts differently, as the AVX2 kernel does from the AVX-512
@@ -214,7 +218,7 @@ says so and starts the engine you had.
   wherever `--data-dir` put them.
 - **Where that data folder is:** `%APPDATA%\HyperStrata\settings.json` on Windows, `~/.config/hyperstrata/settings.json` on
   Linux (new paths only, no fallback; [details](DETAILS.md#before-you-start)).
-- **The program itself:** `.venv/`, `engine/` and `third_party/` in the HyperStrata folder.
+- **The program itself:** `.venv/`, `engine-hyper/` and `third_party/` in the HyperStrata folder.
 - **Where github.com cannot be reached:** a build from source downloads llama.cpp's source (ggml, gguf-py) from
   GitHub at the commit `LLAMA_CPP_COMMIT` in `setup.py` names. Put that commit's tree in `third_party/llama.cpp`
   yourself (from a mirror or another PC) and setup uses it instead (#585).
@@ -308,3 +312,5 @@ the copy from hf-mirror.com.
 
 On Linux the same options go to `./setup.sh`. `START-HERE.bat --help` lists them all. The server's own settings
 (sharing the GPU with games, MCP tools, CORS, API keys, the API itself) are in the [details](DETAILS.md#using-it).
+
+← [Prev](HOW-TO-INSTALL.md) · [Index](INDEX.md) · [Next](AI_SETUP.md) →

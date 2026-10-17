@@ -501,7 +501,7 @@ first decode round, so it is a once-per-process cost, not lost throughput. Ruled
    a native pack (`tools/iq_pack.py`, 6 s), the original model's expert profile, the same MTP draft layer. 18,329 of
    24,576 experts in VRAM (24.6 GiB), 6,247 in the pinned host mirror (8.4 GiB, 9 s to fill), host RAM never below
    12 GB free. **Decode 50.8 tok/s** on the 19-token prompt and **60.6** after 2,184 tokens, prompt 549 tok/s;
-   coherent, correct answers on both. Q2_0 and Swift 1.5 (similar size) should behave the same; IQ3_XXS/IQ3_S
+   coherent, correct answers on both. Q2_0 and Swift 1.5 (similar size) are untested here, expected-similar only, not measured; IQ3_XXS/IQ3_S
    (43-50 GB of experts) would need 19-26 GB mirrored, more than 23 GB of RAM allows.
 
 **Keeping up with upstream.** A merge of upstream `main` into `b70` leaves the copies in `sycl/` behind

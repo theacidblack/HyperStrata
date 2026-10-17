@@ -1,3 +1,5 @@
+← [Prev](--help.md) · [Index](docs/INDEX.md) · [Next](CONTRIBUTING.md) →
+
 # Changelog — HyperStrata
 Keywords: Qwen3.6-35B-A3B MoE GGUF, Unsloth UD quantization, q4_0 KV cache, 8 GB VRAM Windows CUDA local inference.
 
@@ -16,6 +18,9 @@ Exception: `v0.1.45` below predates the scheme and stays PARKED, do not use as b
 read it as "aligned to upstream `0.1.44.1`, serial 0".
 
 ## [Unreleased]
+
+> [!NOTE]
+> Lab notebook: every number carries provenance. REPORTED outranks nothing.
 
 ### Changed
 
@@ -51,7 +56,7 @@ read it as "aligned to upstream `0.1.44.1`, serial 0".
 
 - UD full-ladder decode present in code for all 44 files (both pages):
   Header probe 2026-10-17 (workspace-only, artifacts not in repo) found no unsupported type id in the 44 probed files. Decode-kernel need PENDING the 228-cell oracle + live runs; all non-q4-001 files code-complete-unmeasured.
-  Hardware runs after our changes: q4-001 (UD-Q4_K_M + q4_0 KV) only.
+  Hardware runs after our changes: q4-001 (UD-Q4_K_M + q4_0 KV) only — REPORTED, no log, PENDING verification.
   All other files: loader accepts file per 2026-10-17 probe; decode/fast-path pinned only by PENDING 228-cell oracle + PENDING live runs.
 - MTP delta is wired: 20 draft tensors per MTP file
   (`7×F32 + 8×Q8_0 + 2–3×recipe + 2×BF16`) covered by `load_drafter`,
@@ -150,3 +155,5 @@ above, which is the canonical q4_0 tag.
   byte-identical per poly_kv_q8_test 12/12 short-prompt check + review trace post-f72a15e9; re-run poly_kv_q8_test + poly_attend_test after any engine edit; `--kv` / prompt-batch handling unchanged.
 - Frozen baseline kept at upstream commit 51dc2427 (baseline lives in git history); no further syncs,
   clean break per the 8 GB plan.
+
+← [Prev](--help.md) · [Index](docs/INDEX.md) · [Next](CONTRIBUTING.md) →

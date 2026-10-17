@@ -1,3 +1,8 @@
+← [Prev](COVERAGE.md) · [Index](INDEX.md) · [Next](Q8_KV.md) →
+
+*Needs: coverage scope known, defaults running · Gives: KV format knobs, VRAM savings, status · Next: Q8_KV.md*
+*Run 2/13*
+
 # The KV cache formats (`hyper --kv`, `--draft-kv`)
 q4_0 KV cache cuts Qwen3.6-35B-A3B KV memory to 9/32 of fp16 per row (288 vs 1024 bytes) — what fits on 8 GB VRAM.
 
@@ -128,4 +133,6 @@ slower on quantized drafts, slowness alone is not gated). Frozen-fixture decode 
   mixed-knob engine test (`draft_race_test.cpp`).
 - `setup.py` — the `--kv` / `--draft-kv` writer, reader, and keep-paths.
 - Docs — this file for the formats and knobs; the q8_0 measurements stay in [Q8_KV.md](Q8_KV.md), which
-  is frozen and measurement-bound.
+   is frozen and measurement-bound.
+
+← [Prev](COVERAGE.md) · [Index](INDEX.md) · [Next](Q8_KV.md) →

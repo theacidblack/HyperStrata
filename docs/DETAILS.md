@@ -1,3 +1,8 @@
+← [Prev](BACKENDS.md) · [Index](INDEX.md) · [Next](HOW_IT_WORKS.md) →
+
+*Needs: backend and model in place · Gives: speeds, API, settings, engine reference · Next: HOW_IT_WORKS.md*
+*Run 5/13*
+
 # HyperStrata - the details
 
 The technical side of HyperStrata: every measured number, the API, images, all settings and how the engine works.
@@ -431,13 +436,13 @@ Everything else is installed for you the first time.
 
 | | |
 | --- | --- |
-| GPU | NVIDIA **RTX 20, 30, 40 or 50 series**, **12 GB VRAM or more** (8 GB runs, slowly). Measured on an RTX 5070 and an RTX 3090; RTX 20 (Turing, since 0.1.27) was tested by a contributor on an RTX 2070. Or AMD **Radeon RX 7900 XT / XTX, RX 7800 XT / 7700 XT, RX 9060 XT, RX 9070 / 9070 XT, Radeon AI PRO R9700, RX 6800 / 6900 series**: [AMD_HIP.md](AMD_HIP.md). |
-| RAM | **64 GB** recommended (see the table above). |
+| GPU | NVIDIA **RTX 20, 30, 40 or 50 series**, **12 GB VRAM or more** (upstream number; this fork runs Qwen3.6-35B-A3B on 8 GB VRAM — reference rig RTX 3070 Ti Laptop 8 GB). Measured on an RTX 5070 and an RTX 3090; RTX 20 (Turing, since 0.1.27) was tested by a contributor on an RTX 2070. Or AMD **Radeon RX 7900 XT / XTX, RX 7800 XT / 7700 XT, RX 9060 XT, RX 9070 / 9070 XT, Radeon AI PRO R9700, RX 6800 / 6900 series**: [AMD_HIP.md](AMD_HIP.md). |
+| RAM | **64 GB** recommended upstream (see the table above); this fork: 32 GB DDR5 on the reference rig. |
 | CPU | x86-64 with AVX2 (any Intel/AMD desktop CPU from the last ~8 years). AVX-512 (Ryzen 7000/9000) is a bit faster. Older CPUs without AVX2 are experimental and slow: [Older CPUs](INSTALL.md#older-cpus-experimental). |
 | Disk | ~70-80 GB free for the model, ~6 GB for the MTP layer (+1 GB with images). **Q2_0 on an AVX-512 CPU** also writes a one-time ~40 GB pack for the fast CPU kernel (34 GB of experts in its layout, plus the dense weights). An NVMe SSD is strongly recommended. |
 | OS | Windows 10/11, or Linux (Ubuntu 22.04/24.04 and Debian 12/13 get everything installed automatically). |
 
-What the first start installs: in this folder `.venv/`, `engine/` and `third_party/`; the model files (`models/`,
+What the first start installs: in this folder `.venv/`, `engine-hyper/` and `third_party/`; the model files (`models/`,
 `packs/`, `mtp/`, 70-120 GB) in **`HyperStrata-data` next to this folder** (a `PolyStrata-data` folder from before the
 rename is discovered and reused in place), so a new copy of HyperStrata (an update unzipped
 elsewhere) finds them and sets itself up the same way. The place is remembered per user (`%APPDATA%\HyperStrata\settings.json`,
@@ -1994,7 +1999,7 @@ HyperStrata itself: [MIT](../LICENSE). The model files are not part of it; their
 
 ### Start the API without loading the model
 
-`serve/server.py --engine strata --config strata-<model>.json --lazy` (or `"lazy_load": true` in that
+`serve/server.py --engine hyper --config hyper-<model>.json --lazy` (or `"lazy_load": true` in that
 config) starts the lightweight HTTP API without starting the native engine or the vision encoder. The first
 generation request, or `POST /load`, starts the vision encoder first when configured, then loads the engine through
 the existing reload path, including `before_load` and `min_free_vram_mib`. This also works with image requests:
@@ -2074,3 +2079,5 @@ under `compute-sanitizer --tool memcheck --error-exitcode 86`. Build with
 signal, early cleanup and `--errors` error-propagation checks. Its `--synchronous`
 mode is the negative control under memcheck: an eight-second watchdog releases
 the original launch/service deadlock and the test fails.
+
+← [Prev](BACKENDS.md) · [Index](INDEX.md) · [Next](HOW_IT_WORKS.md) →

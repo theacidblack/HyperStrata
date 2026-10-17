@@ -1,3 +1,5 @@
+← [Prev](docs/FAQ.md) · [Index](docs/INDEX.md) · [Next](CHANGELOG.md) →
+
 # Launcher flags reference (`--help.md`)
 
 How to build a launcher JSON: the JSON carries engine flags in
@@ -13,7 +15,7 @@ Shape reference (placeholders only — put your own paths here):
 
 ```json
 {
-  "exe": "<engine-folder>\\strata-poly.exe",
+  "exe": "<engine-folder>\\hyper.exe",
   "args": [
     "--model", "<models-folder>\\Qwen3.6-35B-A3B-UD-Q4_K_M.gguf",
     "--max-context", "131072",
@@ -48,10 +50,20 @@ instead of `--draft-kv`, and has no `reasoning_budget_tokens` or
 
 ---
 
+Most-used flags (kept visible):
+- `--model <file>` — which weight file loads (`--config` names the launcher JSON on every real start)
+- `--max-context 131072` — tokens the caches hold (prompt + answer together)
+- `--kv q4_0` / `--draft-kv q4_0` — the VRAM knob (main + draft KV format)
+- `sampling.temperature 0.6` + `reasoning_budget_tokens 4096` — the two text knobs worth turning
+- `"port": 8080` — where the server listens
+
+<details><summary>All flags</summary>
+
 ## 1. Engine launch flags (`args` array — what the engine does)
 
 These live inside the JSON `"args"` list. Source of truth is the
 engine's own usage text in `src/poly/main.cpp`.
+Checked against hyper.exe --help output captured 2026-10-17.
 
 ```json
 "args": [
@@ -69,6 +81,7 @@ engine's own usage text in `src/poly/main.cpp`.
 | --- | --- | --- |
 | `--model FILE.gguf` (`src/poly/main.cpp:1031`) | Which weight file loads. | Only to point at a different downloaded file. Usually never. |
 | `--serve` (implied by server; `src/poly/main.cpp:1031`) | Runs resident behind `serve/server.py` instead of one-shot `--tokens`. | Never — the server adds it. |
+| `--tokens ID,...` / `--max-new N` (`src/poly/main.cpp:1031`) | One-shot run from token ids; `--max-new` caps how many new tokens are written. | Never in a launcher (server uses `--serve`). |
 | `--max-context N` (`src/poly/main.cpp:1032`, default `8192`) | Tokens the attention caches hold (prompt + answer together). Setup writes e.g. `131072`. | Only when you need longer chats AND have the VRAM/RAM. Bigger = more KV memory. Usually never. |
 | `--threads N` (`src/poly/main.cpp:1033`, default all usable) | CPU threads for experts not in VRAM. | Usually never (setup picks it). |
 | `--vram-reserve-mib N` (`src/poly/main.cpp:1034-1037`) | VRAM left free beside the expert cache (min 256). Setup default `256`; engine fallback auto-sizes. | Only if another program (game, second server, GPU vision) needs room. Raise to free VRAM, lower to fit more experts. |
@@ -97,9 +110,13 @@ engine's own usage text in `src/poly/main.cpp`.
 | `--conversation-cache-min-tokens N` (`src/poly/main.cpp:1083`, default `1024`) | Shorter conversations are not parked. | With the above. Usually never. |
 | `--conversation-cache-min-free-mib N` (`src/poly/main.cpp:1084-1085`, default `2560`) | Parks only while this much RAM stays free. | With the above. Usually never. |
 | `--batch N` / `--slots N` (`src/poly/main.cpp:1086-1088`, default `0` = one at a time, max `8`) | N answers written together. JSON key `"parallel"` writes `--batch` for you (`serve/server.py:2651-2669`, cap `serve/server.py:2648`). | Opt-in for serving several people. Usually never (each slot takes expert-cache VRAM). |
+| `--check-batch K` (`src/poly/main.cpp:1089-1090`) | With `--tokens` and `--batch` K or more: answers K prompts alone then together, compared token by token. | Never in a launcher. |
 | `--eos-ids ID,...` (`src/poly/main.cpp:1091`, default GGUF's eos/eot/eom) | Tokens that end a reply. | Usually never. |
 | `--temperature F --top-k N --top-p F --min-p F --seed N` (`src/poly/main.cpp:1092`, default greedy) | Sampling for one-shot `--tokens` runs only. Server requests carry their own (section 4). | Never in a launcher. |
 | `--images FILE` / `--image-pad ID` (`src/poly/main.cpp:1093-1094`) | One-shot picture input / placeholder token. | Never in a launcher (server `vision` section handles images). |
+| `--dump-layers` (`src/poly/main.cpp:1095`) | Prints a checksum of every layer's stages to stderr. | Diagnostics only. Usually never. |
+| `--top-probs N` (`src/poly/main.cpp:1096`) | With `--tokens`: prints the N most likely ids of every step to stderr. | Diagnostics only. Usually never. |
+| `--follow ID,...` (`src/poly/main.cpp:1097-1098`) | With `--tokens`: writes these tokens in place of the ones picked, for `--top-probs` of the same answer under other settings. | Diagnostics only. Usually never. |
 | `--tail-skip N` (`src/poly/main.cpp:1099-1101`, default `0`; setup gives Qwen3.6 `6`) | Skips a rarely-used off-VRAM expert: faster, answers move a little. `STRATA_ROUTE_TAIL_SKIP=N` env does the same (`src/poly/main.cpp:1102`; `0` turns it off). | Usually never (setup sets the family value). |
 | `--expert-profile-save P` / `--expert-profile-save-every MIN` (`src/program/generate.cpp:869-872`, default every 10, `0` = at QUIT only) | Saves what the adaptive tier learned. JSON keys `expert_profile_save` / `expert_profile_save_every` (`serve/server.py:2687+`). | Opt-in. Usually never. |
 | `--vram-elastic` / `--vram-segment-mib N` (JSON `vram_elastic` / `vram_segment_mib`, `serve/server.py:2637-2643`, default segment `512`) | Expert cache in segments so `/v1/vram` can lend VRAM out and back. | Opt-in. Usually never. |
@@ -157,7 +174,7 @@ Top-level launcher keys. Types: `str` = text, `int`/`num` = number,
 
 ```json
 {
-  "exe": "<engine-folder>\\strata-poly.exe",
+  "exe": "<engine-folder>\\hyper.exe",
   "args": ["--model", "<models-folder>\\model.gguf"],
   "cwd": "<install-folder>",
   "tokenizer": "<data-folder>\\packs\\model\\tokenizer",
@@ -184,7 +201,7 @@ Top-level launcher keys. Types: `str` = text, `int`/`num` = number,
 | `"port"`, `"host"`, `"gpu"` | `int` / `str` / `int\|list\|str` | See section 2. |
 | `"layer_split"` (`serve/server.py:2572-2602`) | `"auto"` or e.g. `"18"` / `[18, 32]`; default `"auto"` | First layer of each later GPU (counts per card are rejected with an example). |
 | `"backend"` (`serve/server.py:2811,2834,7304`) | `"cuda"` / `"hip"` | Which GPU stack's readings/visibility apply. |
-| `"vram_reserve_mib"` (`serve/runconfig.py:41-42`) | `int>=0`, engine default `700` | Same as `--vram-reserve-mib` but editable from Settings; stored into `args`. |
+| `"vram_reserve_mib"` (`serve/runconfig.py:41-42`) | `int>=0`, engine default auto-sized (a thirty-second of the card, 256-768; or a sixteenth, 512-1024, when free RAM is within 4 GiB of the model files), min 256 | Same as `--vram-reserve-mib` but editable from Settings; stored into `args`. |
 | `"parallel"` (`serve/server.py:2651-2669`) | `int`, default off | Up to N requests decode together (`--batch N`, max `8`). `1`/absent = one at a time. |
 | `"vram_elastic"` / `"vram_segment_mib"` (`serve/server.py:2637-2643`) | `bool` / `int`, default off / `512` | Segmented expert cache for `/v1/vram` lending. |
 | `"split_skip_if_fits"` (`serve/server.py:2634-2636`) | `bool`, default off | One-card run when the split fits there. |
@@ -391,7 +408,7 @@ python setup.py --family qwen36 --model UD-Q4_K_M --context 131072 --vision yes
 | `--port` / `--host` / `--api-key` / `--browser\|--no-browser` (`setup.py:6959-6977`) | Where it listens, key, browser open. `--host 0.0.0.0` needs `--api-key`. | Exposure changes only. |
 | `--source auto\|huggingface\|modelscope` (`setup.py:6992-6995`) | Download host (China: `modelscope`). | Region-blocked downloads. |
 | `--check` / `--calibrate` / `--update` / `--rollback-engine` / `--setup` / `--no-start` / `--yes` (`setup.py:6983-6990,7005-7007`) | Inspect/tune/update/re-configure without starting. | Maintenance. |
-| `--vram-reserve-mib N` (`setup.py:7021-7023`, engine default `700`) | Same reserve as section 1, set at install. | Shared-GPU installs. |
+| `--vram-reserve-mib N` (`setup.py:7021-7023`, engine default auto-sized: a thirty-second of the card, 256-768, or a sixteenth, 512-1024, when free RAM is within 4 GiB of the model files; min 256) | Same reserve as section 1, set at install. | Shared-GPU installs. |
 
 Build (compile-it-yourself) cmake defines (`CMakeLists.txt`, `setup.py:3358-3363,4315-4332,6146-6208`): `STRATA_ENABLE_CUDA=ON` (NVIDIA) /
 `STRATA_ENABLE_HIP=ON` + `CMAKE_HIP_ARCHITECTURES` (AMD) /
@@ -406,6 +423,8 @@ release) / `STRATA_ISA_FLOOR` (`""`/`avx`/`none`, older CPUs) ·
 compiling for a card the ready-made engine does not cover — usually
 never.
 
+</details>
+
 ---
 
 *Counts: 18 server CLI flags, 30+ engine `args` flags, 10 sampling keys
@@ -417,3 +436,5 @@ timeouts `250-280`), `src/poly/main.cpp` (usage `1029-1102`), `setup.py`
 (CLI `6912-7038`; sizes `268-610`; KV `770`; build `3358-4332`),
 `serve/runconfig.py` (editable keys `19-43`), `CMakeLists.txt`
 (`12-92,153-204`).*
+
+← [Prev](docs/FAQ.md) · [Index](docs/INDEX.md) · [Next](CHANGELOG.md) →

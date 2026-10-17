@@ -2,7 +2,7 @@
 
 # HyperStrata
 
-Local AI chat on your own PC. One NVIDIA card, 8 GB VRAM, 32 GB RAM. Nothing leaves your machine.
+Run 35-billion-parameter models on your own PC. One NVIDIA card, 8 GB VRAM, 32 GB RAM. Nothing leaves your machine. You bring the model files — HyperStrata is the engine that runs them, never ships them.
 
 Tested with two model files: Qwen3.6-35B-A3B in Q4_K_M and Q5_K_M (MTP versions). Both measured here, logs on file. Bigger sizes and vision run too, but no release depends on them.
 

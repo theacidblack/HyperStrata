@@ -3,7 +3,7 @@ name: ci-preview
 # Private-repo gate for branch preview: everything ci-dev runs, plus the
 # linearity gate (preview only moves forward from dev). No GPU, no build;
 # shaped to finish in under 10 minutes on windows-latest.
-on:
+"on":
   push:
     branches: [preview]
 

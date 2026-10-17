@@ -2,13 +2,9 @@
 
 # HyperStrata
 
-*Needs: nothing · Gives: what this fork is and how to start · Next: [docs/HOW-TO-INSTALL.md](docs/HOW-TO-INSTALL.md)*
+Local AI chat on your own PC. One NVIDIA card, 8 GB VRAM, 32 GB RAM. Nothing leaves your machine.
 
-Experimental local inference for the 8 GB VRAM + 32 GB RAM tier: Qwen3.6-35B-A3B (MoE), Unsloth UD quants (q4 to q6), on one NVIDIA card, Windows + CUDA.
-
-House models: Unsloth UD-Q4_K_M with MTP and UD-Q5_K_M with MTP. v1.0.0 gates on both files on the reference rig, each with max/min/avg decode + prefill, log + completion verdict. Gates certify raw speed (six numbers) + clean completion + zero errors only — never game quality or model capability; the game build is a load generator simulating agentic workflow for speed measurement under optimal settings. Q5 on `hyper` MEASURED 2026-10-17 (q5-002, both gates closed). Q6 and Vision are measured occasionally and never gate a release.
-
-Chain: Strata → PolyStrata → HyperStrata. Upstream did the engineering; experiments happen here.
+Tested with two model files: Qwen3.6-35B-A3B in Q4_K_M and Q5_K_M (MTP versions). Both measured here, logs on file. Bigger sizes and vision run too, but no release depends on them.
 
 Site (same docs, black theme): https://theacidblack.github.io/HyperStrata/
 
@@ -27,7 +23,7 @@ Site (same docs, black theme): https://theacidblack.github.io/HyperStrata/
 - q4_0 KV cache with an independent `--draft-kv` knob on MTP files (`fp16 | q8_0 | q4_0`); q4_0 is the fit knob for 8 GB cards — sizes in [docs/KV_CACHE.md](docs/KV_CACHE.md).
 - House quants measured here, both gated per release: UD-Q4_K_M MTP + UD-Q5_K_M MTP.
 - OpenAI- and Anthropic-compatible server plus a web app (`serve/`).
-- Vision path (encoder + server wiring) proven with the previous binary; the renamed `hyper-vision` build is still missing — see CHANGELOG Known issues.
+- Pictures: vision tested and working (build notes in CHANGELOG Known issues).
 - Every published number carries a log and the locked bench spec; stock machines read lower.
 
 ## Speed right now

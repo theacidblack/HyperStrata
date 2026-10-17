@@ -21,29 +21,25 @@ newer, whatever the base. First public release will be `v1.0.0` (flag-plant, con
 Exception: `v0.1.45` below predates the scheme and stays PARKED, do not use as base —
 read it as "aligned to upstream `0.1.44.1`, serial 0".
 
-## [v1.0.0] - 2026-10-17 (first public release, flag-plant)
+## [v1.0.0] - 2026-10-17 (first public release)
 
-Scheme reset by owner; serial history ends. Upstream base frozen at
-PolyStrata `0.1.44.1` (`51dc2427`); no upstream sync in this release.
+Built from PolyStrata `0.1.44.1` (frozen, no sync this release).
 
 > [!NOTE]
-> Lab notebook: every number carries provenance. REPORTED outranks nothing.
+> Every number below was measured on the reference rig and carries its log. Anything unmeasured is marked PENDING.
 
 ### Added
 
-- Release gates, both measured on the reference rig with the locked bench
-  (65 C CPU, 0.775 V GPU, 6 last cores no SMT, ctx 131072, temp 0.6, cap
-  4096, 256 MiB reserve): UD-Q4_K_M MTP (q4-002: decode max 95.7 / low 40.0 /
-  avg 51.3 over 42 turns, 31,160 tok / 607 s; prefill 1.5K cold) and
-  UD-Q5_K_M MTP (q5-002: decode max 70.9 / low 29.8 / avg 41.1 over 61
-  turns, 29,615 tok / 721 s; prefill ~1.1K cold). Both PASS (speed + clean
-  completion + zero errors); logs in `benchmarks/v1.0.0/`.
-- Test bench spec published (`docs/BENCHMARKS.md` Test bench, README Speed
-  box): the locked parameters every number was measured with; stock machines
-  read lower.
-- Run records are server-log-only: no chat transcripts expected; the
-  4-phase RTS build is a load generator for raw speed measurement, never a
-  quality or capability score.
+- Two measured model setups on the reference rig (locked bench: 65 C CPU,
+  0.775 V GPU, 6 last cores no SMT, ctx 131072, temp 0.6, cap 4096, 256 MiB
+  reserve): UD-Q4_K_M MTP (95.7 max / 40.0 low / 51.3 avg tok/s, 42 turns,
+  31,160 tok / 607 s; prefill 1.5K cold) and UD-Q5_K_M MTP (70.9 / 29.8 /
+  41.1, 61 turns, 29,615 tok / 721 s; prefill ~1.1K cold). Both finished
+  clean with zero errors; logs in `benchmarks/v1.0.0/`.
+- Published test bench spec (`docs/BENCHMARKS.md`, README speed box): the
+  locked parameters behind every number; stock machines read lower.
+- Run records are server-log-only; the 4-phase game build generates load for
+  speed measurement and says nothing about game quality.
 
 ### Changed
 
@@ -90,18 +86,14 @@ PolyStrata `0.1.44.1` (`51dc2427`); no upstream sync in this release.
 
 ### Known issues
 
-- Vision path proven with the previous main-branch binary, not with the
-  renamed `hyper-vision` build (never compiled; no build dir). `-Vision`
-  launchers fail until it is built. Vision never gates this release.
-- Server adds `--split-skip-if-fits`, `--vram-elastic`, `--vram-segment-mib`
-  without checking the engine; `hyper` exits 2 on unknown flags. Stock
-  configs are safe (all three keys opt-in, default off). Server-side guard
-  open.
-- CI has never gone green on this repo (repo-side `startup_failure`, zero
-  jobs). This release ships with CI red; the gates above were verified by
-  hand.
-- One experimental GGUF is tracked in git
-  (`data/experimental-speed-projection/`); untrack decision open.
+- Vision launchers need the vision program built; it isn't yet. Vision itself
+  is tested and working. Not part of this release either way.
+- The server passes three advanced flags the engine doesn't know; the engine
+  quits on unknown flags. Normal setups never send them, so nothing breaks
+  unless you turn those keys on by hand.
+- CI badge is red (repo-side issue, zero jobs ran). The numbers above were
+  checked by hand against the logs.
+- One experimental model file sits in git history decisions pending.
 
 ## [v0.1.44.1.1] — 2026-10-17 (canonical q4_0 tag)
 

@@ -17,9 +17,11 @@ read it as "aligned to upstream `0.1.44.1`, serial 0".
 
 ### Verified
 
-- UD full-ladder decode verified: 40/40 files load. Every probed file uses
-  already-supported type ids — no new decode kernels needed for the ladder.
-  Method: header probe (`ud_probe.py` + `ud_inventory.json`).
+- UD full-ladder decode present in code for all 44 files (both pages):
+  a header probe of the real GGUF files (2026-10-17) confirms every tensor
+  uses an already-supported type id — no new decode kernels needed.
+  Hardware runs after our changes: q4-001 (UD-Q4_K_M + q4_0 KV) only.
+  All other files: code-complete, live runs PENDING.
 - MTP delta is wired: 20 draft tensors per MTP file
   (`7×F32 + 8×Q8_0 + 2–3×recipe + 2×BF16`) covered by `load_drafter`,
   `block_kv`, and the draft-KV knob.

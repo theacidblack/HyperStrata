@@ -1,0 +1,178 @@
+name: ci-dev
+
+# Private-repo gate for branch dev: secrets, sterility, CPU-only Python
+# tests, ISA-guard smoke + naming check, docs-internals. No GPU, no build;
+# shaped to finish in under 10 minutes on windows-latest.
+on:
+  push:
+    branches: [dev]
+  pull_request:
+    branches: [dev]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-dev-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: pwsh
+
+jobs:
+  ci:
+    runs-on: windows-latest
+    timeout-minutes: 9
+    steps:
+      - name: Checkout with full history (leak scan needs it)
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Secret scan of the pushed range (gitleaks)
+        uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python 3.12 (stdlib unittest only, nothing to install)
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Sterility grep over tracked files (fails on hit)
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # File-level exclusions. Every entry was verified by reading to hold only
+          # placeholder / example / fixture paths, never a real local path or secret:
+          # - .github/workflows: this file itself.
+          # - bench/results/: contributor benchmark provenance (D:\AI\..., E:\Projects\...,
+          #   C:\Users\AI-Server, C:\Users\urben, /home/jakub/...).
+          # - docs/DETAILS.md, docs/INSTALL.md, docs/MCP_SERVER.md: documented
+          #   user-substitutable examples (D:\models\..., E:\PolyStrata-data,
+          #   C:\Users\you|me\..., D:\tools\..., D:\PolyStrata-data).
+          # - docs/TROUBLESHOOTING.md: generic system paths (C:\Temp, C:\Windows\...).
+          # - setup.py: drive-letter handling code (CUDA default under C:\Program Files...,
+          #   vswhere fallback, pagefile docstring, normcase comment).
+          # - serve/telemetry.py: C:\Program Files fallback for the nvml.dll lookup.
+          # - serve/test_detok.py, serve/test_slots.py, serve/test_server.py,
+          #   serve/fixtures/rcall_specimens.json: test fixtures (candidate dirs,
+          #   reserved device names, deliberately-bogus Z:\ path, redacted <private-path>).
+          # - .gitignore: lists HyperStrata-data/, .env, *.key as ignore rules, not leaks.
+          # - tools/strata_mcp.py: D:\PolyStrata-data help/error examples.
+          # - tools/test_setup_page_file.py, tools/test_setup_engine_hash.py,
+          #   tools/test_setup_update.py, tools/test_strata_bench.py,
+          #   tools/test_strata_mcp.py, tools/_paths.py: fixtures and fallbacks.
+          # - tools/hip/build_windows.bat: %VAR:\=/% batch substitution, not a path.
+          # - include/strata/core/conversation_file.hpp, src/program/generate.cpp,
+          #   sycl/src/program/generate.cpp: comments describing Windows paths.
+          $excludes = @(
+            ':!.github/workflows',
+            ':!bench/results',
+            ':!.gitignore',
+            ':!docs/DETAILS.md',
+            ':!docs/INSTALL.md',
+            ':!docs/MCP_SERVER.md',
+            ':!docs/TROUBLESHOOTING.md',
+            ':!setup.py',
+            ':!serve/telemetry.py',
+            ':!serve/test_detok.py',
+            ':!serve/test_slots.py',
+            ':!serve/test_server.py',
+            ':!serve/fixtures/rcall_specimens.json',
+            ':!tools/strata_mcp.py',
+            ':!tools/test_setup_page_file.py',
+            ':!tools/test_setup_engine_hash.py',
+            ':!tools/test_setup_update.py',
+            ':!tools/test_strata_bench.py',
+            ':!tools/test_strata_mcp.py',
+            ':!tools/_paths.py',
+            ':!tools/hip/build_windows.bat',
+            ':!include/strata/core/conversation_file.hpp',
+            ':!src/program/generate.cpp',
+            ':!sycl/src/program/generate.cpp'
+          )
+          # Leak shapes: absolute Windows paths (D:\, C:\Users), auth headers with a
+          # real-looking credential (placeholders like <key> / ... cannot match),
+          # api_key/token/secret assignments with a 12+ char value (shell
+          # expansions like "${API_KEY:-}" and short/dummy values cannot match),
+          # token prefixes, private keys, workspace data dir, local GGUF paths.
+          # Secret assignment values are matched in "..." and '...' separately so
+          # the PowerShell quoting stays plain.
+          $patterns = @(
+            '[A-Za-z]:\\',
+            'C:/Users/',
+            'HyperStrata-data/',
+            'Authorization:\s+(Bearer|Basic)\s+[A-Za-z0-9._~+/-]{6,}={0,3}',
+            '(api_key|api-key|apikey|secret|passwd|password)\s*[:=]\s*"[A-Za-z0-9._~+/=-]{12,}"',
+            "(api_key|api-key|apikey|secret|passwd|password)\s*[:=]\s*'[A-Za-z0-9._~+/=-]{12,}'",
+            '(ghp_|gho_|github_pat_|sk-live-|sk-test-|AKIA[0-9A-Z]{16}|xox[bpas]-)',
+            '-----BEGIN [A-Z ]*PRIVATE KEY-----',
+            '[A-Za-z]:[/\\][^\"\s]*\.gguf'
+          )
+          $grepArgs = @('grep', '-n', '-I', '-i', '-E')
+          foreach ($p in $patterns) { $grepArgs += @('-e', $p) }
+          $grepArgs += @('--', '.') + $excludes
+          $hits = & git @grepArgs
+          if ($hits) {
+            Write-Output 'STERILITY VIOLATIONS (absolute paths, secrets, auth headers, local model paths):'
+            $hits | ForEach-Object { Write-Output $_ }
+            exit 1
+          }
+          Write-Output 'sterility: clean'
+
+      - name: Setup tests, NUL-byte scan, guard and naming unit tests
+        run: |
+          # Every tools/test_setup_*.py uses stdlib unittest (no pytest imports
+          # anywhere under tools/), matching each file's own docstring runner
+          # (python -m unittest tools.<name>). All run CPU-only with no
+          # downloads. test_source_nul_bytes scans via git (falls back to a tree
+          # walk); test_check_isa_guard and test_polystrata_names cover the
+          # guard policy and the rename tool without a binary or a build.
+          python --version
+          python -m unittest discover -s tools -p "test_setup_*.py"
+          python -m unittest tools.test_source_nul_bytes tools.test_check_isa_guard tools.test_polystrata_names
+
+      - name: ISA-guard smoke and PolyStrata naming check
+        run: |
+          # The full binary guard needs a built engine and runs in ctest as
+          # isa_guard_check (see CMakeLists.txt); CPU-only CI runs the policy
+          # unit test above plus this --help smoke test. polystrata_names
+          # --check exits 1 when a file still says Strata (uses git ls-files,
+          # so it needs the full checkout above) and changes nothing.
+          python tools/check_isa_guard.py --help
+          python tools/polystrata_names.py --check
+
+      - name: Docs-internals check (fails on hit)
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # Scope: the user-facing surfaces (all four exist in this repo). They must
+          # never point at workspace internals that do not exist for the reader.
+          # The build/ pattern only matches a bare build/ dir token, never the
+          # repo-relative build/<binary> paths the docs legitimately use
+          # (docs/GLM.md, docs/ORCA.md, ...). Absolute-path hits are filtered
+          # against the documented placeholders verified by reading
+          # (C:\Users\you|me\..., D:\models\..., E:\PolyStrata-data,
+          # D:\tools\..., C:\Temp, C:\Windows\..., /home/you/...).
+          $scope = @('README.md', 'docs', 'CHANGELOG.md', 'examples')
+          $files = & git ls-files -- @scope
+          if (-not $files) { Write-Output 'docs-internals: nothing in scope?!'; exit 1 }
+          $hits = @()
+          foreach ($f in $files) {
+            $hits += Select-String -LiteralPath $f -Pattern 'RAW/|AGENTS\.md' -CaseSensitive |
+              ForEach-Object { "INTERNAL $($_.Path):$($_.LineNumber): $($_.Line.Trim())" }
+            $hits += Select-String -LiteralPath $f -Pattern '\.\./(docs|build)/|HyperStrata[/\\](docs|launchers|build|livetesting|RAW)|root docs|(?<![\w\-./\\])(launchers|livetesting)[/\\]|(?<![\w\-./\\])build[/\\](?![\w\-.])' |
+              ForEach-Object { "INTERNAL $($_.Path):$($_.LineNumber): $($_.Line.Trim())" }
+            $paths = Select-String -LiteralPath $f -Pattern '[A-Za-z]:\\|C:/Users/|/home/[A-Za-z0-9_.-]+/'
+            foreach ($m in $paths) {
+              if ($m.Line -notmatch 'Users\\(you|me|Someone|someone_else|<user>)|/home/you/|D:\\(models|tools|PolyStrata)|E:\\(PolyStrata-data|Strata-data)|C:\\(Temp|Windows|Program Files)') {
+                $hits += "LOCALPATH $($m.Path):$($m.LineNumber): $($m.Line.Trim())"
+              }
+            }
+          }
+          if ($hits) {
+            Write-Output 'DOCS-INTERNALS VIOLATIONS (workspace internals or local paths in user-facing docs):'
+            $hits | ForEach-Object { Write-Output $_ }
+            exit 1
+          }
+          Write-Output 'docs-internals: clean'

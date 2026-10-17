@@ -10,7 +10,13 @@ upstream syncs (`v0.1.44.1.1`, ..., `v0.1.45.87`, ...). A higher serial is
 always newer, whatever the base. Exception: `v0.1.45` below predates the
 scheme — read it as "aligned to upstream `0.1.44.1`, serial 0".
 
-## v0.1.45 — 2026-10-17 (first public release)
+## v0.1.44.1.1 — 2026-10-17 (first schemed release)
+
+Same engine, tests, numbers, and docs as `v0.1.45` below, plus the version
+scheme itself (`v<upstream>.<serial>`, serial never resets). This is the
+canonical q4_0 tag; `v0.1.45` stays as the pre-scheme first push.
+
+## v0.1.45 — 2026-10-17 (first public release; superseded by v0.1.44.1.1)
 
 ### Added
 - q4_0 KV cache for the `strata-poly` / qwen35moe engine plus an independent

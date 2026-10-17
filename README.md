@@ -100,7 +100,7 @@ against the ggml oracle (112,010 values, key and value readers) and one full
 live run with zero errors. Details in [`UPSTREAM_DIVERGENCE.md`](UPSTREAM_DIVERGENCE.md)
 (DIV-002) and `docs/KV_CACHE.md`.
 
-## Hardware (everything is tied to this box)
+## Hardware (my laptop is the benchmark)
 
 | Part | Value |
 | --- | --- |
@@ -108,8 +108,11 @@ live run with zero errors. Details in [`UPSTREAM_DIVERGENCE.md`](UPSTREAM_DIVERG
 | RAM | 32 GB (2×16 GB) DDR5-4800 |
 | OS | Windows 10/11, x86-64 |
 
-Assume neither the full 8 GB nor the full 32 GB is usable. Nothing here
-claims to generalize.
+This is the maintainer's personal machine: every number in this repo is measured
+on this box, and all optimization targets this spec — 8 GB VRAM + 32 GB RAM.
+Support stays broad on purpose (NVIDIA RTX Turing and newer all run; see
+`docs/COVERAGE.md`), but speeds on other cards come from the community bench,
+not from us. Assume neither the full 8 GB nor the full 32 GB is usable.
 
 ## Install
 

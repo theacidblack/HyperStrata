@@ -1,8 +1,6 @@
 
 # AGENTS.md
 
-*Needs: code task · Gives: how to contribute and report · Next: none (end of chain)*
-
 HyperStrata is an experimental inference engine for the 8 GB VRAM + 32 GB RAM
 tier: Qwen3.6-35B-A3B (Unsloth UD quants, q4–q6) on one NVIDIA card on Windows,
 via CUDA. Reference rig: RTX 3070 Ti Laptop 8 GB + 32 GB RAM. It has a C++/CUDA

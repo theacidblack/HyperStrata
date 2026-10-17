@@ -3,7 +3,6 @@
 
 # How to install HyperStrata
 
-*Needs: PC specs, install folder, model files location · Gives: built engine, working server, one agent chatting · Next: [MODELS.md](MODELS.md)*
 *Start 1/4*
 
 The one install page. Two ways to the same end: a built engine, a working

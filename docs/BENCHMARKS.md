@@ -2,8 +2,6 @@
 ← [Prev](DETAILS.md) · [Index](INDEX.md) · [Next](TROUBLESHOOTING.md) →
 
 # Qwen3.6-35B-A3B benchmarks on RTX 3070 Ti Laptop 8 GB VRAM: q4_0 KV cache runs
-
-*Needs: a configured model · Gives: measured runs, rig and verdicts · Next: TROUBLESHOOTING.md*
 The RTS bench is a load generator simulating agentic workflow: it builds a mini-RTS browser game (Three.js + vanilla JS/CSS/HTML) in four phases — scaffold + scene, units + orders, combat + objective, playability pass — to generate load for raw speed measurement under optimal settings. Runs measure raw speed only, never game quality or model capability. What is recorded is completion signals (DONE/BLOCKED) + speed + errors; SHIP/punch-list is the owner's call, not a measured score. Fixed config for every run below: ctx 131072, temp 0.6, thinking cap 4096, 256 MiB VRAM reserve. KV format is the only variable. Rig for all runs: RTX 3070 Ti Laptop 8 GB VRAM + 32 GB DDR5, running tuned (UXTU 65 C CPU lock, GPU undervolt 0.775 V +1000 mem at ~512 GB/s, Process Lasso core pinning) — stock machines will read lower.
 
 ## Test bench

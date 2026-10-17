@@ -3,7 +3,6 @@
 
 # Which model fits 8 GB VRAM + 32 GB RAM (Qwen3.6-35B-A3B Unsloth UD quants)
 
-*Needs: installed engine, model choice pending · Gives: right Unsloth UD quant for your RAM · Next: [KV_CACHE.md](KV_CACHE.md)*
 *Start 4/4*
 
 Reference rig and fixed config for every number on this page: see [BENCHMARKS.md](BENCHMARKS.md).

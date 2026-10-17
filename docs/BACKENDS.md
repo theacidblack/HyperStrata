@@ -3,7 +3,6 @@
 
 # Models and backends
 
-*Needs: KV setup chosen, engine running · Gives: engine layout, model recognition, switching models · Next: DETAILS.md*
 *Run 4/13*
 
 The older upstream binary `strata-poly` runs several families. This fork runs Qwen3.6-35B-A3B only on the house rig. This page says which, how the engine is put together so that it can,

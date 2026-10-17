@@ -3,8 +3,6 @@
 
 # Third-party attributions
 
-*Needs: nothing (reference page) · Gives: every third-party piece, where it is pinned, and its license · Next: none*
-
 One record for every third-party piece in this tree: what it is, where it is pinned, and under what license.
 
 | component | what | why | source + pin | license | license text where |

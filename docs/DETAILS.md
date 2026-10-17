@@ -3,7 +3,6 @@
 
 # HyperStrata - the details
 
-*Needs: backend and model in place · Gives: speeds, API, settings, engine reference · Next: BENCHMARKS.md*
 *Run 5/13*
 
 The technical side of HyperStrata: every measured number, the API, images, all settings and how the engine works.

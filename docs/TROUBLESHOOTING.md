@@ -3,7 +3,6 @@
 
 # Something went wrong?
 
-*Needs: symptom or error message · Gives: fixes for common install/start failures · Next: --help.md*
 *Measure 3/6*
 
 The common problems and what to do. Back to the [README](../README.md). The full table of

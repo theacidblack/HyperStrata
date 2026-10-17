@@ -3,7 +3,6 @@
 
 # The KV cache formats (`hyper --kv`, `--draft-kv`)
 
-*Needs: coverage scope known, defaults running · Gives: KV format knobs, VRAM savings, status · Next: BACKENDS.md*
 *Run 2/13*
 
 q4_0 KV cache cuts Qwen3.6-35B-A3B KV memory to 9/32 of fp16 per row (288 vs 1024 bytes) — what fits on 8 GB VRAM.

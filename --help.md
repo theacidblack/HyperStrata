@@ -3,8 +3,6 @@
 
 # Launcher flags reference (`--help.md`)
 
-*Needs: installed engine and server · Gives: every launcher flag and JSON key · Next: CHANGELOG.md*
-
 How to build a launcher JSON: the JSON carries engine flags in
 `args`, server behaviour in top-level keys, and text style in
 `sampling`. Setup writes this file for you — hand-edit only to

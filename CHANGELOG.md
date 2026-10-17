@@ -3,8 +3,6 @@
 
 # Changelog — HyperStrata
 
-*Needs: the launcher flags reference (--help) · Gives: what changed in each release · Next: Upstream divergence*
-
 HyperStrata runs Qwen3.6-35B-A3B on 8 GB VRAM + 32 GB RAM PCs. House-tested on UD-Q4_K_M with MTP; other quants measured when possible, rest PENDING.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).

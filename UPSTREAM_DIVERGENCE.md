@@ -3,8 +3,6 @@
 
 # Upstream Divergence Registry
 
-*Needs: the changelog · Gives: each fork difference with its reason, evidence, and removal criteria · Next: none (end of chain)*
-
 Tracks every substantial difference between this fork (`theacidblack/HyperStrata`)
 and upstream (`VecSzn/PolyStrata`). It ships with the repo so every change can
 be checked against its reason.

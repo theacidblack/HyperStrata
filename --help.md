@@ -1,3 +1,8 @@
+---
+layout: default
+title: Launcher flags reference
+---
+
 ← [Prev](docs/TROUBLESHOOTING.md) · [Index](docs/INDEX.md) · [Next](CHANGELOG.md) →
 
 # Launcher flags reference (`--help.md`)

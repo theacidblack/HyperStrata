@@ -1,3 +1,8 @@
+---
+layout: default
+title: Upstream Divergence Registry
+---
+
 ← [Prev](CHANGELOG.md) · [Index](docs/INDEX.md) →
 
 # Upstream Divergence Registry

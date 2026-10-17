@@ -1,0 +1,21 @@
+# GitHub Pages build for HyperStrata (experiment branch).
+# Safe mode: no custom plugins, no _plugins directory.
+title: HyperStrata
+description: Experimental local inference for the 8 GB VRAM + 32 GB RAM tier.
+theme: jekyll-theme-hacker
+
+markdown: kramdown
+kramdown:
+  input: GFM
+  syntax_highlighter: rouge
+
+# Keep experiment scratch out of the built site.
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - node_modules
+  - vendor/bundle/
+  - vendor/cache/
+  - vendor/gems/
+  - vendor/ruby/
+  - site-exp-NOTES.md

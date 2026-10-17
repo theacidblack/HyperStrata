@@ -1,3 +1,8 @@
+---
+layout: default
+title: Something went wrong?
+---
+
 ← [Prev](BENCHMARKS.md) · [Index](INDEX.md) · [Next](../--help.md) →
 
 # Something went wrong?

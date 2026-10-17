@@ -1,3 +1,8 @@
+---
+layout: default
+title: The KV cache formats
+---
+
 ← [Prev](MODELS.md) · [Index](INDEX.md) · [Next](BACKENDS.md) →
 
 # The KV cache formats (`hyper --kv`, `--draft-kv`)
@@ -201,6 +206,24 @@ recurrent state, not KV rows): fp16 ≈ 2.75 GiB, q8_0 ≈ 1.46 GiB, q4_0 ≈ 0.
 no log on file, run context unverified, and the stated ≈1.8 / 0.9 / 0.5 GiB at ~78K conflicts with
 11-layer arithmetic (≈1.6 / 0.9 / 0.5). Recompute only from the log once it lands. With `--kv-whole`, which reserves the whole context's KV at load, freed VRAM goes to experts as
 with q8_0; measured conversion under q4_0 at long context: PENDING (needs the frozen A/B).
+
+```mermaid
+flowchart TD
+    A["--kv sets target layers"] --> D["fp16: 1024 bytes a row"]
+    A --> E["q8_0: 544 bytes a row"]
+    A --> F["q4_0: 288 bytes a row"]
+    B["--draft-kv sets the draft block"] --> D
+    B --> E
+    B --> F
+    C["Knob left out is fp16"] --> D
+    D --> G["Smaller cache on the card"]
+    E --> G
+    F --> G
+    E --> J["Engine prints row size at load"]
+    F --> J
+    G --> H["Freed VRAM holds more experts"]
+    I["RAM holds every expert pinned"] --> H
+```
 
 ### What q4_0 costs
 

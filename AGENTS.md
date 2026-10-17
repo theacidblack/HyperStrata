@@ -1,3 +1,8 @@
+---
+layout: default
+title: AGENTS.md
+---
+
 # AGENTS.md
 
 HyperStrata is an experimental inference engine for the 8 GB VRAM + 32 GB RAM

@@ -1,3 +1,8 @@
+---
+layout: default
+title: Benchmarks
+---
+
 ← [Prev](DETAILS.md) · [Index](INDEX.md) · [Next](TROUBLESHOOTING.md) →
 
 # Qwen3.6-35B-A3B benchmarks on RTX 3070 Ti Laptop 8 GB VRAM: q4_0 KV cache runs
@@ -16,6 +21,18 @@ Locked parameters behind every number below, owner-measured 2026-10-17. Same set
 - Cores: engine `--threads 6` + Process Lasso mask, both on the 6 last physical cores for hyper.exe, no SMT.
 - Config: ctx 131072, temp 0.6, thinking cap 4096, 256 MiB VRAM reserve.
 - Rig: RTX 3070 Ti Laptop 8 GB VRAM + 32 GB DDR5.
+
+```mermaid
+flowchart TD
+    A["Phase 1: scaffold plus scene"] --> B["Phase 2: units plus orders"]
+    B --> C["Phase 3: combat plus objective"]
+    C --> D["Phase 4: playability pass"]
+    D --> E["Server log: DONE lines, speed, errors"]
+    E --> F["Six numbers: max low avg speed, prefill, VRAM, experts"]
+    F --> G["Table row with provenance and verdict"]
+    G --> H["Logs filed under benchmarks version folder"]
+    H --> I["Release gates: Q4 MTP and Q5 MTP pass"]
+```
 
 ## Results
 

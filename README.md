@@ -1,3 +1,8 @@
+---
+layout: default
+title: HyperStrata
+---
+
 [Index](docs/INDEX.md) · [Next](docs/HOW-TO-INSTALL.md) →
 
 # HyperStrata

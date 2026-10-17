@@ -1,3 +1,8 @@
+---
+layout: default
+title: Models and backends
+---
+
 ← [Prev](KV_CACHE.md) · [Index](INDEX.md) · [Next](DETAILS.md) →
 
 # Models and backends
@@ -11,6 +16,22 @@ how a model is recognized, how to add one, and how to change the model that answ
 One model is in memory at a time. Upstream measurements (RTX 5090/Linux), NOT this fork's rig. On that card the three new models fit in VRAM whole.
 [One section](#with-8-gb-of-vram) holds the 5090 to 8 GB, and [one section](#on-a-laptop-with-8-gb-of-vram) is from
 a second machine, a Windows laptop whose card has 8 GB.
+
+```mermaid
+flowchart TD
+    A["GGUF file read in place"] --> B["Engine opens file, picks class by architecture"]
+    B --> C["Dense weights to VRAM as filed"]
+    C --> D["Router scores experts, keeps top few"]
+    D --> E["Shared expert runs on GPU"]
+    D --> F["Hot experts from VRAM cache"]
+    D --> G["Other experts on CPU in place"]
+    E --> H["Prompt batch through staging buffer"]
+    F --> H
+    G --> H
+    H --> I["Draft block guesses ahead"]
+    I --> J["Window check keeps the right ones"]
+    J --> K["T lines out, DONE with counts"]
+```
 
 ## What runs
 

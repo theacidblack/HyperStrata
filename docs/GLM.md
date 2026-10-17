@@ -1,13 +1,10 @@
-# GLM 5.3 Flash (`strata-poly`)
+# GLM 5.3 Flash (`hyper`)
 
-PolyStrata adds a second engine, `strata-poly`, that runs GLM 5.3 Flash. It sits beside `strata`, which still runs
-Qwen3.8-Flash-Next as before. The server, the web app and the API are the same for both: a run config names the
-engine it starts.
-
-It is early. This project has built and run it on one machine, with Linux and one NVIDIA card, and on two RTX
-3080s; a user runs it on Windows with a 24 GB card and 128 GB of RAM ([issue 10](https://github.com/VecSzn/PolyStrata/issues/10)).
+GLM: upstream model, separate job, no run on THIS tree — PENDING.
 
 ## What it was measured on
+
+> Upstream measurement, NOT this rig.
 
 | | |
 | --- | --- |
@@ -37,7 +34,7 @@ again. An earlier build, measured the same way without the draft block, wrote 26
 three prompts at 373, 334 and 312; [BACKENDS.md](BACKENDS.md#what-was-tuned) has what changed since. llama.cpp was
 not run again.
 
-The README's row for 3.0BIT is PolyStrata's own benchmark through the server, the test every model of this engine
+The README's row for 3.0BIT is HyperStrata's own benchmark through the server, the test every model of this engine
 gets ([BACKENDS.md](BACKENDS.md#a-prompt-of-30000-tokens)), with the engine of the ready-made release: a short chat
 written at 59 to 66 tokens/s, and a prompt of 29,154 tokens read whole at 820 to 824, with the first token after
 36 s and the answer after it written at 62 to 64. The build before read a prompt of 28,354 tokens there at 784 to
@@ -58,7 +55,7 @@ such a tie.
   so they should stay in the OS file cache: about 86 GB of the 107 GB on a 32 GB card. Setup's estimate for that card
   is 96 GB of RAM. It has run with 120 GB only. In a container, the memory limit must leave about 8 GB above the
   model's files: with less, answers read experts from the disk, and the container may end the engine
-  ([MULTI_GPU.md](MULTI_GPU.md#the-strata-poly-models) has the pod it happened on). The engine says so at load.
+  ([MULTI_GPU.md](MULTI_GPU.md#the-hyper-models) has the pod it happened on). The engine says so at load.
 - 114 GB of disk for the model file, and 3 GB for its draft block.
 
 ## Sizes
@@ -105,18 +102,18 @@ draft block, 2.8 GB, once for every size that needs it. The web app is at
 `http://127.0.0.1:8080`. After that, `./setup.sh` starts the model again without asking.
 
 - The compile needs g++ and the CUDA toolkit (12.8 or newer for an RTX 50 card). Setup offers to install what is
-  missing. The ready-made `strata-poly` of a release is for Windows only.
+  missing. The ready-made `hyper` of a release is for Windows only.
 - You already have the GGUF: `./setup.sh --family glm --gguf-dir /folder/with/the/file`.
 - The other options are the README's: `--context`, `--port`, `--host`, `--api-key`, `--gpu`, `--gpus`,
   `--layer-split`, `--yes`, `--no-start`.
   The ones for the Qwen engine (`--vision`, `--low-ram`, `--parallel`, ...) are named and left out.
-  (Its `--kv int8…` is the strata engine's own, unrelated to strata-poly's `--kv fp16|q8_0|q4_0` and
+  (Its `--kv int8…` is the strata engine's own, unrelated to hyper's `--kv fp16|q8_0|q4_0` and
   `--draft-kv` documented above.)
 
 On the test machine, with the file already on the disk, this took about five minutes.
 
-Setup writes the run config `strata-glm-3.0bit.json` and `run-glm-3.0bit.sh` into the PolyStrata folder, the engine into
-`engine-poly/`, and the tokenizer and the expert profile into the data folder. The profile starts as the counts in
+Setup writes the run config `strata-glm-3.0bit.json` and `run-glm-3.0bit.sh` into the HyperStrata folder, the engine into
+`engine-hyper/`, and the tokenizer and the expert profile into the data folder. The profile starts as the counts in
 `data/expert-profile-glm.txt`, which come from the test runs here, and the engine updates it after an answer, every
 10 seconds at most, and when it stops.
 
@@ -129,7 +126,7 @@ Build the engine:
 
 ```
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DSTRATA_ENABLE_CUDA=ON
-cmake --build build --target strata-poly
+cmake --build build --target hyper
 ```
 
 Write the tokenizer out of the GGUF once:
@@ -142,8 +139,8 @@ Then write a run config, `glm.json`:
 
 ```json
 {
-  "exe": "build/strata-poly",
-  "cwd": "/path/to/PolyStrata",
+  "exe": "build/hyper",
+  "cwd": "/path/to/HyperStrata",
   "args": ["--model", "/models/GLM-5.3-Flash-GSQ-RCO-3.0bit-q4kattn.gguf",
            "--max-context", "32768",
            "--expert-profile", "glm.profile",
@@ -157,7 +154,7 @@ Then write a run config, `glm.json`:
 and start the server with it:
 
 ```
-python serve/server.py --engine strata --config glm.json --port 8095
+python serve/server.py --engine hyper --config glm.json --port 8095
 ```
 
 The web app is at `http://127.0.0.1:8095`, and the API is the one the README describes. Chat, thinking, tool
@@ -248,7 +245,7 @@ goes on from where it stopped, and an edit goes back to the nearest checkpoint.
 | `--max-context N` | 8192 | tokens a conversation can hold |
 | `--threads N` | all usable | CPU threads for the experts that are not in VRAM |
 | `--vram-reserve-mib N` | a thirty-second of the card, 256 to 768, or a sixteenth, 512 to 1024, kept whole, when the PC's free RAM is within 4 GiB of the model's files; else half of it after the first request | VRAM left free beside the expert cache |
-| `--layer-split S` | the first card alone | the model's layers across the cards the engine sees: `auto` (by each card's free VRAM) or the first layer of each later card, as `20` or `20,30` ([MULTI_GPU.md](MULTI_GPU.md#the-strata-poly-models)) |
+| `--layer-split S` | the first card alone | the model's layers across the cards the engine sees: `auto` (by each card's free VRAM) or the first layer of each later card, as `20` or `20,30` ([MULTI_GPU.md](MULTI_GPU.md#the-hyper-models)) |
 | `--expert-profile FILE` | | expert use counts, read at the start and written back after an answer, every 10 seconds at most, and at the end |
 | `--no-gpu-experts` | | keep every routed expert on the CPU |
 | `--any-node` | | on a PC with several NUMA nodes, let the CPU threads run on any of them |
@@ -259,7 +256,7 @@ goes on from where it stopped, and an edit goes back to the nearest checkpoint.
 | `--no-draft` | | do not run the block that guesses ahead |
 | `--draft-model FILE.gguf` | | a file of the same model to take that block from, when `--model` has none; setup passes the one it downloaded |
 | `--draft-vocab N` | 131072 for Qwen3.6, Ornith and Tiel Coder, all of it for the others | the block guesses among the vocabulary's first N tokens; 0 = all |
-| `--kv-whole` | on an AMD card | give the attention caches VRAM for the whole context at load, not as the conversation grows; setup writes it for an AMD card, where ROCm keeps the VRAM the expert cache gives back ([AMD_HIP.md](AMD_HIP.md#strata-poly-on-amd-beta)) |
+| `--kv-whole` | on an AMD card | give the attention caches VRAM for the whole context at load, not as the conversation grows; setup writes it for an AMD card, where ROCm keeps the VRAM the expert cache gives back ([AMD_HIP.md](AMD_HIP.md#hyper-on-amd-beta)) |
 | `--kv fmt` | fp16 | the target model's K and V attention caches' format: `fp16` (default, unchanged), `q8_0` (ggml Q8_0 blocks: one fp16 scale a 32-value block of int8 codes) or `q4_0` (ggml Q4_0 blocks, measured once live: [KV_CACHE.md](KV_CACHE.md)): q8_0 halves the KV VRAM with the same answers on the tested models ([Q8_KV.md](Q8_KV.md)) |
 | `--draft-kv fmt` | fp16 | the guessing (draft) block's KV format, independent of `--kv`: `fp16`, `q8_0` or `q4_0`; omitted is `fp16`. Measured once live under both knobs q4_0 ([KV_CACHE.md](KV_CACHE.md)); frozen-fixture A/B pending |
 | `--prompt-batch N` | 1024 | prompt tokens read at a time, 1 to 4096; about 1.4 MiB of VRAM each |
@@ -275,7 +272,7 @@ goes on from where it stopped, and an edit goes back to the nearest checkpoint.
 | `--eos-ids ID,ID,...` | from the GGUF | tokens that end a reply |
 | `--tail-skip N` | 0; setup gives Qwen3.6 6 | an expert outside VRAM that every token of a window ranks at place N+1 or later among its experts is left out: faster, and the answers move a little |
 
-`strata-poly` with no arguments prints the list, with the options for running it without the server.
+`hyper` with no arguments prints the list, with the options for running it without the server.
 
 `--kv q8_0` is measured: it stores the attention K and V caches as ggml Q8_0 blocks and is opt-in for the
 `qwen35moe` models. [Q8_KV.md](Q8_KV.md) has the format, the measured VRAM saving (46.88% at 131072), the
@@ -290,7 +287,7 @@ CUDA only. One live run exists under both knobs q4_0 plus engine tests; frozen-f
 - Other files of the model. The engine reads the layouts of four converters (neurall's llama.cpp fork,
   patrickbdevaney's, antirez's and Unsloth's), a model in several files, and the weight types llama.cpp's kernels
   have. Only the three sizes above have been run: setup offers no other.
-- A ready-made `strata-poly` off Windows, or for a driver older than CUDA 13's: setup compiles it there.
+- A ready-made `hyper` off Windows, or for a driver older than CUDA 13's: setup compiles it there.
 - GLM on Windows, by this project: no PC with the RAM for it was at hand, and setup asks before it installs it
   there. A user ran 3.0BIT on Windows 10 with an RTX 5090 D v2 (24 GB) and 128 GB of RAM
   ([issue 10](https://github.com/VecSzn/PolyStrata/issues/10)): 1,483 experts in VRAM, 26 to 30 tokens/s after
@@ -299,9 +296,9 @@ CUDA only. One live run exists under both knobs q4_0 plus engine tests; frozen-f
   With 0.1.44.1-poly.5 a request of 1,002,452 tokens was read in 45.7 minutes (66.3 with poly.2), the three
   facts found, and from the second request after it the engine wrote at 25 to 30 tokens/s again.
 - Intel cards, and AMD cards on Windows. On Linux setup compiles the engine for an AMD card
-  ([AMD_HIP.md](AMD_HIP.md#strata-poly-on-amd-beta)), a beta tested with Qwen3.6 and Ornith on an RX 7600; GLM
+  ([AMD_HIP.md](AMD_HIP.md#hyper-on-amd-beta)), a beta tested with Qwen3.6 and Ornith on an RX 7600; GLM
   itself has not been tried on one, and setup says so. Two NVIDIA cards can share the model
-  ([MULTI_GPU.md](MULTI_GPU.md#the-strata-poly-models)): REAP50 has run on two 10 GB cards under Linux.
+  ([MULTI_GPU.md](MULTI_GPU.md#the-hyper-models)): REAP50 has run on two 10 GB cards under Linux.
 - Pictures. The model's image input is not read.
 - Several requests decoded together (`"parallel"`). Requests wait their turn.
 - `--prompt-cache-root` and `--turn-token`. Checkpoints are taken by position.

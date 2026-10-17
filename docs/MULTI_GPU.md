@@ -1,4 +1,6 @@
-# PolyStrata on two or more GPUs (layer split)
+# HyperStrata on two or more GPUs (layer split)
+
+> Upstream multi-GPU archive — untested in THIS fork (README: Windows + NVIDIA single card). PENDING.
 
 One model can run across several NVIDIA cards in one PC. The layers are split into contiguous ranges, one per GPU:
 the first card runs layers 0 to K-1, the next card runs K onward, and so on; the last card also runs the output head
@@ -11,19 +13,19 @@ verify window (a few hundred KB through pinned RAM), not twice per layer. No NVL
 needed; cards on x4 or x1 slots work, and the PCIe share of each card is probed on its own link. A `--pcie-frac` you give
 is every card's share and skips those probes; there is no per-card setting yet.
 
-Most of this page is about the engine of Qwen3.8-Flash-Next. The models of the strata-poly engine (Qwen3.6, Gemma 4,
+Most of this page is about the engine of Qwen3.8-Flash-Next. The models of the hyper engine (Qwen3.6, Gemma 4,
 Ornith, Tiel Coder, GLM 5.3 Flash) split their layers as well, more simply: see
-[The strata-poly models](#the-strata-poly-models).
+[The hyper models](#the-hyper-models).
 
 ## Using it
 
 **Nothing to type.** `START-HERE.bat` (Linux: `./setup.sh`) lists your NVIDIA cards and says for each one whether
-PolyStrata can use it:
+HyperStrata can use it:
 
 ```
   Your NVIDIA GPUs:
     GPU 0: NVIDIA GeForce RTX 5080, 16 GB VRAM - can be used
-    GPU 1: NVIDIA GeForce GTX 1080 Ti, 11 GB VRAM - not supported - older than the RTX 20 series (compute capability 6.1; PolyStrata needs 7.5 or newer)
+    GPU 1: NVIDIA GeForce GTX 1080 Ti, 11 GB VRAM - not supported - older than the RTX 20 series (compute capability 6.1; HyperStrata needs 7.5 or newer)
     GPU 2: NVIDIA GeForce RTX 3090, 24 GB VRAM - can be used
   ...
   1) GPU 0 (NVIDIA GeForce RTX 5080, 16 GB) + GPU 2 (NVIDIA GeForce RTX 3090, 24 GB) together   (recommended)
@@ -356,9 +358,9 @@ These are opt-in settings on one rig, not defaults.
 With a layer split, `--batch N --batch-groups G --trim-stage-weights` decodes several conversations together and
 pipelines them through the cards: see [BATCHING.md](BATCHING.md).
 
-## The strata-poly models
+## The hyper models
 
-Qwen3.6, Gemma 4, Ornith, Tiel Coder and GLM 5.3 Flash run on the strata-poly engine, which splits a model's layers
+Qwen3.6, Gemma 4, Ornith, Tiel Coder and GLM 5.3 Flash run on the hyper engine, which splits a model's layers
 across cards too. Each card runs a range of layers and keeps the routed experts of those layers in its VRAM, as many
 as fit. The last card also runs the output and the draft block, or Gemma 4's draft model. After its layers a card
 copies the rows of the tokens it read into pinned RAM, and the next card reads them from there: one row of the

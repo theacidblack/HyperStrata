@@ -1,5 +1,7 @@
 # Intel Arc (experimental)
 
+> Upstream Intel/SYCL archive — untested in THIS fork, see COVERAGE §6. This fork has no Intel GPU and does not test it.
+
 PolyStrata 0.1.39 includes an **experimental Intel Arc engine**: PolyStrata's own engine ported to SYCL (Intel oneAPI).
 maxfridbe wrote it in [#423](https://github.com/Niko1221/Strata/pull/423), with fixes from the people testing it.
 The code is in `sycl/`, and the port's own notes, measurements and maintenance procedure are in
@@ -71,10 +73,10 @@ images (not wired on Intel).
 ## Build with Docker (what `setup --backend sycl` uses)
 
 Two commands, the same as in [INTEL.md](INTEL.md), "How to build it" (about 10 minutes the first time). From the checkout,
-called `PolyStrata` here:
+called `HyperStrata` here:
 
 ```sh
-cd PolyStrata
+cd HyperStrata
 docker build -t strata-sycl-dev sycl/tools            # once: ~6 minutes, a 13 GB image
 H=$(basename "$PWD")
 # Arc B-series: bmg-g31 (Pro B70), bmg-g21 (B580, B570, Pro B60). Arc A-series (Alchemist): leave out AOT (JIT) and use build-sycl

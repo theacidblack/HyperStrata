@@ -1,6 +1,8 @@
-# PolyStrata on a Mac (Apple Silicon, Metal)
+# HyperStrata on a Mac (Apple Silicon, Metal)
 
-PolyStrata runs on Apple Silicon Macs through its own engine on Metal. This is the same engine as on a PC. The NVIDIA
+> Upstream Metal archive — untested in THIS fork, see COVERAGE §6.
+
+HyperStrata runs on Apple Silicon Macs through its own engine on Metal. This is the same engine as on a PC. The NVIDIA
 kernels are replaced by Metal ones (`metal/`), and the host code and the server are the PC's. `./setup.sh` sets it up the way
 `START-HERE.bat` does on Windows. There is no ready-made Mac engine: setup builds it from source on your Mac
 (about 1-15 minutes). The NVIDIA, AMD and Intel engines are unchanged.
@@ -38,7 +40,7 @@ with 32 GB, where the experts stream from the SSD. Other chips and memory sizes 
 ## Install
 
 ```
-git clone https://github.com/Niko1221/Strata && cd PolyStrata
+git clone https://github.com/theacidblack/HyperStrata && cd HyperStrata
 ./setup.sh                 # asks the size; --yes takes the recommended answers
 ```
 

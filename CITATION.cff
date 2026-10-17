@@ -1,0 +1,18 @@
+# TODO owner: confirm author name/email
+cff-version: 1.2.0
+title: HyperStrata
+message: If you use this software, please cite it as below.
+type: software
+authors:
+  - family-names: Black
+repository-code: https://github.com/theacidblack/HyperStrata
+keywords:
+  - local-llm-inference
+  - qwen3
+  - mixture-of-experts
+  - GGUF
+  - KV-cache
+  - quantization
+  - CUDA
+  - Windows
+  - 8GB-VRAM

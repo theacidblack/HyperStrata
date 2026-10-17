@@ -1,5 +1,7 @@
 # CUDA1–3 expert experiment
 
+> Upstream archive — untested in THIS fork, see COVERAGE §6.
+
 CUDA0 keeps the dense layers, KV/state, MTP and its existing expert cache. Up to
 three independent expert caches fill CUDA1, CUDA2 and CUDA3 in that order. Each
 expert has one owner: CUDA0, one secondary GPU, or the CPU pool. Each secondary

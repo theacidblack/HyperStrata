@@ -1,6 +1,8 @@
 # Several requests at once (batch slots)
 
-By default PolyStrata serves **one request at a time**: the others wait in the server's queue. With `"parallel": N`
+> Upstream runs on upstream rigs/commits — NOT HyperStrata reference-rig runs; PENDING re-measure before any ranking claim.
+
+By default HyperStrata serves **one request at a time**: the others wait in the server's queue. With `"parallel": N`
 (the engine's `--batch N`, also spelled `--slots N`) the engine keeps up to N conversations open and decodes them
 **together**: every verify window then carries one token of each conversation, so the dense weights, the shared
 expert, the head and every routed expert two conversations share are read once per window for all of them.
@@ -10,10 +12,10 @@ conversations at the same time instead of waiting for each other.
 It is opt-in and changes nothing when the options are absent (#465; the engine part is PR #559).
 
 Most of this page is about the Strata project's engine, which runs Qwen3.8-Flash-Next. The other eight models run on
-strata-poly, which does the same since 0.1.44.1-poly.6 with fewer options: see
-[The strata-poly models](#the-strata-poly-models).
+hyper, which does the same since 0.1.44.1-poly.6 with fewer options: see
+[The hyper models](#the-hyper-models).
 
-## The strata-poly models
+## The hyper models
 
 `"parallel": N` in the model's config (`strata-<model>.json`), or `--parallel N` when you run setup, works for
 GLM 5.3 Flash, DeepSeek V4 Flash, LFM2.5, Qwen3.6, Ornith 1.5, Gemma 4, Tiel Coder and MiniCPM-V too, up to 8. The
@@ -43,7 +45,7 @@ gains more. On an RTX 5090 with Qwen3.6 UD-Q4_K_M, chats of 300 tokens through t
 Each slot's attention rows take VRAM from the expert cache as its conversation grows, as the first conversation's
 do. A model split across cards (`"layer_split"`) runs its slots card after card.
 
-Check it on your PC with the engine alone: `strata-poly --model M.gguf --batch 3 --check-batch 3 --tokens ID,ID,...`
+Check it on your PC with the engine alone: `hyper --model M.gguf --batch 3 --check-batch 3 --tokens ID,ID,...`
 answers three prompts (the given one, and it without its first one and two tokens) one after the other and then
 together, and says for each how many tokens came out the same. To compare token by token, keep the expert cache
 fixed and leave guesses and the tail skip out: `--expert-swaps 0 --cpu-share 0 --window 1 --tail-skip 0`. On the
@@ -163,7 +165,7 @@ about 10-25% speed per request on this card". `--parallel N` is honoured as aske
 
 ## How the server uses the slots
 
-- **One request alone** runs on the usual solo path (verify windows with MTP drafts): the fastest single stream.
+- **One request alone** runs on the usual solo path (verify windows with MTP drafts): the solo path (no batching overhead on that rig; speed PENDING on your rig).
 - **When a second request arrives**, the first is stopped (`STOP`) and continues in a batch slot with its prompt
   plus what it generated so far - the engine's prompt cache holds exactly that, so nothing is read again - and the
   new request is admitted next to it. By default, a request in a slot decodes **without MTP drafts** (one token per window).

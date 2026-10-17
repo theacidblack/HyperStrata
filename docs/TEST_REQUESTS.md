@@ -1,12 +1,16 @@
 # Test requests and hardware wanted
 
-PolyStrata is built and measured on a few machines. Results from other hardware are welcome and are used: they tell us
-what a setup really does and show where the engine picks something wrong. Write a report as described in
+Upstream PolyStrata was built/measured on a few machines (not THIS fork). Wanted reports below are PENDING for HyperStrata; no support implied until measured on THIS tree. Write a report as described in
 [COMMUNITY_BENCHMARKS.md](COMMUNITY_BENCHMARKS.md): the build, the card and PCIe width, the CPU and RAM speed, the
-model file, the exact command, three runs per size, and what you did not test. Post it in an issue, or on the pull
-request it is about.
+model file, the exact command, three runs per size, and what you did not test.
 
-This list is edited by the maintainers. An item stays until a report answers it.
+This list is edited by the owner when needed; items carry no response promise. An item stays until a report answers it.
+
+Reports from 8 GB VRAM + 32 GB RAM jump the queue — that is the rig this is built for.
+
+Better rigs are welcome to report, but they sit outside what this is for, so they get less attention.
+
+6 GB VRAM + 32 GB RAM is welcome too, probably works — reports accepted, best-effort, nothing promised.
 
 | Wanted | Why | Example of an earlier answer |
 |---|---|---|
@@ -15,5 +19,3 @@ This list is edited by the maintainers. An item stays until a report answers it.
 | Pascal (sm_61: Tesla P40, P100, GTX 10 series) | Older cards run on the fp32 path and can behave differently from newer ones | #875, #876 |
 | A Linux host with 32 GB of RAM or less | The expert file tier and the resident mode depend on how much of the model fits in RAM | #1194 |
 | A long soak (an hour or more of back-to-back requests) on a split or resident setup | Shows crashes, drift and heat that a short run does not | #848 |
-
-To add a request, open a pull request that adds a row, or tell the maintainers in an issue.

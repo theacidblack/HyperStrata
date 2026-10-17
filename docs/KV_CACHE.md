@@ -1,14 +1,14 @@
-# The KV cache formats (`strata-poly --kv`, `--draft-kv`)
+# The KV cache formats (`hyper --kv`, `--draft-kv`)
+q4_0 KV cache cuts Qwen3.6-35B-A3B KV memory to 9/32 of fp16 per row (288 vs 1024 bytes) — what fits on 8 GB VRAM.
 
-`strata-poly` can store its attention K and V caches in the ggml **Q8_0** or **Q4_0** formats instead of
+`hyper` can store its attention K and V caches in the ggml **Q8_0** or **Q4_0** formats instead of
 fp16. There are two independent knobs: `--kv fmt` for the target model and `--draft-kv fmt` for the block
 that guesses ahead, each `fp16 | q8_0 | q4_0`, mixable (e.g. `--kv q8_0 --draft-kv q4_0`). A knob left out
-is `fp16`. The default, both knobs fp16, is unchanged and byte-identical to the build before these options
-existed.
+is `fp16`. The default (both knobs fp16) is byte-identical to pre-q4_0 build per 12/12 short-prompt check (poly_kv_q8_test + fp16/Q8_0 reply comparison); re-run after any engine edit.
 
-q8_0 is measured: [Q8_KV.md](Q8_KV.md) (single-knob engine). q4_0 is measured once: a full live agent run
+q8_0 is measured: [Q8_KV.md](Q8_KV.md) (single-knob engine). q4_0 is REPORTED once (no server log on file — NOT measured): a live agent run
 under `--kv q4_0 --draft-kv q4_0` (q4-001: 90.9 max / 46.3 low / ~55.6 avg tok/s over 48 turns, prefill
-17,277 tokens in ~13 s, thinking cap hit once and wrapped, zero errors), plus kernel unit tests
+17,277 tokens in ~13 s — all REPORTED, unverified; thinking-cap and zero-error claims UNVERIFIED, no log), plus kernel unit tests
 (`poly_kv_q4_test`: key and value readers against the ggml oracle, 112,010 values) and a mixed-knob
 engine test (`poly_draft_race_test`: PASS, 5/5 pairs, rows round-trip 6/6). A frozen-fixture A/B against
 fp16/q8_0 is still pending — figures that need one stay marked **PENDING**.
@@ -36,8 +36,10 @@ Block arithmetic (definitional, no run needed): a q4_0 block is 16 packed bytes 
 bytes per 32 values — **9/32 of the fp16 row and 9/17 of the q8_0 row**. On Qwen3.6 (`n_kv * head_dim` =
 512: 2 KV heads × key length 256) that is 288 bytes a K or V row, printed by the engine at load
 (`q4_0 KV cache: 288 bytes a row`, confirmed in q4-001), vs 1024 fp16 and 544 q8_0. Per layer (K+V):
-2048 / 1088 / 576 bytes a token. With 41 target layers plus the draft block (same geometry, 42 rows a
-token) at full 131072 context: fp16 ≈ 10.50 GiB, q8_0 ≈ 5.58 GiB, **q4_0 ≈ 2.95 GiB** — 71.9% saved vs
+2048 / 1088 / 576 bytes a token. Only 10 QSA target layers plus the draft layer hold KV (11 rows a
+token, same geometry); GDN layers keep recurrent state, not KV rows. At full 131072 context that is
+11 × per-layer bytes × 131072: fp16 ≈ 2.75 GiB, q8_0 ≈ 1.46 GiB, q4_0 ≈ 0.77 GiB by row
+arithmetic (measured q4_0 reservation ≈ 0.91 GiB) — 71.9% saved vs
 fp16, 47.1% vs q8_0. Whether freed VRAM converts to resident experts at long context is PENDING (needs
 the frozen A/B).
 
@@ -49,7 +51,7 @@ a knob omitted is `fp16`. Unknown values exit 2.
 
 | target (`--kv`) | draft (`--draft-kv`) | answers / speed |
 | --- | --- | --- |
-| fp16 | fp16 | the default: unchanged, byte-identical |
+| fp16 | fp16 | The default (both knobs fp16) is byte-identical to pre-q4_0 build per 12/12 short-prompt check (poly_kv_q8_test + fp16/Q8_0 reply comparison); re-run after any engine edit. |
 | fp16 | q8_0 | mixed-knob engine test only (draft_race, acceptance +6.25pp vs control, rows exact); no live run |
 | fp16 | q4_0 | unmeasured (PENDING) |
 | q8_0 | fp16 | mixed-knob engine test only (acceptance +12.50pp vs control, rows exact); no live run |
@@ -57,7 +59,7 @@ a knob omitted is `fp16`. Unknown values exit 2.
 | q8_0 | q4_0 | mixed-knob engine test only (acceptance +12.50pp vs control, rows exact); no live run |
 | q4_0 | fp16 | unmeasured (PENDING) |
 | q4_0 | q8_0 | mixed-knob engine test only (acceptance +2.08pp vs control, rows exact); no live run |
-| q4_0 | q4_0 | measured once live (q4-001, section above) + engine test (acceptance +2.08pp, rows exact) |
+| q4_0 | q4_0 | REPORTED once live (q4-001, REPORTED not log-verified, section above) + engine test (acceptance +2.08pp, rows exact) |
 
 ## Parity with fp16 (q8_0, single-knob — carried from Q8_KV.md; q4_0: engine tests + one live run)
 
@@ -89,17 +91,19 @@ by construction (different guesses accept different runs), so those gates report
 ## What q4_0 saves
 
 Per row, by block arithmetic: 9/32 of fp16, 9/17 of q8_0 — on Qwen3.6, 288 / 1024 / 544 bytes a K or V
-row. At-context totals from the layer count (41 + draft block, same geometry): fp16 ≈ 10.50 GiB, q8_0 ≈
-5.58 GiB, q4_0 ≈ 2.95 GiB at full 131072 context; at the q4-001 run's ~78K context ≈ 6.7 / 3.6 / **1.9**
-GiB. With `--kv-whole`, which reserves the whole context's KV at load, freed VRAM goes to experts as
+row. At-context totals from the layer count (11 KV-holding layers: 10 QSA + draft; GDN keeps
+recurrent state, not KV rows): fp16 ≈ 2.75 GiB, q8_0 ≈ 1.46 GiB, q4_0 ≈ 0.77 GiB by row arithmetic
+(measured ≈ 0.91 GiB) at full 131072 context. At-run-context GiB figures WITHDRAWN 2026-10-18 — PENDING:
+no log on file, run context unverified, and the stated ≈1.8 / 0.9 / 0.5 GiB at ~78K conflicts with
+11-layer arithmetic (≈1.6 / 0.9 / 0.5). Recompute only from the log once it lands. With `--kv-whole`, which reserves the whole context's KV at load, freed VRAM goes to experts as
 with q8_0; measured conversion under q4_0 at long context: PENDING (needs the frozen A/B).
 
 ## What q4_0 costs
 
-One live data point, no controlled comparison: q4-001 under both knobs did 90.9 max / 46.3 low / ~55.6
-avg tok/s (48 turns, ~36.7K tokens in ~660 s) with prefill 17,277 tokens in ~13 s (≈1.33K tok/s) — in
-line with the fp16/q8_0 runs' prefill and within their decode scatter, on a different trajectory, so no
-speed claim either way. Per-pair ms/round from the engine test: 54–89 ms/round across knobs (mildly
+One REPORTED data point (no log on file — UNVERIFIED), no controlled comparison: q4-001 under both knobs
+reportedly did 90.9 max / 46.3 low / ~55.6 avg tok/s (48 turns, ~36.7K tokens in ~660 s) with prefill
+17,277 tokens in ~13 s (≈1.33K tok/s) — no speed claim either way; "in line with fp16/q8_0 scatter" is
+UNVERIFIED without the log, not a finding. Per-pair ms/round from the engine test: 54–89 ms/round across knobs (mildly
 slower on quantized drafts, slowness alone is not gated). Frozen-fixture decode numbers: PENDING.
 
 ## Gates, and what was left alone
@@ -114,7 +118,7 @@ slower on quantized drafts, slowness alone is not gated). Frozen-fixture decode 
 - `glm5next` / GLM 5.3 Flash (`dsa_attend`): its attention is not the one these caches quantize, so
   neither knob is offered for it.
 - **Gemma 4 is out of v1**, per knob as with q8_0.
-- The default path stays byte-identical to the last release.
+- The default (both knobs fp16) is byte-identical to pre-q4_0 build per 12/12 short-prompt check (poly_kv_q8_test + fp16/Q8_0 reply comparison); re-run after any engine edit.
 
 ## Where it lives
 

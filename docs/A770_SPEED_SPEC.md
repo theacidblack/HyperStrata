@@ -1,9 +1,10 @@
 # A770 decode optimization specification
 
+> Upstream archive — untested in THIS fork, see COVERAGE §6.
+
 ## Objective and completion criteria
 
-Achieve **at least 20 generated tokens/second in decode on the local Intel Arc
-A770 running PolyStrata**, with reproducible benchmark evidence and correct output.
+Upstream Intel-Arc investigation target (that rig only), NOT a HyperStrata promise; current measured ceiling in that investigation log ~12.0-12.6 tok/s on that rig.
 This specification describes the next optimization campaign; it does not claim
 that the target has already been met.
 

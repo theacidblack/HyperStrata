@@ -1,6 +1,8 @@
-# DeepSeek V4 Flash (`strata-poly`)
+# DeepSeek V4 Flash (`hyper`)
 
-`strata-poly`, the engine that runs GLM 5.3 Flash, also runs DeepSeek V4 Flash: llama.cpp's architecture
+> Upstream archive — untested in THIS fork, see COVERAGE §6.
+
+`hyper`, the engine that runs GLM 5.3 Flash, also runs DeepSeek V4 Flash: llama.cpp's architecture
 `deepseek4`, read from Unsloth's GGUF. The server, the web app and the API are the ones the README describes.
 
 It is early. This project has run it on one machine, with Linux and one NVIDIA card; a user runs it on Windows
@@ -69,7 +71,7 @@ without asking.
 On the test machine, with the files already on the disk, this took about four minutes: two for the compile, one and a
 half for the files' SHA-256.
 
-Setup writes the run config `strata-dsv4-ud-iq2_xxs.json` and `run-dsv4-ud-iq2_xxs.sh` into the PolyStrata folder.
+Setup writes the run config `strata-dsv4-ud-iq2_xxs.json` and `run-dsv4-ud-iq2_xxs.sh` into the HyperStrata folder.
 No expert profile is shipped: the engine starts one at the first start and keeps it up to date.
 
 ## Long contexts

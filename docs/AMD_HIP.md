@@ -1,13 +1,6 @@
 # AMD Radeon: the HIP backend (gfx1100, gfx1101, gfx1200, gfx1201, gfx1030)
 
-PolyStrata runs on AMD Radeon cards through its HIP backend, the same engine as on NVIDIA compiled for AMD. This page
-covers the build on Linux (on Windows a ready-made engine, see [Windows](#windows)) for the RX 7900 XT / XTX (RDNA3, gfx1100) and the
-RX 9070 / 9070 XT / Radeon AI PRO R9700 (RDNA4, gfx1201; see [RDNA4](#rdna4-gfx1201)). The RX 7800 XT / 7700 XT
-(gfx1101) and the RX 9060 XT (gfx1200) were validated by their owners (see [Community-validated
-cards](#community-validated-cards)); the RX 6800 / 6900 series (RDNA2, gfx1030) builds and runs too, reported by a community machine and not yet validated by the maintainers (see [RDNA2](#rdna2-gfx1030)). Setup chooses it by itself on a PC with no NVIDIA card PolyStrata can use (`--backend hip` on a PC with both); the
-install steps for users are in [INSTALL.md](INSTALL.md#amd-cards). gfx906 (Instinct MI50 / MI60, Radeon VII; wave64) has a separate
-opt-in build, see [gfx906](#gfx906-instinct-mi50--mi60-radeon-vii-wave64-built-from-source). The Ryzen AI Max "Strix Halo" APU (gfx1151, RDNA3.5, unified memory) is built from source on Linux: see [STRIX_HALO.md](STRIX_HALO.md). Other AMD architectures and mixed
-AMD/NVIDIA execution in one run are not supported.
+Upstream HIP backend, untested on THIS tree (Phase 3 cut). See COVERAGE §6.
 
 The backend maps the CUDA-shaped runtime and BLAS calls to HIP/hipBLAS, uses
 RDNA2/RDNA3/RDNA4's signed integer dot instruction for quantized kernels, and supplies
@@ -27,7 +20,7 @@ the kernel's amdgpu driver (no ROCm install needed):
 ```
 
 - **Detection:** setup finds the card through the kernel's KFD topology. Integrated Radeon GPUs are listed as not
-  supported. On a PC without an NVIDIA card PolyStrata can use, `--backend hip` is chosen automatically.
+  supported. On a PC without an NVIDIA card HyperStrata can use, `--backend hip` is chosen automatically.
 - **ROCm:** a system ROCm 7 in `/opt/rocm` (or `$ROCM_PATH`) with hipcc and hipBLAS is used when present. Otherwise
   (or when it is older than 7.0) ROCm is installed into `.venv` from AMD's TheRock wheels (~10 GB, no sudo), from the
   card family's index: `gfx110X-dgpu` for gfx1100 / gfx1101, `gfx120X-all` for gfx1200 / gfx1201, `gfx103X-all` for
@@ -58,8 +51,8 @@ The rest of setup is the same as on NVIDIA: the model download, the start script
 
 ## Windows
 
-Since 0.1.34 an AMD card on Windows is set up like an NVIDIA one: download PolyStrata, double-click `START-HERE.bat`.
-On a PC with no NVIDIA card PolyStrata can use, the AMD card is chosen by itself; with both, setup asks
+Since 0.1.34 an AMD card on Windows is set up like an NVIDIA one: download HyperStrata, double-click `START-HERE.bat`.
+On a PC with no NVIDIA card HyperStrata can use, the AMD card is chosen by itself; with both, setup asks
 (`START-HERE.bat --backend hip` picks AMD directly).
 
 - **You need:** Windows 10 or 11 (64-bit), one of the cards above, and a current AMD driver ([AMD Software:
@@ -99,20 +92,20 @@ On a PC with no NVIDIA card PolyStrata can use, the AMD card is chosen by itself
 
 **What is validated (0.1.34):** #325's author ran the engine of this port on an RX 9070 XT (Windows 11, ROCm
 10.2.0a20260930 in `.venv`, compiled on the PC): Coder IQ1_M at 32K, 29.2 tok/s decode, ~181 tok/s prefill,
-correct answers; ctest 42 of 46. The maintainers have no Windows AMD card: the release zip was built on an NVIDIA PC,
+correct answers; ctest 42 of 46. Upstream has no Windows AMD card here; the owner has none either. The release zip was built on an NVIDIA PC,
 and checked there on the Ryzen CPU's integrated Radeon (gfx1036, a test build of the same tree): with only the zip's
 libraries on the PATH, `strata-device` lists the card and a hipBLAS BF16 GEMM matches the CPU; the HIP ctest passes
 52 of 56, the 4 failures the same as on the RX 9070 XT (`hip_handoff`, and three tests that need a pack fixture).
 The ready-made zip itself has not run a model on a discrete card yet - please report.
 
-**Reporting a Windows AMD run** (an issue, or on #325): your card and driver version (AMD Software > System), then
+**Reporting a Windows AMD run**: your card and driver version (AMD Software > System), then
 
 ```bat
 engine\strata-device.exe --list-devices
 engine\strata-device.exe --selftest
 ```
 
-(from the PolyStrata folder, after `set PATH=%CD%\engine\rocm\bin;%PATH%`), the end of `strata-<model>.log`, and the
+(from the HyperStrata folder, after `set PATH=%CD%\engine\rocm\bin;%PATH%`), the end of `strata-<model>.log`, and the
 speed lines the server window prints for a first answer.
 
 **Building it yourself:** `tools\hip\build_windows.bat` (Visual Studio 2022 Build Tools with the C++ workload, Python,
@@ -371,16 +364,16 @@ an RX 9070 XT 16 GB and a Radeon AI PRO R9700 32 GB (both gfx1201), a Ryzen 9 39
   one card or two and on engine 0.1.29 as well; not yet explained.
 - **Not validated:** images, long contexts beyond 16K, answer-quality benchmarks.
 
-## strata-poly on AMD (beta)
+## hyper on AMD (beta)
 
-The four smaller models of PolyStrata's own engine (Qwen3.6, Ornith 1.5, Gemma 4, Tiel Coder) and GLM 5.3 Flash
-run through `strata-poly`, which is CUDA-shaped code; since 0.1.42-poly.4 it compiles for an AMD card through the
+The four smaller models of HyperStrata's own engine (Qwen3.6, Ornith 1.5, Gemma 4, Tiel Coder) and GLM 5.3 Flash
+run through `hyper`, which is CUDA-shaped code; since 0.1.42-poly.4 it compiles for an AMD card through the
 same `hip_compat` headers as the main engine, with the CUDA driver's virtual memory calls mapped onto HIP's
 (`hip_compat/cuda.h`). Linux only: there is no ready-made AMD engine, and setup refuses these models on an AMD
 card under Windows.
 
 - Install as for NVIDIA: `./setup.sh --family qwen36` (or `lfm25`, `ornith`, `gemma4`, `tiel`, `glm`, `deepseek`).
-  Setup compiles the engine for the card into `engine-poly/` (`build_engine_poly_hip`), with ROCm from a system
+  Setup compiles the engine for the card into `engine-hyper/` (`build_engine_poly_hip`), with ROCm from a system
   install or AMD's wheels in `.venv`, as for the main engine, and compiles again after a `git pull` that changed the
   engine.
 - Images stay off: the image encoder is a CUDA program.
@@ -411,7 +404,7 @@ card under Windows.
 
 ## Community-validated cards
 
-Run by their owners, not on the maintainers' machines; setup accepts them like gfx1100 / gfx1201. setup ships a
+Run by their owners, not validated here; the owner's rig is RTX 3070 Ti Laptop 8 GB. Setup accepts them like gfx1100 / gfx1201. setup ships a
 hipBLASLt table for gfx1200 (the numbers below); gfx1101 has none (make one with [Tuning table](#tuning-table)
 and compare the prompt speed with and without it).
 
@@ -515,7 +508,7 @@ gfx906 is wave64 and has no WMMA and no packed byte arithmetic, so the wave32 ba
 (32-wide shuffles, a ballot of its own half). The hot kernels have wave64 layouts of their own (below). Setup does
 not build it yet: build by hand, and run `serve/server.py` with a config as on any other card.
 
-**Community-tested, opt-in (0.1.42).** The gfx906 build is maintained with its users: we have no gfx906 card, so what is here was measured by community members on their MI50s (the attention switches `STRATA_GFX906_ATTN_QUERY_SWIZZLE=1` and `STRATA_GFX906_ATTN_REDUCE12=1`, PRs #1661 and #1718 by 0FL01, are off by default and compiled only into this build) and the engine here is checked to compile for gfx906, nothing more. Nothing in it changes the builds for other cards. A wave32 card seen by this build is refused at start with a message (#1728). Please report how it runs on your card.
+**Community-tested, opt-in (0.1.42).** Community-reported, compile-checked only here; no maintenance promised. (The attention switches `STRATA_GFX906_ATTN_QUERY_SWIZZLE=1` and `STRATA_GFX906_ATTN_REDUCE12=1`, PRs #1661 and #1718 by 0FL01, are off by default and compiled only into this build.) Nothing in it changes the builds for other cards. A wave32 card seen by this build is refused at start with a message (#1728).
 
 **ROCm.** AMD's current ROCm releases no longer ship gfx906 libraries. The build and the measurements below used
 HIP 7.14 from the community image [`mixa3607/rocm-gfx906:7.14-complete`](https://hub.docker.com/r/mixa3607/rocm-gfx906)

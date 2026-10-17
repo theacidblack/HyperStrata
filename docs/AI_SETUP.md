@@ -1,8 +1,7 @@
 # Installing PolyStrata for a user (instructions for AI agents)
 
 This page is written for an AI coding assistant (Claude Code, Cursor, Codex, GitHub Copilot, ...) that a user asked to
-set up PolyStrata on their PC. PolyStrata runs the Qwen3.8-Flash-Next model locally on one NVIDIA or AMD graphics card plus
-system RAM, and serves an OpenAI- and Anthropic-compatible API on `http://127.0.0.1:8080`. The human-oriented
+set up PolyStrata on their PC. This page is upstream's setup guide (Qwen3.8-first), kept as archive. This fork: Qwen3.6-35B-A3B, Windows + NVIDIA, 8 GB VRAM + 32 GB RAM tier. It serves an OpenAI- and Anthropic-compatible API on `http://127.0.0.1:8080`. The human-oriented
 version of everything below is [INSTALL.md](INSTALL.md).
 
 Work through the steps in order. Tell the user what you are doing in plain words; they may not be technical.
@@ -40,11 +39,10 @@ To check by hand:
 | RAM | `(Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB` | `free -g` |
 | Free disk | `Get-PSDrive -PSProvider FileSystem` | `df -h .` |
 
-Requirements (details: [INSTALL.md](INSTALL.md#what-you-need)):
+Requirements (upstream list, inherited — untested in this fork except the reference rig below; details: [INSTALL.md](INSTALL.md#what-you-need)):
 
 - **GPU:** NVIDIA RTX 20, 30, 40 or 50 series, or AMD Radeon RX 7900 XT / XTX, RX 7800 XT / 7700 XT, RX 9060 XT,
-  RX 9070 / 9070 XT, Radeon AI PRO R9700, RX 6800 / 6900 series; 12 GB of VRAM or more (an NVIDIA card with 8 GB runs,
-  slowly). GTX 10 series and older, and integrated GPUs, are not supported; Pascal / Volta cards (P40, V100) and some
+  RX 9070 / 9070 XT, Radeon AI PRO R9700, RX 6800 / 6900 series — upstream list, NOT verified here. Tested/supported in this fork: 8 GB VRAM NVIDIA + 32 GB RAM only (reference rig: RTX 3070 Ti Laptop; what this fork covers: [TEST_REQUESTS.md](TEST_REQUESTS.md)). 12 GB of VRAM or more (an NVIDIA card with 8 GB runs; speed PENDING on your config — expect slower than larger cards, no figure claimed). GTX 10 series and older, and integrated GPUs, are not supported; Pascal / Volta cards (P40, V100) and some
   older AMD cards have experimental paths the user opts into ([OLDER_GPUS.md](OLDER_GPUS.md)).
 - **Driver:** NVIDIA 580 or newer. AMD on Linux: the kernel's amdgpu driver; on Windows: a current AMD Adrenalin
   driver. If the driver is missing or too old, tell the user to update it (NVIDIA App / nvidia.com/drivers, or AMD
@@ -57,23 +55,23 @@ If the PC does not meet them, say which part is missing and stop.
 ## 2. Get PolyStrata
 
 ```
-git clone https://github.com/VecSzn/PolyStrata.git
+git clone https://github.com/theacidblack/HyperStrata.git
 ```
 
-Without git: download https://github.com/VecSzn/PolyStrata/archive/refs/heads/main.zip and unzip it. Pick a drive with
+Without git: download https://github.com/theacidblack/HyperStrata/archive/refs/heads/main.zip and unzip it. Pick a drive with
 enough free space: the model files go to a `PolyStrata-data` folder **next to** the PolyStrata folder (or `--data-dir <path>`
 on another drive).
 
 ## 3. Pick the model
 
-By the PC's RAM (ask the user whether they mainly want it for code - then the Coder is a good pick at any RAM size):
+By the PC's RAM — upstream tiers, untested in this fork except 32 GB on the reference rig (what this fork covers: [TEST_REQUESTS.md](TEST_REQUESTS.md)). Ask the user whether they mainly want it for code - then the Coder is the fit at 32 GB:
 
 | RAM | `--family` / `--model` | Notes |
 | --- | --- | --- |
-| 32 GB | `--family coder` (size IQ1_M) | for code; with a 24 GB card Q2_0 and IQ2_XS also run (setup picks the low-RAM mode) |
-| 48 GB | `--family qwen --model IQ2_XS` | or `Q2_0` (fastest) |
-| 64 GB | `--family qwen --model IQ2_XS` (recommended) | `IQ3_XXS` / `IQ3_S` are slower and a bit better |
-| 96 GB+ | `--family qwen --model IQ3_S` | `--family unsloth --model UD-IQ4_XS` (~4-bit, 94 GB, part of the experts read from the SSD under ~80 GB of RAM); `--model UD-Q4_K_XL` is experimental: NVIDIA only, NVMe SSD, 7-8.5 tokens/s on 64 GB |
+| 32 GB | `--family coder` (size IQ1_M) | for code; with a 24 GB card Q2_0 and IQ2_XS also run (setup picks the low-RAM mode) — upstream report, untested here |
+| 48 GB | `--family qwen --model IQ2_XS` | or `Q2_0` (smallest file) |
+| 64 GB | `--family qwen --model IQ2_XS` (upstream pick, untested here) | IQ3_XXS / IQ3_S are larger files, upstream reports slightly better quality; speed PENDING on your rig. |
+| 96 GB+ | `--family qwen --model IQ3_S` | `--family unsloth --model UD-IQ4_XS` (~4-bit, 94 GB, part of the experts read from the SSD under ~80 GB of RAM); UD-Q4_K_XL is experimental (NVIDIA only, NVMe SSD; one upstream report: 7-8.5 tokens/s on a 64 GB rig — NOT a HyperStrata run, PENDING re-measure). |
 
 `--family swift` (Swift 1.5, a fine-tune that thinks shorter; sizes Q2_0, IQ2_XS, IQ3_XXS) is the alternative to
 `qwen`. With `--yes` and no `--model`, setup picks the recommended size for the RAM itself. More: [MODELS.md](MODELS.md).
@@ -189,19 +187,369 @@ line when it is ready; the engine log is `strata-<model>.log` in the PolyStrata 
 
 ## 8. Connect the user's apps
 
-- **Browser:** `http://127.0.0.1:8080` - Chat, a live Monitor, and About (settings and addresses).
-- **Any OpenAI-compatible app or agent:** base URL `http://127.0.0.1:8080/v1`, any API key (or the configured one),
-  any model name.
-- **Anthropic-compatible apps:** `http://127.0.0.1:8080/v1/messages`.
-- **Codex CLI and other Responses API apps:** `http://127.0.0.1:8080/v1/responses` (stateless; Codex's
-  `config.toml`: [DETAILS.md](DETAILS.md#the-responses-api-and-codex-cli)).
-- **Claude Code:** `ANTHROPIC_BASE_URL=http://127.0.0.1:8080`, `ANTHROPIC_MODEL` set to a Claude model name it knows
-  (PolyStrata ignores the name), and any `ANTHROPIC_AUTH_TOKEN` (or the configured key). Add
-  `"fit_max_tokens": true` to `strata-<model>.json`: Claude Code asks for 32,000 tokens of answer in every request,
-  and the server refuses a request whose prompt leaves less room than that in the context.
-- **Thinking level:** `"reasoning_effort": "none" | "low" | "medium" | "high"` (default high).
-- PolyStrata answers one request at a time; `"parallel": N` in the model's config (or setup `--parallel N`) decodes up to
-  N together ([BATCHING.md](BATCHING.md)). API details: [DETAILS.md](DETAILS.md#using-it).
+The goal of this step: an agent (Claude Code, OpenCode, Pi, any
+OpenAI-compatible client) chats with the local model **and** calls tools.
+There are two directions — do not mix them up:
+
+- **Serving (this section):** the agent talks to the model through the
+  HTTP API below. The agent brings its own tools; the model calls them,
+  the agent runs them, the agent sends the results back.
+- **Managing (the other direction):** your own assistant installs/starts
+  HyperStrata through `tools/strata_mcp.py`. That is
+  [MCP_SERVER.md](MCP_SERVER.md) and the `Alternative` section at the end
+  of this page — it does not serve chats to agents.
+
+### 8.1 Addresses to paste where
+
+The server listens on `http://127.0.0.1:8080` (change with `--port` in
+setup, or edit the run script). Endpoints
+(`serve/server.py:6-7`, [DETAILS.md](DETAILS.md#using-it)):
+
+| What the client asks for | What to paste |
+| --- | --- |
+| OpenAI-compatible base URL | `http://127.0.0.1:8080/v1` |
+| OpenAI Chat Completions (full path) | `POST http://127.0.0.1:8080/v1/chat/completions` |
+| Anthropic base URL | `http://127.0.0.1:8080` |
+| Anthropic Messages (full path) | `POST http://127.0.0.1:8080/v1/messages` |
+| Responses API (Codex CLI and other Responses apps, stateless) | `POST http://127.0.0.1:8080/v1/responses` |
+| Browser (Chat, Monitor, About) | `http://127.0.0.1:8080` |
+| Health / model list (paste in a browser or `curl`) | `GET http://127.0.0.1:8080/health`, `GET http://127.0.0.1:8080/v1/models` |
+
+Check first: `curl http://127.0.0.1:8080/health` should answer
+`{"status": "ok", "model": ..., "max_context": ..., "images": ...,
+"api_key": ..., "loaded": true, ...}`. `"images": true` means this
+model reads pictures; `false` means text only
+(`serve/server.py:5673-5676`). `/v1/models` lists only the loaded
+model, with its context limit and input modalities
+([DETAILS.md](DETAILS.md#using-it)).
+
+### 8.2 API key: when needed, where it lives, what the client sends
+
+- Default install: **no key.** Any value works — literally `none`.
+- A key exists only if setup ran with `--api-key <secret>`, or the
+  model's `strata-<model>.json` has an `"api_key"` key, or the
+  `STRATA_API_KEY` environment variable is set (`--help.md` §2,
+  `serve/server.py:7111-7113`). Several keys work separated by commas
+  (`"api_key": "key1,key2"`, or a list when a key itself contains a
+  comma), as llama.cpp does (`serve/server.py:6690-6691`,
+  [DETAILS.md](DETAILS.md#using-it)).
+- The client sends it as its API key. Over HTTP that is `Authorization:
+  Bearer <key>` or `x-api-key: <key>` (`serve/server.py:3089`). With a
+  key set, metadata endpoints (`/v1/models`, `/props`, `/slots`) need
+  it too.
+- Only expose beyond this PC (`--host 0.0.0.0`) **together with** a key
+  (ground rules at the top of this page). The key value lives in
+  `strata-<model>.json` next to the run script — read it from there and
+  paste it into the client. Never invent one; if the file has none,
+  the client uses `none`.
+- `strata_connect_info` (the `tools/strata_mcp.py` tool) prints the same
+  URLs plus the key state for the running server
+  (`tools/hyper_mcp.py:1655-1698`): `openai_base_url` is `{base}/v1`,
+  `anthropic_base_url` is `{base}`, messages endpoint is
+  `{base}/v1/messages`.
+
+### 8.3 Model name to select (`model_name`, not the filename)
+
+The GGUF filename (e.g. `Qwen3.6-35B-A3B-UD-Q4_K_M.gguf`, named in the
+launcher's `"args"` `--model`) is **not** what the client sends. The API
+id is `"model_name"` from `strata-<model>.json`, falling back to the
+config file's stem (`serve/models.py:106`):
+
+```
+"id": str(cfg.get("model_name") or Path(config).stem.replace("strata-", "", 1))
+```
+
+Do this, zero guessing:
+
+1. `curl http://127.0.0.1:8080/v1/models` (add `-H "Authorization:
+   Bearer <key>"` when a key is set).
+2. Copy the `"id"` exactly into the client's model field.
+3. `"aliases"` in the config lists extra names the model also answers
+   to; any other name is still served, as before
+   ([DETAILS.md](DETAILS.md#using-it)). So a wrong name usually still
+   answers — but paste the real id anyway so logs and `/metrics` make
+   sense.
+
+### 8.4 Copy-paste client configs
+
+**Any OpenAI-compatible app or agent:** base URL
+`http://127.0.0.1:8080/v1`, API key `none` (or the configured key),
+model = the id from §8.3 above.
+
+```python
+from openai import OpenAI
+client = OpenAI(base_url="http://127.0.0.1:8080/v1", api_key="none")  # or your api_key
+r = client.chat.completions.create(model="<id from /v1/models>", messages=[{"role": "user", "content": "Hello!"}])
+print(r.choices[0].message.content)
+```
+
+**OpenCode** (`opencode.jsonc` in the project, or
+`~/.config/opencode/`; field names are OpenCode's —
+[DETAILS.md](DETAILS.md#using-it)):
+
+```jsonc
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "strata": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "HyperStrata (local)",
+      "options": { "baseURL": "http://127.0.0.1:8080/v1", "apiKey": "none" },
+      "models": {
+        "strata": {
+          "name": "HyperStrata (local)",
+          "limit": { "context": 131072, "output": 32768 },
+          "options": { "reasoningEffort": "high" },
+          "variants": {
+            "low": { "reasoningEffort": "low" },
+            "medium": { "reasoningEffort": "medium" },
+            "none": { "reasoningEffort": "none" }
+          }
+        }
+      }
+    }
+  },
+  "model": "strata/strata"
+}
+```
+
+Set `limit.context` to the context setup chose (the `max_context` in
+`/health`, or `--max-context` in the launcher). OpenCode compacts the
+conversation before it gets there. Keep `limit.output` well under it
+(see §8.7). The model key (`strata` above) must match the id from §8.3,
+or an alias in the config.
+
+**Claude Code:** `ANTHROPIC_BASE_URL=http://127.0.0.1:8080`,
+`ANTHROPIC_MODEL` set to a Claude model name it knows (it refuses names
+it doesn't; HyperStrata ignores the name), and any
+`ANTHROPIC_AUTH_TOKEN` (or the configured key)
+([DETAILS.md](DETAILS.md#using-it);
+`tools/hyper_mcp.py:1680-1682`). Add `"fit_max_tokens": true` to
+`strata-<model>.json`: Claude Code asks for 32,000 tokens of answer in
+every request, and the server refuses a request whose prompt leaves
+less room than that in the context.
+
+**Codex CLI and other Responses API apps:**
+`http://127.0.0.1:8080/v1/responses` (stateless; Codex's `config.toml`:
+[DETAILS.md](DETAILS.md#the-responses-api-and-codex-cli)).
+`tools/strata_mcp.py`'s `strata_connect_info` prints a starting
+`config.toml` (`tools/hyper_mcp.py:1683-1685`).
+
+**Anthropic-compatible apps:** `http://127.0.0.1:8080/v1/messages`.
+**Cursor / Continue / Open WebUI / aider:** same OpenAI base URL plus
+key plus model id (`tools/hyper_mcp.py:1693-1696` lists them).
+
+### 8.5 Pictures through the agent (vision)
+
+Needs `"vision"` in `strata-<model>.json` (setup `--vision yes|no|gpu|cpu`;
+`--help.md` §5). If `/health` says `"images": false`, the model is text
+only — rerun setup with `--setup --vision yes` (or `cpu` on AMD / tight
+VRAM). No engine flags: the server's `vision` section handles it
+(`--help.md` §5; `serve/server.py:2619-2620`).
+
+Shapes the server reads (`serve/frontend.py:171-182`,
+[DETAILS.md](DETAILS.md#images-vision)):
+
+- **OpenAI API:** an `image_url` part — a `data:` URL, an `http(s)://`
+  URL, or a local file path (`serve/server.py:2358-2378`):
+  `{"type": "image_url", "image_url": {"url": "data:image/jpeg;base64,..."}}`
+  next to `{"type": "text", ...}` parts.
+- **Anthropic API:** an `image` block with a `base64` (or `url`) source,
+  as usual.
+- **Responses API:** `input_image` with `image_url`, same sources
+  (`serve/responses.py:77-83`).
+
+JPEG/PNG/BMP/GIF work directly; WebP/TIFF/AVIF convert via Pillow
+(`serve/server.py:13-16`). A picture becomes context tokens (a 640x480
+photo ≈ 300; GPU default up to 1,024, CPU default 300 — `"max_tokens"`
+in the `"vision"` section, `--vision-tokens N` at setup). The same
+picture sent again on later turns (as chat apps do) is encoded once.
+Agents that send a screenshot every turn pay the tokens every turn —
+downscale or crop the screenshot first when the detail allows it.
+
+Minimal OpenAI example ([DETAILS.md](DETAILS.md#images-vision)):
+
+```python
+import base64
+from openai import OpenAI
+client = OpenAI(base_url="http://127.0.0.1:8080/v1", api_key="none")
+img = base64.b64encode(open("photo.jpg", "rb").read()).decode()
+r = client.chat.completions.create(model="<id from /v1/models>", messages=[{"role": "user", "content": [
+    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img}"}},
+    {"type": "text", "text": "What is in this picture?"}]}])
+print(r.choices[0].message.content)
+```
+
+If the agent says pictures fail: check `/health` `images` flag, then the
+server window for the vision-encoder lines, then the engine log
+(`strata-<model>.log`). Image *generation* (`POST
+/v1/images/generations`, Qwen-Image) is a separate opt-in —
+[IMAGES.md](IMAGES.md) — not this.
+
+### 8.6 Thinking: what it costs an agent, what to set
+
+The model thinks before it answers (streamed as `reasoning_content`,
+Anthropic: `thinking` blocks). Per request
+([DETAILS.md](DETAILS.md#using-it); template mapping
+`serve/frontend.py:137-162`):
+
+| API | How |
+| --- | --- |
+| OpenAI | `"reasoning_effort": "none" \| "low" \| "medium" \| "high"` (also `"reasoning": {"effort": ...}`) |
+| Anthropic | `"output_config": {"effort": "low" \| "medium" \| "high"}`, `"thinking": {"type": "disabled"}`, or `"thinking": {"type": "enabled", "budget_tokens": N}` (under 2K = low, under 8K = medium, more = high) |
+
+Without a setting the model uses its own default, **high**. The levels
+are trained instructions, not a hard token cap: easy questions think
+briefly on any level; hard ones think longest on `high`
+([DETAILS.md](DETAILS.md#using-it)).
+
+What this means for an agent loop:
+
+- Thinking **counts as output tokens** and **takes time** on every tool
+  step. An agent that thinks hard before each of 20 tool calls pays 20
+  times. Rule of thumb: `none` (or `low`) for quick tool/fix steps,
+  `medium`/`high` for the planning step. OpenCode `variants` above let
+  the user switch per Task.
+- A hard cap (opt-in): `"reasoning_budget_tokens": N` in a request caps
+  the thinking at N tokens — the server ends it with a short wrap-up
+  and `</think>` and answers from there. Same key in
+  `strata-<model>.json` sets it for every request; a request's own value
+  wins, `0` means no budget (`--help.md` §6;
+  `serve/server.py:3454-3465`). Reference install uses `4096`.
+- Default for requests naming none: `"reasoning_effort"` in
+  `strata-<model>.json` (outside `"args"` — the engine has no such
+  option). The web chat's shared settings ("Use for other apps too")
+  and a request's own level win over it.
+- Keep-agents-fast extras (all opt-in, off default — only when the
+  symptom matches): `"effort_position": "end"` keeps the cached chat
+  when only the effort changes (an agent's "think harder" switch);
+  `"anthropic_thinking": "on_request"` renders no-thinking requests
+  without thinking (what Claude Code's short helper calls need);
+  `"warm_start": true` reuses the last agent system-prompt+tools prefix
+  after a restart; `"tool_call_recovery": true` reads slightly
+  mis-shaped tool calls; `"reasoning_close_retry": true` continues once
+  a reply that stopped inside `<think>` ([DETAILS.md](DETAILS.md#using-it)).
+- PolyStrata answers one request at a time; `"parallel": N` in the
+  model's config (or setup `--parallel N`) decodes up to N together
+  ([BATCHING.md](BATCHING.md)). Leave at one for a single agent.
+
+### 8.7 Context window vs agent history
+
+- Chosen in setup (8K–262K; the reference install uses `131072`).
+  `GET /health` `max_context` and `/v1/models` context limit report it.
+- Requests longer than that are **refused, never silently cut** (400).
+  A request whose `max_tokens` would run past the context is refused too
+  — agents that always ask for their full output cap get
+  `prompt ... exceeds the context` instead: add `"fit_max_tokens": true`
+  to `strata-<model>.json` to clamp it to the room left
+  ([DETAILS.md](DETAILS.md#using-it)). A prompt that leaves no room at
+  all is still refused.
+- Map it in the client: OpenCode `limit.context` = setup context,
+  `limit.output` well under it ([DETAILS.md](DETAILS.md#using-it)).
+  Claude Code + `fit_max_tokens` (above) is the same fix.
+- Resending the full history each turn is the normal agent pattern and
+  is cheap here when the prefix matches: the server checkpoints the
+  conversation (live session + checkpoints in RAM) and reuses the shared
+  start (system prompt + tool list), so a new turn reads only what
+  changed ([DETAILS.md](DETAILS.md#using-it)). What breaks the reuse:
+  editing an early message, changing the effort without
+  `"effort_position": "end"`, or a context that overflowed — then the
+  whole prompt reads again and the turn is slow.
+
+### 8.8 The tool-call loop (how a turn works)
+
+All three endpoints take tools (OpenAI Chat, Anthropic Messages,
+Responses — [DETAILS.md](DETAILS.md#using-it)). The loop is always the
+same and the **agent** runs it:
+
+1. Agent sends `messages` + `tools` (+ `tool_choice`, usually `auto`).
+2. Model replies with a tool call (streamed: name first, then arguments
+   piece by piece, like OpenAI/Anthropic).
+3. Agent executes the tool locally, sends the result back as a
+   `tool`/`tool_result` message on the next request.
+4. Repeat until the model answers with text.
+
+Server-side MCP tools (`"mcp_servers"` in `strata-<model>.json`,
+[DETAILS.md](DETAILS.md#tools-from-mcp-servers)) are **only the chat
+page's**: API clients "see the API exactly as before and keep their own
+tools". The one exception: a `POST /v1/chat/completions` request with
+`"strata_mcp": true` opts into the server running its MCP tools for
+that request (then it gets `strata_mcp` tool events in the stream). An
+external agent (Claude/Pi/OpenAI-compatible) normally does **not** set
+this — it passes its own tools and runs them itself. Do not configure
+both for the same tools or calls run twice.
+
+Limits per answer there: up to `max_rounds` calls in a row (default 8),
+each call timing out after `timeout_s` (default 60 s) into an `error:
+...` result, results cut at `max_result_chars` (default 20,000)
+(`serve/mcp.py:37`, [DETAILS.md](DETAILS.md#tools-from-mcp-servers)).
+
+### 8.9 When the agent says something stupid
+
+Work top-down; change one thing, retry the same prompt:
+
+1. **Look at what actually happened.** The server window prints a
+   `ready: http://127.0.0.1:8080/v1` line when it is ready
+   (`serve/server.py:7330`); per-request lines name refusals (context
+   overflow, bad level, loop recovery). The engine log is
+   `strata-<model>.log` in the PolyStrata folder. Live state:
+   `GET /status`, `GET /slots`, `GET /metrics`. Via the management MCP:
+   `strata_logs` with `source: server|engine|setup`.
+2. **Looping / rambling / never calls the tool:** cap the thinking
+   first — per-request `"reasoning_effort": "low"` (or `"none"` for a
+   pure tool step), or `"reasoning_budget_tokens": N` in the config
+   (`--help.md` §6). A reply that ends inside its thinking (empty
+   answer, agent stops) is `"reasoning_close_retry": true`; whole-passage
+   repeats are `"reasoning_loop_recovery": "stop"|"recover"`; a reply
+   stuck on one token is ended by `"repeat_stop_tokens": N` (default
+   256) ([DETAILS.md](DETAILS.md#using-it)).
+3. **Confident nonsense / flaky tool arguments:** lower the randomness —
+   `"temperature"` in `sampling` (reference install `0.6`; `0` = greedy,
+   always the most likely word; `--help.md` §4,
+   `serve/server.py:6882-6885`). The Sampling drawer edits the same
+   keys the About tab's Model settings card writes to
+   `strata-<model>.json`. Retry with a seed only to reproduce, not to
+   fix.
+4. **Tool calls mis-shaped:** `"tool_call_recovery": true` reads the
+   common mis-shapes (details + measurement in
+   [DETAILS.md](DETAILS.md#using-it)). Otherwise fix the tool schema on
+   the agent side — the server passes `tools` through.
+5. **Context errors (`prompt ... exceeds the context`, 400s):** see
+   §8.7 — `fit_max_tokens`, smaller `max_tokens`, compact the history,
+   or rerun setup with `--setup --context <bigger>` (needs the RAM/VRAM
+   for the KV cache).
+6. **Slow tool loop:** `none`/`low` effort for tool steps, one request
+   at a time (no `parallel` for a single agent), pictures only when the
+   turn needs them (§8.5), and check Monitor's context-fill and last
+   request's prefill/decode rates before blaming the model.
+
+### 8.10 Playwright + vision loop (agentic browser test)
+
+No Playwright-specific wiring ships in this repo — the generic MCP-tools
+shape applies ([DETAILS.md](DETAILS.md#tools-from-mcp-servers)):
+
+```json
+"mcp_servers": {
+  "playwright": {"command": "<playwright-mcp-command>", "args": ["<its", "args>"]}
+},
+"mcp": {"timeout_s": 60, "max_result_chars": 20000, "max_rounds": 8}
+```
+
+Install a Playwright MCP server per its own docs, paste its `command`
+(and `args`/`cwd`/`env`) as the value above (stdio transport), or its
+`url` (+ `headers`) for Streamable HTTP. Restart HyperStrata; the
+server window says what each server offers (`MCP server 'playwright': N
+tools (...)`), the Monitor tab lists them, and the Sampling drawer has
+**Use tools from MCP servers** (on by default). This loop runs **in the
+chat page only** (API agents keep their own Playwright tools — §8.8).
+
+The vision half: the Playwright screenshot reaches the model as an
+image part (§8.5), so this loop needs `"vision"` in the config and
+`/health` `"images": true`. Per-answer caps are `max_rounds` (default 8
+tool calls), `timeout_s`, `max_result_chars` above. Long pages come back
+cut with a note — ask for a clipped or downscaled screenshot when the
+model only needs the layout. End-to-end Playwright+vision timing on the
+reference rig is PENDING (no measured run claimed).
 
 ## 9. When something fails
 
@@ -217,7 +565,7 @@ line when it is ready; the engine log is `strata-<model>.log` in the PolyStrata 
 | Python or build tools could not be installed | Install what the message names (links are printed), then rerun. |
 
 More: [TROUBLESHOOTING.md](TROUBLESHOOTING.md) and the [full table](DETAILS.md#troubleshooting). If it still fails,
-collect `strata-<model>.log` and the setup output, and suggest an issue at https://github.com/VecSzn/PolyStrata/issues.
+collect `strata-<model>.log` and the setup output, and if the public repo has issues enabled suggest an issue at https://github.com/theacidblack/HyperStrata/issues; if not, use whatever contact channel the public repo page lists.
 
 ## Alternative: the MCP server
 

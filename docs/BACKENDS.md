@@ -1,10 +1,9 @@
 # Models and backends
 
-PolyStrata runs more than one model family. This page says which, how the engine is put together so that it can,
+Upstream strata-poly runs several families. This fork measures Qwen3.6-35B-A3B only. This page says which, how the engine is put together so that it can,
 how a model is recognized, how to add one, and how to change the model that answers.
 
-One model is in memory at a time. The measurements below are from one machine: an RTX 5090 (32 GB), 24 threads of
-a Xeon Platinum 8470Q, 120 GiB of RAM, Linux, CUDA 12.8. On that card the three new models fit in VRAM whole.
+One model is in memory at a time. Upstream measurements (RTX 5090/Linux), NOT this fork's rig. On that card the three new models fit in VRAM whole.
 [One section](#with-8-gb-of-vram) holds the 5090 to 8 GB, and [one section](#on-a-laptop-with-8-gb-of-vram) is from
 a second machine, a Windows laptop whose card has 8 GB.
 
@@ -12,15 +11,8 @@ a second machine, a Windows laptop whose card has 8 GB.
 
 | Model | Architecture | Engine | File it was checked with | Guesses ahead |
 | --- | --- | --- | --- | --- |
-| Qwen3.8-Flash-Next and fine-tunes | `qwen4exp` | `strata` | the packs setup builds | separate MTP model |
-| GLM 5.3 Flash | `glm5-next` | `strata-poly` | GSQ-RCO 3.0bit, REAP50-Q3_K_M, UD-IQ2_XXS | draft block |
-| Qwen3.6-35B-A3B | `qwen35moe` | `strata-poly` | Unsloth UD-Q3_K_M, UD-Q2_K_XL and UD-Q4_K_M, 12.6 to 22.7 GB | draft block in the file |
-| Ornith 1.5 35B-A3B | `qwen35moe` | `strata-poly` | APEX-MTP-I-Compact, I-Mini and I-Quality, 14.4 to 23.7 GB | draft block in the file |
-| Gemma 4 26B-A4B | `gemma4` | `strata-poly` | Unsloth UD-Q3_K_M, UD-Q2_K_XL and UD-Q4_K_M, 10.5 to 16.9 GB | its draft model, a file of 0.46 GB |
-| Tiel Coder 35B-A3B | `qwen35moe` | `strata-poly` | peculiar-ragdoll's UD-Q3_K_XL, UD-IQ3_XXS and UD-Q4_K_XL, 13.6 to 22.7 GB | draft block in the file |
-| MiniCPM-V 4.7 35B-A3B | `qwen35moe` | `strata-poly` | OpenBMB Q4_K_M, mix_q3gud_im and Q6_K, 15.5 to 28.5 GB | none: it answers one token at a time |
-| DeepSeek V4 Flash | `deepseek4` | `strata-poly` | Unsloth UD-IQ2_XXS, three files, 90.9 GB | repeats only: its draft model is not run yet |
-| LFM2.5-24B-A2B | `lfm2moe` | `strata-poly` | Unsloth UD-Q4_K_XL, UD-Q3_K_XL, UD-Q6_K_XL and Q8_0, Liquid AI QAD-Q4_0, 10.9 to 25.5 GB | repeats only: there is no draft model |
+| Qwen3.6-35B-A3B | `qwen35moe` | `strata-poly` | Unsloth UD-Q3_K_M, UD-Q2_K_XL and UD-Q4_K_M, 12.6 to 22.7 GB (LOADS-only) | draft block in the file |
+| Other upstream families | — | — | upstream families, untested here. | — |
 
 `strata` is the first engine and runs Qwen3.8 only; nothing in it changed. `strata-poly` is the engine that reads a
 GGUF in place, and it now has four architectures. It was called `strata-glm`, after its first model; an install
@@ -28,9 +20,9 @@ from then keeps its engine and moves to the new name the next time setup updates
 
 ## Install
 
-Setup installs all eight. The four new models are in its list of models, and each has a family name that goes
+Upstream setup installs all eight — in this fork only Qwen3.6-35B-A3B is measured (LOADS-only, see table above); the rest are untested here. The four new models are in its list of models, and each has a family name that goes
 straight to it. GLM 5.3 Flash and DeepSeek V4 Flash, the two large ones, have pages of their own,
-[GLM.md](GLM.md) and [DEEPSEEK.md](DEEPSEEK.md):
+[GLM.md](GLM.md) and [DEEPSEEK.md](DEEPSEEK.md). Below is upstream install reference; only `qwen36` has fork coverage:
 
 ```bash
 ./setup.sh --family qwen36
@@ -52,7 +44,7 @@ straight to it. GLM 5.3 Flash and DeepSeek V4 Flash, the two large ones, have pa
 ./setup.sh --family minicpmv
 ```
 
-| Family | Model | File | Download | RAM beside an 8 GB card (estimate) |
+| Family | Model | File | Download | RAM beside an 8 GB card (estimate, upstream — untested here except Qwen3.6 LOADS) |
 | --- | --- | --- | --- | --- |
 | `qwen36` | Qwen3.6-35B-A3B | Unsloth UD-Q3_K_M | 17.1 GB | about 21 GB |
 | | | Unsloth UD-Q2_K_XL | 12.6 GB | about 17 GB |
@@ -78,17 +70,17 @@ its layers and IQ2_S in the other half; I-Quality as IQ4_XS, Q5_K and Q6_K. Tiel
 peculiar-ragdoll with an importance matrix of its own and a chat template for shorter answers: UD-Q3_K_XL has its
 routed experts as IQ3_XXS with IQ4_XS where they write, UD-IQ3_XXS as IQ2_S with IQ3_XXS, UD-Q4_K_XL as Q4_K
 with Q5_K. The i-quants are slower on the CPU than the K-quants, which shows when the card is small: held to
-8 GB, Ornith's I-Mini writes more slowly than its I-Compact with more of its experts on the card.
+8 GB, Ornith's I-Mini writes more slowly than its I-Compact with more of its experts on the card. Estimates from upstream laptop, not THIS 8+32 rig. Replace with PENDING VRAM_BUDGET pointer.
 
 The steps are GLM's ([GLM.md](GLM.md#install)). Setup asks the context and whether to keep several conversations in
-RAM, compiles `strata-poly`, downloads the model's file from a pinned revision (for Gemma 4 also its draft model,
+RAM, compiles `hyper`, downloads the model's file from a pinned revision (for Gemma 4 also its draft model,
 0.46 GB), checks the SHA-256, writes the tokenizer directory, the run config and a start script, and starts the
 model. `--gguf-dir /folder/with/the/file` takes a file you already have; a draft model that is not in that folder is
 downloaded to setup's own. The engine is compiled once for all of them. On the test machine, with the files on the
 disk, the first install took a minute, most of it the compile, and the other two 17 seconds each.
 
-On Windows the three are installed the same way, with `START-HERE.bat` or `python setup.py` in place of
-`./setup.sh`. There setup downloads `strata-poly` and its image encoder ready-made from the latest release when that
+Upstream setup behavior, untested on THIS tree: On Windows the three are installed the same way, with `START-HERE.bat` or `python setup.py` in place of
+`./setup.sh`. There setup downloads `hyper` and its image encoder ready-made from the latest release when that
 release was built from the same source (`tools/make_poly_release.py`: RTX 20 to RTX 50 cards, CUDA 13.0, ggml's
 CPU code for AVX2), checks the archive against the SHA-256 GitHub publishes for it, and installs NVIDIA's CUDA 13
 libraries from pip, as it does for the Qwen engine. With `--build`, on a processor without AVX2, or for a source the
@@ -108,7 +100,7 @@ The five new models read pictures. Say yes to setup's question about images, or 
 ./setup.sh --family gemma4 --vision yes
 ```
 
-Setup then downloads the model's image encoder too (0.9 GB, Gemma 4's 1.2 GB), compiles `strata-vision` beside
+Setup then downloads the model's image encoder too (0.9 GB, Gemma 4's 1.2 GB), compiles `hyper-vision` beside
 the engine and writes both into the run config. On the GPU the encoder holds 1.6 GB of VRAM (Gemma 4's 2.4 GB),
 which a small card needs for the model, so on a card with less than 16 GB it runs on the CPU and a picture takes
 a few seconds. `--vision gpu` and `--vision cpu` choose the place. GLM 5.3 Flash reads no pictures.
@@ -130,13 +122,13 @@ lines is a backend to the server. Changing the model stops the child and starts 
 memory and its file mappings are given back by the operating system when the process ends, not by cleanup code
 that could miss something.
 
-A picture goes through a second child, `strata-vision`: llama.cpp's image code with the model's encoder file. It
+A picture goes through a second child, `hyper-vision`: llama.cpp's image code with the model's encoder file. It
 turns the picture into rows as wide as a token's embedding. The server puts one placeholder token a row into the
 prompt and sends `GENI` with the rows' file and `image_pad=`, the placeholder's id; the engine reads a row where
 a placeholder stands. The template says where a picture goes: Qwen's writes the tokens around it, Gemma 4's
 writes one token and the server adds the two that llama.cpp puts around the rows.
 
-**The engine.** Inside `strata-poly`, `Engine` (src/poly/engine.hpp) is what every architecture shares:
+**The engine.** Inside `hyper`, `Engine` (src/poly/engine.hpp) is what every architecture shares:
 
 - the GGUF, read in place, in one file or several
 - the dense weights in VRAM in the type the file has them
@@ -244,11 +236,11 @@ The estimates are rough. `least` leaves out the attention caches, which grow wit
 From a terminal:
 
 ```bash
-python polystrata.py --list-models
+python hyper.py --list-models
 ```
 
 ```bash
-python polystrata.py --model qwen3.6
+python hyper.py --model qwen3.6
 ```
 
 `--model` chats with a model. If a server is already running on the port it is switched to the model; if none is,
@@ -293,10 +285,12 @@ after the old engine ended and with the new one:
 [strata] memory: 18095 MiB of VRAM free with gemma-4-26b-a4b, 32109 MiB after it stopped, 12197 MiB with qwen3.6-35b-a3b
 ```
 
+> Upstream benchmark archive, NOT measured on THIS tree. THIS-tree numbers: BENCHMARKS.md only.
+
 ## Benchmark
 
 ```bash
-python polystrata.py benchmark --model qwen3.6 --json qwen36.json
+python hyper.py benchmark --model qwen3.6 --json qwen36.json
 ```
 
 It sends a short prompt and two long ones (2000 and 8000 tokens, roughly; `--prompt-tokens` changes them), 256
@@ -439,10 +433,7 @@ not fit, which is the case this engine is for.
 
 ### With 8 GB of VRAM
 
-The same card with 24.4 GB kept free (`--vram-reserve-mib 24400`), so the engine has about 8 GB: the dense
-weights, the caches and as many experts as fit. The rest of the experts are computed on the CPU, and the cache
-follows what the answer uses. This is not an 8 GB PC: the CPU, the RAM and the card's speed are the machine's
-above. The table is the engine of 2ba29a383baf, the last of 2026-10-11, one run of each.
+Emulated-8GB only (RTX 5090 held to ~8GB via reserve, Xeon + 120GiB RAM, NOT the 8+32 tier). Not an 8GB-PC run. Untested on THIS tier — see BENCHMARKS.md PENDING. The table is the engine of 2ba29a383baf, the last of 2026-10-11, one run of each.
 300-token answers, tokens per second; the two numbers are without and with guessed tokens.
 
 | Model | Experts from VRAM | Writes after a short prompt | after about 2,100 tokens | after about 7,700 | Reads about 2,100 tokens | about 7,700 |
@@ -999,7 +990,7 @@ that VRAM as the conversation grows, not at load: with a context of 32K it start
 on the laptop's card, 3.8 GiB of Ornith's and 2.3 GiB of Gemma 4's. The table below is from the engine before,
 which took the whole context at load.
 
-Measured on the laptop on 2026-10-10 with the engine of 27f9ec9dd4d0: `polystrata.py benchmark --prompt-tokens N`
+Measured on the laptop on 2026-10-10 with the engine of 27f9ec9dd4d0: `hyper.py benchmark --prompt-tokens N`
 with `--max-context` set in the model's config, one run each, with a prompt of about nine tenths of the context.
 
 | Model | Context | Experts in VRAM at the start | Prompt, tokens | Reads, tokens/s | Writes after the prompt |
@@ -1134,7 +1125,7 @@ one check that expected reasoning where GLM gave none.
 The tokenizers give llama.cpp's ids on the same prompts (27 to 8001 tokens) for Qwen3.6, Ornith and Gemma 4.
 
 Pictures were checked the same way, greedy and up to 64 tokens, on three prompts: one picture; two pictures of
-different shapes with text between and after them; a picture, an answer and a second question. PolyStrata's
+different shapes with text between and after them; a picture, an answer and a second question. HyperStrata's
 server code rendered each prompt. llama.cpp's server got it as text with its media marker where a picture goes
 and encoded the pictures itself; the engine got the ids and `strata-vision`'s rows. Both read the same number of
 prompt tokens.
@@ -1932,10 +1923,10 @@ Setup knows the files in the table above. Another file of one of these architect
 3. Write `strata-<name>.json` beside `setup.py`:
 
    ```json
-   {"exe": "engine/strata-poly", "args": ["--model", "/path/model.gguf", "--max-context", "32768"],
+   {"exe": "engine/hyper", "args": ["--model", "/path/model.gguf", "--max-context", "32768"],
     "cwd": ".", "tokenizer": "packs/<name>/tokenizer", "model_name": "<name>", "port": 8080}
    ```
-4. `python polystrata.py --list-models` should list it as available, and `python polystrata.py --model <name>`
+4. `python hyper.py --list-models` should list it as available, and `python hyper.py --model <name>`
    should answer.
 5. Check it against llama.cpp before trusting it: the same prompt's token ids into both, greedy, and compare the
    tokens that come out.
@@ -1958,7 +1949,7 @@ Setup knows the files in the table above. Another file of one of these architect
 
 - NVIDIA cards only. Built and run on one Linux machine, and the three new models' nine sizes on one Windows
   laptop as well. GLM 5.3 Flash was not run on Windows. Two cards can share a model since 2026-10-11
-  ([MULTI_GPU.md](MULTI_GPU.md#the-strata-poly-models)); that ran with Qwen3.6 and Gemma 4 on two RTX 3080
+  ([MULTI_GPU.md](MULTI_GPU.md#the-hyper-models)); that ran with Qwen3.6 and Gemma 4 on two RTX 3080
   under Linux only.
 - The changes that came from the laptop were built on Windows first, and on Linux on 2026-10-10 (gcc 11.4,
   CUDA 12.8), where the first sizes were checked against llama.cpp and with and without guesses again, and the

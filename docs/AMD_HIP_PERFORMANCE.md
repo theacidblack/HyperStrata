@@ -1,5 +1,7 @@
 # RX 7900 XTX support and performance evidence
 
+> Upstream archive — untested in THIS fork, see COVERAGE §6.
+
 This opt-in Linux `gfx1100` backend supersedes the initial support in
 [PR #94](https://github.com/Niko1221/Strata/pull/94). It retains HIP runtime and
 wave32 integer-dot compatibility, native mmap layout validation, and MTP, then

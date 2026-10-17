@@ -1,27 +1,27 @@
-# PolyStrata's MCP server: let your AI assistant install and run PolyStrata
+# HyperStrata's MCP server: let your AI assistant install and run HyperStrata
 
 `tools/strata_mcp.py` is an [MCP](https://modelcontextprotocol.io) server for the AI assistant you already use
 (Claude Code, Claude Desktop, Cursor, VS Code, Codex ...). Add it once, then ask in plain words:
 
-- "Install PolyStrata for this PC."
-- "Start PolyStrata." / "Stop PolyStrata."
-- "Is PolyStrata running? How much VRAM does it use?"
-- "Which PolyStrata model fits my PC?"
-- "PolyStrata didn't start - what does the log say?"
-- "How fast is PolyStrata on this PC?" (a short speed test)
-- "How do I connect Open WebUI / the OpenAI SDK / Claude Code to PolyStrata?"
+- "Install HyperStrata for this PC."
+- "Start HyperStrata." / "Stop HyperStrata."
+- "Is HyperStrata running? How much VRAM does it use?"
+- "Which HyperStrata model fits my PC?"
+- "HyperStrata didn't start - what does the log say?"
+- "How fast is HyperStrata on this PC?" (a short speed test)
+- "How do I connect Open WebUI / the OpenAI SDK / Claude Code to HyperStrata?"
 
-The assistant calls the server's tools. The tools run PolyStrata's own setup and start the model the way the start
+The assistant calls the server's tools. The tools run HyperStrata's own setup and start the model the way the start
 scripts do. It is one Python file that uses only the standard library, so it works before setup has created
 `.venv`. It needs Python 3.10 or newer, 64-bit on Windows.
 
 It is not the same thing as [Tools from MCP servers](DETAILS.md#tools-from-mcp-servers). That feature
-(`serve/mcp.py`) lets the *PolyStrata model* call tools from your MCP servers in its chat page. This page is the other
-direction: *your assistant* manages PolyStrata.
+(`serve/mcp.py`) lets the *HyperStrata model* call tools from your MCP servers in its chat page. This page is the other
+direction: *your assistant* manages HyperStrata.
 
 ## Add it
 
-You need a copy of PolyStrata: the zip from GitHub, or `git clone https://github.com/VecSzn/PolyStrata`. Below,
+You need a copy of HyperStrata: the zip from GitHub, or `git clone https://github.com/theacidblack/HyperStrata`. Below,
 `C:\Users\you\PolyStrata` (Windows) and `/home/you/PolyStrata` (Linux) stand for that folder. Use `python3` on Linux. On
 Windows, use `py` if `python` is not on your PATH.
 
@@ -102,7 +102,7 @@ tool_timeout_sec = 180                                # strata_stop / strata_ben
 The command is `python <PolyStrata folder>/tools/strata_mcp.py`. The transport is stdio. It speaks MCP revision
 2025-06-18, and also 2025-03-26 and 2024-11-05.
 
-`--root <folder>` manages a PolyStrata folder other than the one the file is in. For example:
+`--root <folder>` manages a HyperStrata folder other than the one the file is in. For example:
 `python D:\tools\strata_mcp.py --root D:\PolyStrata`.
 
 ## The tools
@@ -137,7 +137,7 @@ It then runs the same steps `START-HERE.bat` / `setup.sh` run:
 
 1. It creates `.venv` with the Python it runs on, if `.venv` is missing.
 2. It runs `setup.py --yes --no-start --family ... --model ... --context ... --vision ...` as a background process.
-   The output goes to `.strata-mcp/setup.log` in the PolyStrata folder.
+   The output goes to `.strata-mcp/setup.log` in the HyperStrata folder.
 
 The tool returns at once. Call it again to see the step (1-7), the download percentage, or setup's error message.
 Everything setup has finished is skipped on the next run, and downloads resume. If the AI app closes, the install
@@ -173,21 +173,21 @@ If a config of the folder sets an `api_key`, the tool sends that key with its ow
   unknown argument, a model or family setup does not offer, or a `gpus` value other than digits and commas is
   refused before anything runs. Commands are passed as argument lists; nothing goes through a shell.
 - **Paths.** The only path argument is `data_dir`. It must be one of:
-  - the current PolyStrata data folder;
-  - a folder inside the PolyStrata folder;
-  - a new absolute folder whose name starts with `PolyStrata` (e.g. `D:\PolyStrata-data`), whose parent exists, and which is
+  - the current HyperStrata data folder;
+  - a folder inside the HyperStrata folder;
+  - a new absolute folder whose name starts with `HyperStrata` (e.g. `D:\HyperStrata-data`; a `PolyStrata...` name from before the rename is accepted too), whose parent exists, and which is
     not in a system folder.
 
   `..`, relative paths and network (UNC) paths are refused. Logs are read only from `.strata-mcp/` and from the
-  engine log a config names, if that log is inside the PolyStrata folder or the data folder.
+  engine log a config names, if that log is inside the HyperStrata folder or the data folder.
 - **Only its own processes.** The server records the process id *and start time* of every process it starts, in
   `.strata-mcp/*.json`. It only ends a process when both match, so a process id the OS has given to another program
-  is never touched. A PolyStrata started some other way (its window, a run script, a service) is only asked over its
+  is never touched. A HyperStrata started some other way (its window, a run script, a service) is only asked over its
   API to unload the model. To end that server, close its window.
 - **Big downloads need a yes.** `strata_install` does nothing until it is called with `confirm: true`. The plan
   shows the download size and the free space first, and the install is refused if the disk is too small.
 - **Local only.** The server checks `127.0.0.1` and never changes the network settings: it does not install with
-  `--host 0.0.0.0` or an API key. To share PolyStrata on your network, run setup yourself (see
+  `--host 0.0.0.0` or an API key. To share HyperStrata on your network, run setup yourself (see
   [Using it](DETAILS.md#using-it)). Experimental options are left off too: the speed projection, rope scaling past
   262K and `--build`. Run setup by hand for those.
 

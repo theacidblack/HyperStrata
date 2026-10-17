@@ -1,53 +1,76 @@
-# Installing PolyStrata
+# Installing HyperStrata
 
-Everything about installing, starting, updating and configuring PolyStrata, on Windows and Linux, with an NVIDIA or an
-AMD graphics card. The short version is in the [README](../README.md#install); an AI coding assistant can do all of
+Canonical entry: **[HOW-TO-INSTALL.md](HOW-TO-INSTALL.md)** — start there. Detail below is kept, not duplicated there.
+
+Chain: Strata (https://github.com/Niko1221/Strata) → PolyStrata (https://github.com/VecSzn/PolyStrata) → HyperStrata (this fork, no upstream endorsement).
+
+Installing HyperStrata on Windows + NVIDIA (8+32 tier). Linux/AMD paths are upstream's, untested here. The short version is in the [README](../README.md#how-i-run-it); an AI coding assistant can do all of
 this for you with [AI_SETUP.md](AI_SETUP.md).
 
-> **On this page:** [What you need](#what-you-need) · [Windows](#windows) · [Linux](#linux) ·
+> **Guarantee rule (both paths):** only the models on the coverage list (`docs/COVERAGE.md` §§1-3: Unsloth Qwen3.6-35B-A3B GGUFs, MTP page + base page) are expected to run. Anything else is not guaranteed — engine changes can break what upstream once supported.
+
+## Path A — an agent installs it for you (recommended)
+
+You talk, the agent types.
+
+1. Tell any coding agent two things: (a) the folder to install into, (b) whether your model files are already on disk (which folder — passed as `--gguf-dir`) or must be downloaded (where the tens of GB go — `--data-dir`).
+2. The agent compares what you want against `docs/COVERAGE.md` §§1-3 and says plainly what is covered and what is not. On the list = expected to run. Off the list = not guaranteed (rule above).
+3. The agent installs: `START-HERE.bat --check` first (prints the GPU/RAM/disk verdict; installs nothing but Python + `.venv`), then `START-HERE.bat --yes ...` (`setup.py` flags: `--family` `--model` `--context` `--gguf-dir` `--data-dir` `--port`). Full flag list: `START-HERE.bat --help`.
+4. The server stays on `127.0.0.1` — never `0.0.0.0` without `--api-key` plus a long random key. You open `http://127.0.0.1:8080`. The first start takes a while (the window says what it is doing); later starts reuse downloads setup finished.
+
+## Path B — manual (same steps, you type them)
+
+Same guarantee rule as Path A: only `docs/COVERAGE.md` §§1-3 models are expected to run; anything else is not guaranteed.
+
+1. Prereqs: Windows 10/11 x86-64, a current NVIDIA driver, free disk for tens of GB of model files. `START-HERE.bat` installs Python 3.12 for your user account when missing — the driver is the only thing you install yourself.
+2. Get the source: `git clone https://github.com/theacidblack/HyperStrata.git`, or download the zip and unzip it.
+3. Install: `START-HERE.bat --yes --family qwen36 --model UD-Q4_K_M --context 131072 --gguf-dir <folder-with-the-gguf> --no-start` (command shape: `README.md` How I run it; flags: `setup.py`). Without `--gguf-dir`, setup downloads instead. Setup provides the engine in `engine-hyper/` (`BUILD.json` stamp; `setup.py` `build_engine_poly` / `get_poly_prebuilt`). PENDING: no standalone `BUILD_HYPER.bat` exists yet — `setup.py` already writes a lowercase `build-hyper.bat` during compiles (same file on Windows), so a second build bat waits on that clash being resolved.
+4. Config + launcher: copy `examples/model.example.json` + `examples/run-model.example.bat`, make the 3 path edits named in each 5-line header (engine exe, model `.gguf`, optional `.mmproj`), run the bat. It runs `python serve/server.py --engine hyper --config <yours>.json --port 8080 --open` (`serve/server.py` CLI; shape: `run-qwen36-ud-q4_k_m.bat`).
+5. Open `http://127.0.0.1:8080`. Check `curl http://127.0.0.1:8080/health` (says `loaded: true` when ready). Close the server window to stop.
+
+## PENDING (onboarding only, no dates)
+
+- Standalone `BUILD_HYPER.bat`: missing, see Path B step 3.
+- `--help.md`: not written yet — until then `START-HERE.bat --help` (setup flags) plus `serve/server.py` flags `--engine --config --port --open --host --api-key`.
+- Per-model VRAM budget table: PENDING (`docs/COVERAGE.md` §5). Fit questions go through Path A.
+
+> **On this page:** [Path A (agent)](#path-a--an-agent-installs-it-for-you-recommended) · [Path B (manual)](#path-b--manual-same-steps-you-type-them) · [PENDING](#pending-onboarding-only-no-dates) · [What you need](#what-you-need) · [Windows](#windows) · [Linux](#linux) ·
 > [AMD cards](#amd-cards) · [Several cards](#two-or-three-cards) · [Docker](#docker-linux) ·
 > [Older CPUs](#older-cpus-experimental) · [Updating](#updating) · [Where things are stored](#where-things-are-stored) ·
 > [Setup's questions](#setups-questions) · [Tuning](#tuning-for-your-pc) · [All options](#options-without-questions)
 
 ## What you need
 
-This is for Qwen3.8-Flash-Next. GLM 5.3 Flash needs Linux, one NVIDIA card and far more RAM:
-[GLM.md](GLM.md#what-you-need). The three smaller models (Qwen3.6-35B-A3B, Ornith 1.5, Gemma 4 26B-A4B) need Linux
-or Windows, one NVIDIA card and less of everything: [BACKENDS.md](BACKENDS.md#install).
+This fork runs Qwen3.6-35B-A3B on the 8+32 tier — see README.md + COVERAGE.md.
 
 | | |
 | --- | --- |
-| **GPU** | **NVIDIA** RTX 20, 30, 40 or 50 series, **12 GB VRAM or more** (8 GB runs, slowly). Measured on an RTX 5070 and an RTX 3090; RTX 20 (Turing, since 0.1.27) was tested by a contributor on an RTX 2070. **AMD** Radeon RX 7900 XT / XTX, RX 9070 / 9070 XT and Radeon AI PRO R9700 (validated), RX 7800 XT / 7700 XT and RX 9060 XT (validated by their owners), RX 6800 / 6900 series (community-reported), with 12 GB of VRAM or more. See [AMD cards](#amd-cards). |
-| **RAM** | Enough for the size you pick ([which model](MODELS.md#pick-by-ram)); **64 GB** runs every size. A big GPU makes up for less RAM - the [low-RAM mode](MODELS.md#a-big-graphics-card-and-little-ram). |
-| **CPU** | x86-64 with AVX2 (any Intel/AMD desktop CPU from the last ~8 years). AVX-512 (Ryzen 7000/9000) is a bit faster. Older CPUs without AVX2 are experimental and slow: [Older CPUs](#older-cpus-experimental). |
-| **Disk** | ~70-80 GB free for the model, ~6 GB for the MTP layer (+1 GB with images). **Q2_0 on an AVX-512 CPU** also writes a one-time ~40 GB copy of its experts for the fast CPU kernel. On Linux with an AMD card, ROCm takes ~10 GB more when setup installs it. An NVMe SSD is strongly recommended: it makes the first start much faster. |
-| **OS** | Windows 10/11, or Linux (Ubuntu 22.04/24.04 and Debian 12/13 get everything installed automatically). |
-| **Driver** | **NVIDIA:** a current driver, version 580 or newer ([nvidia.com/drivers](https://www.nvidia.com/drivers) or the NVIDIA App). **AMD:** on Linux the kernel's amdgpu driver (no ROCm install needed); on Windows a current AMD Software: Adrenalin Edition driver ([amd.com/support](https://www.amd.com/en/support)). |
+| **GPU** | Hardware: README.md hardware table only (RTX 3070 Ti Laptop 8 GB + 32 GB DDR5). Other cards: untested, see TEST_REQUESTS. |
+| **RAM** | 32 GB DDR5 (reference rig). Other RAM sizes: untested, see TEST_REQUESTS. |
+| **CPU / Disk / OS / Driver** | x86-64 Windows 10/11, current NVIDIA driver — measured rig only; Linux/driver auto-install untested in this fork. |
 
-The driver is the only thing you install yourself. Everything else - Python, the engine, the model - is set up for
+Upstream setup is designed to …; in this fork verified only on the reference rig. Build time varies by PC — 20–40 minutes is one past measurement, not promised. On the reference rig, the driver is the only thing you install yourself. Everything else - Python, the engine, the model - is set up for
 you the first time: Python 3.12 if you have none (for your user account, no admin), a private Python environment in
-`.venv/`, the PolyStrata engine, the model and the MTP draft layer. On NVIDIA it uses the ready-made engine for RTX
-20/30/40/50 and NVIDIA's CUDA libraries from pip (~0.4 GB); if no ready-made engine fits your PC, it offers to install
+`.venv/`, the HyperStrata engine, the model and the MTP draft layer. On NVIDIA it uses the ready-made engine for RTX
+20/30/40/50 (reference rig only — wider lineup support is a goal, not a promise) and NVIDIA's CUDA libraries from pip (~0.4 GB); if no ready-made engine fits your PC, it offers to install
 the build tools (Visual Studio Build Tools + CUDA Toolkit on Windows, `build-essential` + CUDA on Ubuntu) and compiles
 the engine for your GPU (asks first; 20-40 minutes once). More: [details](DETAILS.md#before-you-start).
 
 ## Windows
 
-1. [Download this project](https://github.com/VecSzn/PolyStrata/archive/refs/heads/main.zip) and unzip it (or
+1. [Download this project](https://github.com/theacidblack/HyperStrata/archive/refs/heads/main.zip) and unzip it (or
    `git clone` it).
 2. Double-click **`START-HERE.bat`**.
 3. Answer a few questions - or just press Enter each time for the recommended choice ([the questions](#setups-questions)).
 
-Then it downloads everything (the model is ~70 GB, so the first time takes a while - you can stop and it picks up
-where it left off) and **starts the model**. Your browser opens the PolyStrata app at `http://127.0.0.1:8080`.
+Then it attempts to download (~70 GB) and start the model; success beyond the reference rig is unverified. Your browser opens the HyperStrata app at `http://127.0.0.1:8080`.
 
-> **While the model starts, your PC can be slow or stop responding for 1-3 minutes** (longest the first time): PolyStrata
+> **While the model starts, your PC can be slow or stop responding for 1-3 minutes** (longest the first time): HyperStrata
 > loads 35-55 GB into your RAM and locks part of it for the graphics card. That's normal - wait, and don't close the
 > window. The window tells you what it is doing.
 
-**Next time**, just double-click `START-HERE.bat` again: it starts right away (30-90 s to load the model), nothing is
-downloaded twice. Close its window to stop the model. `SETUP.bat` (the same as `START-HERE.bat --setup`) installs
-another model or changes the settings. Starting PolyStrata from Task Scheduler at logon needs two task settings, or the
+**Next time**, just double-click `START-HERE.bat` again: it starts right away (on the reference rig ~30–90 s to load; other PCs vary, not promised. Setup reuses downloads it completed.). Close its window to stop the model. `SETUP.bat` (the same as `START-HERE.bat --setup`) installs
+another model or changes the settings. Starting HyperStrata from Task Scheduler at logon needs two task settings, or the
 start is 24x slower: [Running it at startup](DETAILS.md#running-it-at-startup-task-scheduler).
 
 ## Linux
@@ -69,53 +92,34 @@ nix develop -c ./setup.sh
 
 ## AMD cards
 
-The steps are the same as with NVIDIA: `START-HERE.bat` on Windows, `./setup.sh` on Linux. Setup finds the Radeon
-card and chooses the AMD (HIP) engine by itself on a PC with no NVIDIA card PolyStrata can use; `--backend hip` chooses
-it on a PC that has both. Supported cards: RX 7900 XT / XTX (gfx1100), RX 7800 XT / 7700 XT (gfx1101), RX 9060 XT
-(gfx1200), RX 9070 / 9070 XT and Radeon AI PRO R9700 (gfx1201), and the RX 6800 / 6900 series (gfx1030). Integrated
-Radeon GPUs are listed as not supported.
-
-On Linux setup uses a system ROCm 7 when there is one, or installs ROCm into `.venv` from AMD's wheels (~10 GB, no
-sudo), and compiles the engine on your PC for the card (10-20 minutes, once; it needs a C++ compiler and git:
-`sudo apt install build-essential git`). Several AMD cards share the model with `--gpus`, as on NVIDIA.
-
-What differs from NVIDIA for now: pictures are read by the image encoder on the CPU (`--vision cpu`, about 3 s per
-picture at the default 300 image tokens on 8 cores), `--calibrate` is NVIDIA-only, and Unsloth's 4-bit model needs an NVIDIA card. Measurements per card, the
-build by hand and the tuning tables: [AMD_HIP.md](AMD_HIP.md).
+AMD/HIP: cut in this fork (COVERAGE §6). Upstream docs only.
 
 ## Two or three cards
 
-**Two or three NVIDIA cards?** Just run `START-HERE.bat`: it lists your cards, says which ones PolyStrata can use, and
-asks whether to share the model across them (recommended when two can). An install made on one card asks once at
-its next start. Or choose yourself: `START-HERE.bat --gpus 0,2` (both, remembered), `--gpus all`, or `--gpu 0` (one
-card, this start only). Each card keeps the experts of its own layers, and prompts flow through the cards in a
-pipeline: on an RTX 5080 + RTX 3090 prompts were read 18-20% faster than on the 5080 alone, decoding on par.
-Every card must be an RTX 20 series or newer with 8 GB or more. See [MULTI_GPU.md](MULTI_GPU.md).
-
-**Several AMD cards:** setup takes one card (the one with the most VRAM, or `--gpu N`) unless you name more:
-`--gpus 1,0` splits the model's layers across them, the first one the main card (numbers as setup lists them). A
-split pays only when no single card holds the model's experts ([AMD_HIP.md](AMD_HIP.md#rdna4-gfx1201)).
+Multi-GPU: upstream path, untested in this fork. PENDING.
 
 ## Docker (Linux)
 
-The same idea, in a container (NVIDIA cards).
+Upstream Docker docs, untested here. The same idea, in a container (NVIDIA cards).
 
 1. Host: Docker with the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)
    and a driver **580 or newer** (CUDA 13.0).
 2. Build (this compiles the engine into the image, so the container never compiles):
-   `docker build -t strata .`
-   `docker build -t strata --build-arg CUDA_ARCHITECTURES=89 .` builds for one card only (faster).
+   `docker build -t hyperstrata .`
+   `docker build -t hyperstrata --build-arg CUDA_ARCHITECTURES=89 .` builds for one card only (faster).
    The default covers RTX 30 (86), RTX 40 (89), RTX 50 (120) and A-series (80); a card outside that
    set needs a rebuild with its own arch. Add `--build-arg BUILD_VISION=0` to skip the image encoder.
 3. Run (the first start downloads the ~70 GB model, then starts; later starts go straight to serving):
-   `docker run --rm --gpus all -p 8080:8080 --ulimit memlock=-1 -v strata-data:/data strata`
+   `docker run --rm --gpus all -p 8080:8080 --ulimit memlock=-1 -v hyperstrata-data:/data hyperstrata`
+
+   Existing installs keep their old `strata-data` volume: keep using `-v strata-data:/data` for that data, or copy it to the new name once.
 
    The setup choices are env vars: `-e MODEL=IQ2_XS -e FAMILY=qwen -e CONTEXT=32768 -e VISION=no`
    (or `MODEL=Q2_0|IQ3_XXS|IQ3_S`, `FAMILY=swift|coder`; the defaults above are the recommended ones).
    `-e VISION=cpu` keeps the image encoder on the CPU. `-e KV=int8|q4_0|k8v4` picks the KV cache
    precision; `k8v4` is INT8 K with 4-bit V and keeps its KV in VRAM from 64K up.
    Only the model files, the prepared pack, the MTP layer and the install config live in the
-   `strata-data` volume; the engine is part of the image. Switching between models already on the
+   `hyperstrata-data` volume (an existing `strata-data` volume from before the rename is kept and reused as-is); the engine is part of the image. Switching between models already on the
    volume needs no setup pass: `-e MODEL=Q2_0 -e FAMILY=coder` picks that model's config. Add
    `-e REINSTALL=1` only to change settings for a model already set up (context, vision, KV, host,
    api_key, LOW_RAM), since those are recorded in its config.
@@ -125,7 +129,7 @@ The same idea, in a container (NVIDIA cards).
    config file. A link `/opt/strata/strata-<model>.json` that already points into `/data/config/` (made by
    a pod command before the entrypoint runs) is kept. The entrypoint prints one `Config:` line naming the
    file the server starts with.
-   PolyStrata loads 32-62 GB into RAM. `--gpus all` on a host with two usable cards takes both: the
+   HyperStrata loads 32-62 GB into RAM. `--gpus all` on a host with two usable cards takes both: the
    layer split is setup's recommended default ([MULTI_GPU.md](MULTI_GPU.md)), and a volume
    set up for one card switches to the pair on its first start there. Pin one card with `-e GPU=0`,
    or name them with `-e GPUS=0,2` and where the later card's layers start with `-e LAYER_SPLIT=18`.
@@ -148,7 +152,7 @@ The same idea, in a container (NVIDIA cards).
 
 ## Older CPUs (experimental)
 
-PolyStrata's ready-made engine needs AVX2 (Intel Haswell 2013, AMD Zen 2017 or newer). Since 0.1.39 an older CPU - AVX
+Upstream reports, untested in this fork. PENDING. HyperStrata's ready-made engine needs AVX2 (Intel Haswell 2013, AMD Zen 2017 or newer). Since 0.1.39 an older CPU - AVX
 only (Sandy Bridge / Ivy Bridge, Xeon E5 v1/v2, AMD Bulldozer) or SSE4.2 only (Nehalem / Westmere, Xeon X5600) - runs
 as an **experimental** build that setup compiles on that PC. Run setup as usual: it says the CPU has no AVX2, warns
 that this is experimental and slow, and compiles the engine (10-20 minutes, once; Windows needs the Visual Studio Build
@@ -158,7 +162,7 @@ a CPU, and says so.
 What differs in that build (`STRATA_ISA_FLOOR=avx` or `none`, chosen from the CPU):
 
 - ggml-cpu is compiled for AVX or SSE4.2 instead of AVX2, and the CPU's share of the experts runs on its kernels.
-  PolyStrata's own AVX2 / AVX-512 kernels stay in the program but are used only on a CPU that has them.
+  HyperStrata's own AVX2 / AVX-512 kernels stay in the program but are used only on a CPU that has them.
 - Only the i-quant models' packs run (every model setup installs on such a CPU); the AVX-512 Q2_0 pack does not.
 - Speed: the GPU part is unchanged and the CPU part is slower, so a GPU with more VRAM (more experts cached there)
   helps most. With the older paths forced on a Ryzen 5 7600 + RTX 5070 and the expert cache held at 1500 slots, greedy
@@ -173,11 +177,11 @@ What differs in that build (`STRATA_ISA_FLOOR=avx` or `none`, chosen from the CP
 - Two-socket Xeons: memory on the other socket is slow; keep the RAM on one CPU if you can.
 
 By hand: `cmake ... -DSTRATA_ISA_FLOOR=avx` (or `none`) builds it; `STRATA_ISA_FLOOR=avx` set for setup builds it on
-any PC (to try it). Problems and results on real hardware are welcome as GitHub issues.
+any PC (to try it). Problems and results on real hardware are welcome.
 
 ## Updating
 
-**`UPDATE.bat`** (Linux: `./update.sh`) updates PolyStrata without starting the model - for when the GPU is busy with
+**`UPDATE.bat`** (Linux: `./update.sh`) updates HyperStrata without starting the model - for when the GPU is busy with
 something else, or you just want the new version ready. In a `git clone` it runs `git pull`, then does what
 `START-HERE.bat` does before a start: the engine (a new ready-made one when the new version needs it; on Linux a
 compiled engine is compiled again when its source changed), the Python packages, and each installed model's settings
@@ -187,28 +191,30 @@ usual. In a copy that was downloaded as a zip it says to download the new zip (b
 itself.
 
 Or by hand: download the new version and unzip it anywhere (or `git pull`), then run `START-HERE.bat` (Linux:
-`./setup.sh`) in it. The model files are kept in a `PolyStrata-data` folder next to your PolyStrata folder, so a new copy
-finds them and sets itself up the same way - nothing big is downloaded again. On Linux after a `git pull`, setup
+`./setup.sh`) in it. The model files are kept in a `HyperStrata-data` folder next to your HyperStrata folder, so a new copy
+finds them and sets itself up the same way - nothing big is downloaded again. A `PolyStrata-data` folder from before
+the rename is discovered and reused in place (setup discovers both stems; it does not rename your data). On Linux after a `git pull`, setup
 compiles the engine again when its source changed (a minute or two for the changed files); if that compile fails, it
 says so and starts the engine you had.
 
 ## Where things are stored
 
 - **Your chats: only in your browser.** The Chat tab keeps the conversation, its settings and the API key you typed
-  in the browser's local storage (`strata.*` keys) - not on the server and not in the PolyStrata folder. Pictures are not
+  in the browser's local storage (`strata.*` keys, including `strata.theme` — frozen for compatibility, never renamed: renaming would orphan existing users' saved chats and settings) - not on the server and not in the HyperStrata folder. Pictures are not
   kept, only their names. Another browser or a private window starts empty; clearing the site's data deletes them.
-- **How the model starts:** `strata-<model>.json` in the PolyStrata folder (context, GPUs, host, API key, ...), written
+- **How the model starts:** `strata-<model>.json` in the HyperStrata folder (context, GPUs, host, API key, ...), written
   by setup; next to it `run-<model>.bat` / `.sh`, the log `strata-<model>.log` and, when you use "Use for other
   apps too", `strata-<model>.shared-settings.json`. Running setup again for the same model (another context, say)
   rewrites the keys setup writes (`exe`, `args`, `port`, `gpu`, `host`, `api_key`, `vision`, ...) and keeps the
   ones you added (`sampling`, `mcp_servers`, `mcp`, `cors_origins`, ...); the earlier file is kept as
   `strata-<model>.json.bak` (0.1.39). Engine options you added to `"args"` by hand are not carried over: setup names
   them, and you add them again.
-- **The model files** (`models/`, `packs/`, `mtp/`, 70-120 GB): in **`PolyStrata-data` next to the PolyStrata folder**, or
+- **The model files** (`models/`, `packs/`, `mtp/`, 70-120 GB): in **`HyperStrata-data` next to the HyperStrata folder** (a
+  `PolyStrata-data` folder from before the rename is discovered and reused in place), or
   wherever `--data-dir` put them.
-- **Where that data folder is:** `%APPDATA%\PolyStrata\settings.json` on Windows, `~/.config/polystrata/settings.json` on
-  Linux ([details](DETAILS.md#before-you-start)).
-- **The program itself:** `.venv/`, `engine/` and `third_party/` in the PolyStrata folder.
+- **Where that data folder is:** `%APPDATA%\HyperStrata\settings.json` on Windows, `~/.config/hyperstrata/settings.json` on
+  Linux (new paths only, no fallback; [details](DETAILS.md#before-you-start)).
+- **The program itself:** `.venv/`, `engine/` and `third_party/` in the HyperStrata folder.
 - **Where github.com cannot be reached:** a build from source downloads llama.cpp's source (ggml, gguf-py) from
   GitHub at the commit `LLAMA_CPP_COMMIT` in `setup.py` names. Put that commit's tree in `third_party/llama.cpp`
   yourself (from a mirror or another PC) and setup uses it instead (#585).
@@ -232,7 +238,7 @@ With `--yes` setup takes the recommended answer to every question.
 ## Tuning for your PC
 
 Every PC is different: `START-HERE.bat --calibrate` (Linux: `./setup.sh --calibrate`) measures a few engine settings
-on yours and keeps the fastest (about 15-30 minutes, longer on a slow card; on an RTX 5070 with a Ryzen 5 7600 it made the Coder 7% faster).
+on yours and keeps the fastest (keeps the setting only when it measures >3% faster on your PC (reported ~15–30 min and +7% on one upstream PC; time and gain not promised elsewhere)).
 It keeps a setting only when it is more than 3% faster, and the result is remembered per PC and model, so updates
 keep it. Measuring the CPU worker count needs a fresh engine, so the model is loaded more than once: the PC is
 busy, and can stop responding for a minute or two, once per restart. When it finishes it **starts the model**,
@@ -246,8 +252,8 @@ START-HERE.bat --setup                          install another model, or change
 SETUP.bat                                       the same (double-click it)
 START-HERE.bat --model IQ2_XS --context 32768 --vision yes --yes     no questions
 START-HERE.bat --gguf-dir D:\models\IQ2_XS       use GGUF files you already have
-START-HERE.bat --inspect D:\models\some.gguf     what a GGUF really holds and whether PolyStrata runs it (no download)
-START-HERE.bat --data-dir E:\PolyStrata-data         keep the model files somewhere else
+START-HERE.bat --inspect D:\models\some.gguf     what a GGUF really holds and whether HyperStrata runs it (no download)
+START-HERE.bat --data-dir E:\HyperStrata-data         keep the model files somewhere else
 START-HERE.bat --port 8081                      another port
 START-HERE.bat --gpu 1                          another GPU (setup picks the one with the most VRAM)
 START-HERE.bat --gpus 0,2                       several GPUs sharing the model
@@ -260,7 +266,7 @@ START-HERE.bat --calibrate                      tune the engine for this PC (abo
 START-HERE.bat --check                          only check this PC
 ```
 
-**Leaving VRAM for other programs (#493):** PolyStrata fills the graphics card's free VRAM with experts (the expert cache)
+**Leaving VRAM for other programs (#493):** HyperStrata fills the graphics card's free VRAM with experts (the expert cache)
 and leaves `--vram-reserve-mib` MiB free: 700 by default. For a game, a 3D program or another model beside it, leave
 more: `START-HERE.bat --vram-reserve-mib 2048` (Linux: `./setup.sh --vram-reserve-mib 2048`) writes it into the
 model's `strata-<model>.json` and starts it; at setup (`--setup --vram-reserve-mib 2048`) it goes into the new config.
@@ -280,12 +286,12 @@ is left for the expert cache", that log line says how much is short; an 8K conte
 free the most.
 
 **Model files downloaded by hand, or from a mirror (#495):** setup's step 5 prints the folder it expects them in
-(`PolyStrata-data\models\<SIZE>\`, e.g. `PolyStrata-data\models\IQ3_XXS\`): put them there with their original names, or
+(`HyperStrata-data\models\<SIZE>\`, e.g. `HyperStrata-data\models\IQ3_XXS\`; a `PolyStrata-data` folder from before the rename is discovered too): put them there with their original names, or
 point setup at them with `--gguf-dir`. To see what a file really holds before using or downloading it, `--inspect`
 reads only its headers (a few MB, also over the network: a file, a folder, a URL, `ms:owner/repo` for ModelScope or
 `hf:owner/repo`): every weight group's real bits per weight and storage types, and whether it is one of the files setup
-installs (under any name), stored like one of them, or not one PolyStrata runs (another architecture, or experts in a
-format no PolyStrata kernel reads). A name says little: Unsloth's `UD-IQ3_XXS` stores its routed experts at 3.22 bits per
+installs (under any name), stored like one of them, or not one HyperStrata runs (another architecture, or experts in a
+format no HyperStrata kernel reads). A name says little: Unsloth's `UD-IQ3_XXS` stores its routed experts at 3.22 bits per
 weight, `UD-Q4_K_XL` at 5.10, the original `Q2_0` at 2.25 and `IQ3_S` at 3.33. To let setup download from a Hugging Face mirror itself, set `HF_ENDPOINT`
 first (Windows: `set HF_ENDPOINT=https://hf-mirror.com`, Linux: `export HF_ENDPOINT=https://hf-mirror.com`): the same
 pinned revisions and checks apply, and the MTP draft layer comes from there too.

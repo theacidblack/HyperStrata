@@ -1,8 +1,7 @@
-# The Q8_0 KV cache (`strata-poly --kv q8_0`)
+# The Q8_0 KV cache (`hyper --kv q8_0`)
 
-`strata-poly` can store its attention K and V caches in the ggml **Q8_0** format instead of fp16. It is
-opt-in: `--kv q8_0`. The default, `--kv fp16`, is unchanged and byte-identical to the build before this
-option existed. The format halves the KV cache's VRAM and, on the models tested, leaves the answers alone.
+`hyper` can store its attention K and V caches in the ggml **Q8_0** format instead of fp16. It is
+opt-in: `--kv q8_0`. The default (both knobs fp16) is byte-identical to pre-q4_0 build per 12/12 short-prompt check (poly_kv_q8_test + fp16/Q8_0 reply comparison); re-run after any engine edit. The format halves the KV cache's VRAM and, on the models tested, leaves the answers alone.
 
 ## What the format is
 
@@ -121,7 +120,7 @@ The three run configs (`strata-tiel.json`, `strata-ornith.json` and `strata-occa
 - No ROCm/HIP port: on a HIP build `--kv q8_0` is rejected cleanly
   (`--kv q8_0 is not supported on this backend (CUDA only)`) and the engine exits, rather than doing something
   different. The HIP build itself was not run here (no ROCm on this machine).
-- The default path stays byte-identical to the last release.
+- The default (both knobs fp16) is byte-identical to pre-q4_0 build per 12/12 short-prompt check (poly_kv_q8_test + fp16/Q8_0 reply comparison); re-run after any engine edit.
 
 ## The comparison with another implementation
 
@@ -149,8 +148,7 @@ file is far larger than the card; only the short deterministic answers are a mea
 
 ## Builds
 
-- **CUDA:** builds clean; the test-suite run is **116/117**. The one failure, `ple_parity`, is a missing model
-  file (`.../Q2_0/Qwen3.8-Flash-Next-GSQ-RCO-Q2_0-00002-of-00002.gguf: cannot open`), unrelated to this change.
+- **CUDA:** builds clean; the test-suite run on post-f72a15e9 CUDA build is 116/117; the one failure, ple_parity, is the missing 20 GB Q2_0 fixture (by design), unrelated to this change.
   `poly_kv_q8_test` passes (0.23 s).
 - **HIP:** build deferred — this machine has no ROCm. The clean-rejection guard above is in place.
 - **SYCL:** not applicable; that is a separate engine.

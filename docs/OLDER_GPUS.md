@@ -1,8 +1,7 @@
 # Older GPUs (experimental)
 
-PolyStrata's supported cards are NVIDIA RTX 20 / 30 / 40 / 50 and the AMD cards in [AMD_HIP.md](AMD_HIP.md). The cards
-below run through **opt-in, experimental** paths that community members wrote and measured on their own machines. The
-maintainers have none of these cards: each path is compile-checked and unit-tested here, and the ready-made engines
+Upstream's supported cards are …; this fork tests Windows + NVIDIA on the reference rig only — other cards unverified here. The cards
+below run through **opt-in, experimental** paths that community members wrote and measured on their own machines. The owner has none of these cards; each path is compile-checked and unit-tested here, and the ready-made engines
 and their output stay exactly as they were. Numbers are the reporters' own, on one machine each.
 
 ## Support matrix
@@ -58,7 +57,7 @@ The choice is kept in the model's config (`"cuda": 12`): its starts and `UPDATE.
 their own engine. Setting the model up again chooses again (by its cards; add `--cuda 12` to keep a forced choice). A Pascal / Volta card added to a model at a start (`--gpus`) moves that model to the
 CUDA 12 engine.
 
-`--cuda 12` is also the way to run PolyStrata with an NVIDIA driver older than 580: CUDA 12 needs 528 or newer on Windows
+`--cuda 12` is also the way to run HyperStrata with an NVIDIA driver older than 580: CUDA 12 needs 528 or newer on Windows
 (527.41, NVIDIA's minor-version compatibility) and 525 on Linux; setup's "driver too old" stop says so. Such old
 drivers were not tested here.
 
@@ -225,14 +224,8 @@ Setup does not build these; build by hand and run `serve/server.py` with a confi
 
 - **gfx906** (MI50 / MI60 / Radeon VII, wave64): a separate opt-in build, `-DSTRATA_HIP_GFX906=ON
   -DCMAKE_HIP_ARCHITECTURES=gfx906` (not `STRATA_ENABLE_HIP`). Current ROCm no longer ships gfx906 libraries; the
-  reporter used a community ROCm 7.14 image. Recipe, kernels and measurements: [AMD_HIP.md](AMD_HIP.md#gfx906-instinct-mi50--mi60-radeon-vii-wave64-built-from-source).
+   reporter used a community ROCm 7.14 image. Recipe, kernels and measurements: [AMD_HIP.md](AMD_HIP.md#gfx906-instinct-mi50--mi60-radeon-vii-wave64-built-from-source).
 - **gfx1012** (RX 5500 XT): the wave32 backend, `-DSTRATA_ENABLE_HIP=ON -DCMAKE_HIP_ARCHITECTURES=gfx1012`. HIP 5.7
-  (Ubuntu's packages) works: older hipBLAS (0.x) is used through rocBLAS, the legacy HIP names and the missing
-  `__syncwarp` are version-gated, and RDNA1's missing signed dot4 uses llama.cpp's SDWA sequence
-  (`-DSTRATA_GFX1012_PORTABLE_DOT=ON`: the portable one).
-
-## Reports welcome
-
-These paths stay experimental until more people run them. A report with the card, the driver / ROCm version, the
-model and the engine log (`strata-<model>.log`) in an issue helps; [COMMUNITY_BENCHMARKS.md](COMMUNITY_BENCHMARKS.md)
-has the format for measurements.
+   (Ubuntu's packages) works: older hipBLAS (0.x) is used through rocBLAS, the legacy HIP names and the missing
+   `__syncwarp` are version-gated, and RDNA1's missing signed dot4 uses llama.cpp's SDWA sequence
+   (`-DSTRATA_GFX1012_PORTABLE_DOT=ON`: the portable one).

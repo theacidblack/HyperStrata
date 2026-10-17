@@ -1,5 +1,7 @@
 # Community benchmark results
 
+> Upstream history — runs below were measured on upstream builds, kept as records. New HyperStrata reports use the same format.
+
 Share measurements from your own hardware so other users can judge how Strata
 might run on a similar machine. This guide suggests a report format and a pull
 request workflow; a single model, GPU, or context length is enough to contribute.
@@ -30,18 +32,17 @@ leaves out.
 Setup offers Tiel Coder now (`--family tiel`), and not the HauhauCS file. How to give setup such a file is in the
 [FAQ](FAQ.md#can-i-run-a-fine-tune-or-another-model-with-the-same-architecture).
 
-To add yours, open an issue at [VecSzn/PolyStrata](https://github.com/VecSzn/PolyStrata/issues) with what
-[What to record](#what-to-record) lists. `python polystrata.py benchmark --model <name> --prompt-tokens 24000`
+`python hyper.py benchmark --model <name> --prompt-tokens 24000`
 gives the two speeds the README uses ([what it sends and prints](BACKENDS.md#benchmark)).
 
 ### Comparing with llama.cpp
 
 `bench/bench_vs_llama.py` is the script Strata used for
-[its own comparison](../bench/results/2026-10-06-llamacpp-0.6.0/README.md). It starts PolyStrata and llama.cpp's
+[its own comparison](../bench/results/2026-10-06-llamacpp-0.6.0/README.md). It starts HyperStrata and llama.cpp's
 `llama-server` in turns on the same GGUF, one engine on the card at a time, sends both the same prompts and prints
 the medians. With a size that setup has installed:
 
-1. Stop PolyStrata and anything else that uses the card.
+1. Stop HyperStrata and anything else that uses the card.
 2. Download `llama-server` from llama.cpp's [releases](https://github.com/ggml-org/llama.cpp/releases), the CUDA
    build for an NVIDIA card. Qwen3.6's draft block needs `--spec-type draft-mtp`, which b11540 has.
 3. Make a folder for the run and copy `prompt-4k.txt` and `prompt-32k.txt` into it from
@@ -89,7 +90,7 @@ The README's laptop ran it on 2026-10-11 with the engine of 2ba29a383baf and lla
 [Qwen3.6 UD-Q3_K_M](../bench/results/2026-10-11-laptop-qwen36-llamacpp-b11540/README.md) and
 [Tiel Coder UD-Q3_K_XL](../bench/results/2026-10-11-laptop-tiel-llamacpp-b11540/README.md). Against llama.cpp's
 fastest setting in each cell, PolyStrata read the prompts 2.7 to 3.5 times as fast and wrote 1.5 to 1.8 times as
-fast.
+fast — reported, NOT re-verified, do not rank.
 
 ## Community reports
 
@@ -179,8 +180,7 @@ The result goes to `bench/results/<date>-community-<gpu>-<model>/` (or `--out DI
 Home folders, user and host names, local network addresses and API keys are replaced by placeholders before anything is
 written. Read the report once before you share it: the benchmark cannot know what else you consider private.
 
-To share it, open a pull request that adds the folder (see [Submit a report](#submit-a-report)), or paste
-`README.md` into a GitHub issue. Add what the tool does not know: background load, power limits, storage.
+To share, keep your folder with your log; no review service promised here. Add what the tool does not know: background load, power limits, storage.
 
 To compare with an earlier run on the same machine (before and after an update or a setting change):
 
@@ -278,18 +278,7 @@ successes. A needle test measures recall on those inputs, not overall model qual
 
 ## Submit a report
 
-1. Fork Strata and create a branch for your report.
-2. Add a folder such as `bench/results/YYYY-MM-DD-community-rtx-5090/`. Use the
-   measurement date and a short hardware label; add a suffix if the name exists.
-3. Put a `README.md` based on the template below in that folder, together with
-   per-run JSON or CSV and small scripts or prompts needed to repeat it. Use your
-   own data format and document its fields and units. Keep large model files and
-   generated packs out of the PR.
-4. Open a pull request against `Niko1221/Strata:main`. Summarize the hardware,
-   model, configurations tested, and limitations. Keep a results-only submission
-   separate from engine changes so reviewers can assess the measurements directly.
-
-Maintainers can review the report and decide where to include it. Adding a report
+Adding a report
 does not require changing the README's headline performance claims. For a failed
 run or a suspected bug, a GitHub issue with the configuration and relevant logs
 may be more useful than a benchmark PR.

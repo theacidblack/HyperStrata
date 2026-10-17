@@ -1,0 +1,30 @@
+# HyperStrata
+> Local LLM inference: Qwen3.6-35B-A3B MoE GGUF (Unsloth UD quants q4-q6) on 8 GB VRAM + 32 GB RAM, Windows + CUDA, with q4_0 KV cache.
+> Chain: Strata ([Niko1221/Strata](https://github.com/Niko1221/Strata)) → PolyStrata ([VecSzn/PolyStrata](https://github.com/VecSzn/PolyStrata)) → HyperStrata (this fork, no upstream endorsement).
+
+## Start
+- [README](README.md): What this is and how to start on Windows with CUDA.
+- [Install](docs/INSTALL.md): How to check the PC, set up, start and verify the server.
+- [AI setup](docs/AI_SETUP.md): How to connect apps and agents to the local API.
+
+## KV cache and quantization
+- [KV cache formats](docs/KV_CACHE.md): Which `--kv` and `--draft-kv` formats exist and when to use them.
+- [Q8 KV notes](docs/Q8_KV.md): What the q8_0 KV measurement covers.
+
+## Coverage and benchmarks
+- [Coverage](docs/COVERAGE.md): Which weight files load and what is still unmeasured.
+- [Benchmarks](docs/BENCHMARKS.md): Which runs were measured and on what rig.
+- [Community benchmarks](docs/COMMUNITY_BENCHMARKS.md): How to report a run from other hardware.
+- [Test requests](docs/TEST_REQUESTS.md): Which hardware and runs are still wanted.
+
+## Help
+- [Troubleshooting](docs/TROUBLESHOOTING.md): What to check when setup or inference fails.
+- [FAQ](docs/FAQ.md): Answers to common questions.
+
+## Reference
+- [Upstream divergence](UPSTREAM_DIVERGENCE.md): What this fork changes relative to upstream.
+- [Security](SECURITY.md): How to report a security issue.
+- [License](LICENSE): Terms the software is distributed under.
+
+## Upstream archive
+- [Model guide archive](docs/MODELS.md): Older upstream size tables kept for reference.

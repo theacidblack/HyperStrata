@@ -11,10 +11,11 @@ breaks if removed, and how to validate removal. Unknowns are marked, never guess
 ## Comparison baseline (established 2026-10-16, re-baselined 2026-10-16)
 
 - Upstream: `https://github.com/VecSzn/PolyStrata`, tracked branch `upstream/main`.
+- OG upstream: `https://github.com/Niko1221/Strata` — chain Strata → PolyStrata → HyperStrata, no endorsement either way.
 - Upstream HEAD audited: `f72a15e9` ("setup, docs: what parallel requests gain on a small card now", 2026-10-16) — 13 commits since the previous baseline, all parallel/batch serving for strata-poly + MXFP4-on-GPU + per-model joint-head support.
 - Previous baseline: `51dc2427` (2026-10-15), at full parity (zero fork-only, zero upstream-only).
 - Our branches at re-baseline: sync branch `upstream-sync/0.1.44.1-poly.6` merged cleanly (no conflicts; upstream touched 27 engine/setup/docs files, we touched only README/divergence docs — disjoint sets). Audit: `merge-base HEAD upstream/main` = `f72a15e9`, upstream-only = 0 commits.
-- Sync verdict 2026-10-16: upstream delta is additive and opt-in (batch default 0 = solo path; MXFP4 paths cannot engage UD-Q4_K_M weights; `--kv`/`--prompt-batch`/prefill handling byte-identical). No DIV entry affected; no upstream equivalent to any fork behavior. See "Sync audit 2026-10-16" below.
+- Sync verdict 2026-10-16: diff review finds upstream delta additive/opt-in (batch default 0 = solo path; MXFP4 paths cannot engage UD-Q4_K_M weights; `--kv`/`--prompt-batch`/prefill handling). Byte-identity PENDING rebuild + poly_kv_q8_test/poly_attend_test; no DIV entry affected per audit 2026-10-16; no upstream equivalent found at f72a15e9. See "Sync audit 2026-10-16" below.
 - Limitation: history before this fork's creation was not separately audited; the
   fork was cut directly at `51dc2427`, so there is no older hidden divergence.
 
@@ -50,6 +51,9 @@ breaks if removed, and how to validate removal. Unknowns are marked, never guess
   content evolves with results.
 - **Validation procedure:** re-read against the identity task's definition of done;
   confirm no authorship/endorsement/universal-gain claims and no invented benchmarks.
+- **Wave A+B note (2026-10-18, uncommitted):** user-facing docs moved to Hyper identity (Wave A, 9 files);
+  `hyper.py`, `tools/hyper_*.py`, `hyper.exe` / `engine-hyper/` landed with old names kept as compat
+  (Wave B, `setup.py:748-763`). Old `polystrata.py` / `tools/strata_*.py` still on disk pending deletion review (DIV-003).
 
 ## DIV-002 — Independent q4_0 KV-cache knobs for target model and draft block
 
@@ -58,18 +62,35 @@ breaks if removed, and how to validate removal. Unknowns are marked, never guess
 - **Location:** `src/poly/engine.hpp:41,75` (`KvFmt::kQ4_0`, `Options::draft_kv_format`); `src/poly/engine.cpp` (`Engine::open()` per-knob gates); `src/poly/qwen35.cpp` / `qwen35.hpp` (`block_kv()`, per-block alloc/save/load/attend, `head_dim` guard); `src/poly/main.cpp:597-616,1057-1058,1148-1168` (`kv=`/`draft_kv=` INFO, `--draft-kv` help/parse); `src/poly/kernels.cu` (`store_q4[_at]`, q4 reader/dequant arms); `include/strata/poly/kernels.hpp` (`Kvq4`); `src/poly/kv_q4_test.cpp` (new: round-trip, layout, ring, attend key+value arms); `src/poly/draft_race_test.cpp` (mixed-knob arm); `serve/web/app.js:411-420` (neutral `Q4_0` label, Draft KV row hidden when fp16); `setup.py:767` (`POLY_KV_FORMATS`) + writer/reader/carry; `docs/KV_CACHE.md` (new), `docs/GLM.md:261-262,278-284`, `README.md`, `CHANGELOG.md`, `examples/qwen36-q4_0/`
 - **Origin:** fork change 2026-10-16/17 (q4_0 KV plan v2; commits `f262e222`, `259a690e`, `f7a8d229`, `a95fe7cf`, `5d73df09`, `66602d44`, `99a16422`, `886f5fd0`, `3edabd82` + audit fixes on top)
 - **Reason:** upstream `strata-poly` offers exactly one KV choice (`fp16`, or `q8_0` on qwen35moe) shared by target layers and the draft block. On an 8 GB card the KV cache competes with the expert cache; a q4_0 option at 9/32 of fp16 per row (ggml-true transcription of `quantize_row_q4_0_ref`) plus an independent draft knob lets small/draft traffic run cheap while keeping target precision — mixable per block, both knobs omitted = fp16 exactly as before.
-- **Behavioral difference:** two new opt-in flags; per-block formats in alloc/save/load/attend; setup writes/carries them; new docs. No-flag behavior unchanged (verified: default-path byte-identity traced in review; `poly_kv_q8_test` PASS 91530 values + `poly_attend_test` all passed; `poly_kv_q4_test` PASS 112010 values incl. store→attend round-trip vs ggml oracle through both the key and value readers; `poly_draft_race_test` PASS with 5/5 knob pairs and bit-exact save/load rows 6/6).
-- **Hardware relevance:** yes (8 GB VRAM) — measured once live (q4-001 under both knobs: 90.9 max / 46.3 low / ~55.6 avg tok/s, 48 turns; ≈1.9 GiB KV at ~78K context vs ≈6.7 fp16 / ≈3.6 q8_0). Frozen-fixture A/B pending. No `Perf-record` claimed.
-- **Evidence:** `poly_kv_q4_test: PASS (112010 values checked)`; `poly_kv_q8_test: PASS (91530 values)`; `poly_attend_test: all passed`; `poly_draft_race_test: PASS (race 7 runs match, mixed 5/5 pairs, rows round-trip 6/6)`; full `test_setup_*` battery green (667 tests, session record — rerun on release day); q4-001 live run, zero errors.
+- **Behavioral difference:** two new opt-in flags; per-block formats in alloc/save/load/attend; setup writes/carries them; new docs. No-flag behavior unchanged per review trace + post-f72a15e9 rebuild: `poly_kv_q8_test` PASS 91530 values + `poly_attend_test` all passed; `poly_kv_q4_test` PASS 112010 values incl. store→attend round-trip vs ggml oracle through both the key and value readers; `poly_draft_race_test` PASS with 5/5 knob pairs and bit-exact save/load rows 6/6). Full ctest not green: ple_parity needs Q2_0 fixture by design. Re-run after any engine edit.
+- **Hardware relevance:** yes (8 GB VRAM) — REPORTED once live (q4-001, 2026-10-17, REPORTED not log-verified, reference rig ctx 131072 temp 0.6: 90.9 max / 46.3 low / ~55.6 avg tok/s, 48 turns — all REPORTED, no log). At-run-context GiB figures PENDING recomputation (≈1.9 / ≈6.7 / ≈3.6 GiB withdrawn 2026-10-18: not recomputable without the log). Frozen-fixture A/B pending. No Perf-record claimed.
+- **Evidence:** `poly_kv_q4_test: PASS (112010 values checked)`; `poly_kv_q8_test: PASS (91530 values)`; `poly_attend_test: all passed`; `poly_draft_race_test: PASS (race 7 runs match, mixed 5/5 pairs, rows round-trip 6/6)`; full test_setup_* battery: 667 PASS (session record — rerun on release day); engine oracle arms as above; q4-001: REPORTED zero errors, raw server log NOT on file.
 - **Dependencies:** none
 - **Upstream status:** no equivalent in strata-poly (verified at `f72a15e9`: `KvFmt` is `{kFp16, kQ8_0}`, no `--draft-kv`). Upstream's `--kv q4_0` is the main Strata engine's (Hadamard-rotated, different engine, unrelated). Its parallel/batch work at `f72a15e9` is orthogonal and merged.
 - **Maintenance cost:** rebase surface is the per-block branches in `qwen35.cpp` + kernel arms; upstream batch-slot `step()` path is format-agnostic (selection is per-block, never per-sequence). Known deferred gap (documented, not silent): cross-format blob loads rely on `row_bytes` inequality + never-cross-processes, with no enforced format tag in `load_rows` — a signature change across four upstream cards, parked for post-release.
 - **Removal criteria:** retire only when upstream ships equivalent mixed target/draft KV selection; then delete the shim + note the LEDGER run that re-validated parity.
-- **Validation procedure:** rebuild `strata-poly` from source (sm_86, TESTS=ON), run `poly_kv_q4_test` + `poly_kv_q8_test` + `poly_attend_test` + mixed `draft_race_test` arm; Phase-0 A/B harness gates before any perf claim.
+- **Validation procedure:** rebuild `hyper` from source (CMake target `hyper`, sm_86, TESTS=ON), run `poly_kv_q4_test` + `poly_kv_q8_test` + `poly_attend_test` + mixed `draft_race_test` arm; Phase-0 A/B harness gates before any perf claim.
+- **Wave B dual naming (2026-10-18, uncommitted):** `--engine` accepts `hyper` (new) and `strata` (compat) (`serve/server.py:7093`); engine log lines tagged `[hyper]` or `[strata]` (`serve/server.py:558`); `/health` `service` still `strata` (`hyper.py:39`); `HYPER_*` env added beside kept `STRATA_*` (`HYPER_ENGINE_STALL_S`, `HYPER_ENGINE_READY_S`, `HYPER_VISION_*`).
 
 Use the next free `DIV-00N` id for each new entry. One entry per coherent problem,
 not one per edit. Trivial edits (formatting, lockfile noise, generated files) get
 no entry.
+
+## DIV-003 — Hyper rename waves (tooling + compat duplication)
+
+- **Category:** tooling (docs/identity + binary names, no engine behavior change)
+- **Status:** active
+- **Location:** `hyper.py` (new) + `polystrata.py` (old, still on disk); `tools/hyper_*.py` (new) + `tools/strata_*.py` (old, still on disk); `tools/polystrata_names.py` (kept as history, never rewritten); `setup.py:744-763` (`POLY_EXE`/`ENGINE_POLY_DIR` = hyper names, `OLD_*` compat); docs titles/commands/paths (Waves A+B file edits, this registry included)
+- **Origin:** fork rename 2026-10-18 (Waves A+B per `plan-2026-10-18-hyper-rename.md`, workspace-only plan, uncommitted)
+- **Reason:** user-facing names move to Hyper identity while old installs keep working: new names land first, old names stay as compat, deletion only after review.
+- **Behavioral difference:** dual naming everywhere compat matters: `--engine hyper|strata`, `[hyper]`/`[strata]` log tags, `HyperStrata-*`/`hyperstrata` settings + data paths with `PolyStrata-*`/`polystrata` read-once fallback, `hyper.exe` recognized beside `strata-poly.exe`. No-flag behavior unchanged.
+- **Hardware relevance:** no
+- **Evidence:** `setup.py:748-763,4601-4608,4730-4743,5897,6224,6267`; `serve/server.py:558,7093`; CMake target `hyper` (`CMakeLists.txt:1837`); both CLIs on disk (`hyper.py`, `polystrata.py`)
+- **Dependencies:** DIV-001 (identity), DIV-002 (dual-named env/flags)
+- **Upstream status:** no equivalent (our rename only; upstream keeps its names)
+- **Maintenance cost:** CLI duplication (`hyper.py` vs `polystrata.py`) and tool duplication (`tools/hyper_*` vs `tools/strata_*`) until deletion review; `STRATA_*` functional identifiers frozen until Wave C
+- **Removal criteria:** delete old names only on explicit owner go per wave, after rebuild + ctest + launcher revalidation; `tools/polystrata_names.py` is never deleted (Wave 0 frozen)
+- **Validation procedure:** after any rename edit: `hyper.py --list-models` + one launcher JSON parse + engine-path resolve; full gate (rebuild + ctest + live smoke) before deleting any old name
 
 ### Entry template
 

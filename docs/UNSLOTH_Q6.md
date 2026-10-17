@@ -1,5 +1,7 @@
 # Unsloth UD-Q6_K_XL
 
+> Upstream archive — untested in THIS fork, see COVERAGE §6.
+
 **In setup since MODEL-UPDATE Phase 2** (`START-HERE.bat --setup --family unsloth --model UD-Q6_K_XL`, engine 0.1.44 or
 newer: every expert in RAM from ~118 GB, else it asks and keeps a RAM budget; quality, speed and images in
 [QUANTS.md](QUANTS.md); UD-Q5_K_XL and Q8_0 likewise). The manual workflow below still works. This is Unsloth's 6-bit

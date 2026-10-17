@@ -1,6 +1,8 @@
-# LFM2.5-24B-A2B (`strata-poly`)
+# LFM2.5-24B-A2B (`hyper`)
 
-`strata-poly`, the engine of GLM 5.3 Flash and the smaller models, also runs Liquid AI's LFM2.5-24B-A2B: llama.cpp's
+> Upstream archive — untested in THIS fork, see COVERAGE §6.
+
+`hyper`, the engine of GLM 5.3 Flash and the smaller models, also runs Liquid AI's LFM2.5-24B-A2B: llama.cpp's
 architecture `lfm2moe`, read from the GGUF files of Unsloth and Liquid AI. The server, the web app and the API are the
 ones the README describes.
 
@@ -27,7 +29,7 @@ Setup takes UD-Q4_K_XL, or UD-Q3_K_XL when the PC has too little RAM for it; the
 ## How fast
 
 The README's numbers are PolyStrata's own benchmark through the server, the test every model of this engine gets
-([BACKENDS.md](BACKENDS.md#a-prompt-of-30000-tokens)): `polystrata.py benchmark --prompt-tokens 24000`, a short chat
+([BACKENDS.md](BACKENDS.md#a-prompt-of-30000-tokens)): `hyper.py benchmark --prompt-tokens 24000`, a short chat
 and a prompt built from this repository's documents, 256 tokens written after each, three runs a size and the last
 two below. The engine is 4a644a8d's, with the run configs setup writes for each machine: on both, a prompt is read
 2,048 tokens at a time.

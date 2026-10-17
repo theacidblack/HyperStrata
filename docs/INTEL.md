@@ -1,7 +1,9 @@
-# PolyStrata on an Intel Arc
+# HyperStrata on an Intel Arc
 
-PolyStrata's engine is CUDA. On an Intel Arc it runs as **PolyStrata's own engine, ported to SYCL** (`sycl/`, the
-section "The engine itself on Intel" below), behind the same PolyStrata server: OpenAI and Anthropic APIs, streaming,
+> Upstream Intel/SYCL archive — untested in THIS fork, see COVERAGE §6. This fork has no Intel GPU and does not test it.
+
+HyperStrata's engine is CUDA. On an Intel Arc it runs as **HyperStrata's own engine, ported to SYCL** (`sycl/`, the
+section "The engine itself on Intel" below), behind the same HyperStrata server: OpenAI and Anthropic APIs, streaming,
 tool calls, MCP and the web app all unchanged. llama.cpp's SYCL backend is the comparison point in the tables (it
 runs the same GGUF at about a third of the speed).
 
@@ -43,7 +45,7 @@ On Ubuntu 24.04 or newer, from nothing. The Intel GPU driver (the `xe` or `i915`
 
    Log out and in again (or reboot) so the groups apply. `docker ps` must work without `sudo`; the `render` group lets
    the container open the GPU.
-2. **Get PolyStrata and build the engine** ("How to build it" below, about 10 minutes the first time).
+2. **Get HyperStrata and build the engine** ("How to build it" below, about 10 minutes the first time).
 3. **Run setup:**
 
         ./setup.sh --backend sycl [setup.py's options, e.g. --model IQ3_S --context 32768 --port 8085]
@@ -76,8 +78,8 @@ questions are setup's own. What changes:
 
 If a future `setup.py` drops a step this relies on, it stops with a message instead of writing a wrong config.
 The models, packs and checkout must sit under the folder `strata-sycl.sh` mounts at `/work` (the one above the
-checkout, or `STRATA_SYCL_ROOT`). An earlier PolyStrata install on the same PC keeps its data folder in
-`~/.config/strata/settings.json`; pass `--data-dir <folder above the checkout>/PolyStrata-data` to put this one under the
+checkout, or `STRATA_SYCL_ROOT`). An earlier HyperStrata install on the same PC keeps its data folder in
+`~/.config/hyperstrata/settings.json`; pass `--data-dir <folder above the checkout>/HyperStrata-data` to put this one under the
 mount. A symlink to a folder outside the mount does not work in the container; a hard link does.
 
 Then `run-<model>.sh` (or `./setup.sh --backend sycl` again) starts the model. The first start of a 30 GB model
@@ -86,10 +88,10 @@ takes about two minutes. `--port N` and `--host 0.0.0.0` work as in upstream's s
 ## How to build it
 
 The engine is built in Docker, in the `strata-sycl-dev` image (oneAPI 2026.1 compiler, oneMKL and Level Zero, from a
-community llama.cpp SYCL image), so the PC needs no oneAPI. From the checkout (its folder is called `PolyStrata` here; the
+community llama.cpp SYCL image), so the PC needs no oneAPI. From the checkout (its folder is called `HyperStrata` here; the
 folder above it is what the container mounts at `/work`):
 
-    cd PolyStrata
+    cd HyperStrata
     docker build -t strata-sycl-dev sycl/tools          # once: about 6 minutes, a 13 GB image
     H=$(basename "$PWD")
 
@@ -107,7 +109,7 @@ device ids). Ahead-of-time code, no compile at the first start:
 
 The build takes about 3 minutes and ends with `BUILD EXIT 0` and `errors: 0`. The binary is `build-sycl-aot/strata`
 (B-series) or `build-sycl/strata` (A-series); setup finds either one. Run the `docker build` again after pulling a
-PolyStrata update that changes `sycl/tools/Dockerfile`, and the `docker run` after every update of the engine (setup
+HyperStrata update that changes `sycl/tools/Dockerfile`, and the `docker run` after every update of the engine (setup
 says when the engine is older than it needs).
 
 ## Things that matter on this GPU
@@ -118,7 +120,7 @@ says when the engine is older than it needs).
   the single 28.8 GB tensor of shard 2. `--override-tensor per_layer_token_embd=CPU` keeps it in host
   memory, mmapped and paged from the SSD by row, which is how the model's authors serve it. Host RSS
   stays around 2 GB.
-- **Thinking.** The model reasons before it answers. PolyStrata's web app has the setting; for an API
+- **Thinking.** The model reasons before it answers. HyperStrata's web app has the setting; for an API
   client, put `{"reasoning_effort": "none"}` in `strata-<model>.shared-settings.json` next to the
   config, or send `chat_template_kwargs: {"enable_thinking": false}` per request. Without one of
   those a short `max_tokens` is spent entirely inside the think block and the answer looks empty.
@@ -153,7 +155,7 @@ not fifteen.
 
 ## The engine itself on Intel: the SYCL port (`sycl/`)
 
-Everything above runs the model through llama.cpp. This is the other half: PolyStrata's own engine - the 50 CUDA
+Everything above runs the model through llama.cpp. This is the other half: HyperStrata's own engine - the 50 CUDA
 kernels and the host code that drives them (streams, events, graph capture, pinned memory) - built for the
 Arc with oneAPI. It is a migration of the tree, not a new backend: the engine has no backend seam to slot
 into.

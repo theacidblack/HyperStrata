@@ -1,8 +1,10 @@
 # Strix Halo (Ryzen AI Max, gfx1151): build from source on Linux
 
+> Upstream archive — untested in THIS fork, see COVERAGE §6.
+
 PolyStrata runs on the Ryzen AI Max "Strix Halo" APUs (Radeon 8060S / 8050S, RDNA3.5, `gfx1151`, one pool of LPDDR5X shared by the
 CPU and the GPU) through the same HIP backend as the Radeon cards in [AMD_HIP.md](AMD_HIP.md). **Status: experimental.**
-Everything here was built and measured on one machine, the maintainers' Strix Halo box (Ryzen AI Max+ 395, 128 GB,
+Everything here was built and measured on one machine, the upstream's Strix Halo box (Ryzen AI Max+ 395, 128 GB,
 Ubuntu 26.04, kernel 7.0, ROCm 7.14.1). Setup (`setup.sh`, `START-HERE.bat`) recognizes it from 0.1.40, by its PCI id (`1002:1586`, one id for the 8060S, 8050S and 8040S) and by
 `gfx1151` exactly: a Strix Point (890M / 880M, gfx1150), Krackan (860M / 840M, gfx1152) or Phoenix / Hawk Point (780M / 760M, gfx1103) Radeon is
 named as what it is and not supported. On Linux setup compiles the engine for gfx1151 itself (the steps below are the same, by hand). On
@@ -38,11 +40,11 @@ export LD_LIBRARY_PATH=$SDK/lib:$SDK/lib/rocm_sysdeps/lib:$SDK/lib/llvm/lib:${LD
 ```
 
 You also need CMake 3.24+, Ninja, git and a C++ host toolchain with libstdc++ headers (`sudo apt install build-essential cmake ninja-build git`).
-The maintainers' box has no system compiler: they point ROCm's clang at a user-space copy of gcc 15 with
+The upstream's box has no system compiler: they point ROCm's clang at a user-space copy of gcc 15 with
 `--gcc-toolchain=<dir>/usr` (added to `CMAKE_HIP_FLAGS` below; leave it out when the system has one).
 
 The kernel's amdgpu driver and `/dev/kfd` access (your user in the `render` and `video` groups) are all the GPU side needs.
-To let the GPU use most of a 128 GB machine the maintainers' box boots with `ttm.pages_limit=29360128 ttm.page_pool_size=29360128`
+To let the GPU use most of a 128 GB machine the upstream's box boots with `ttm.pages_limit=29360128 ttm.page_pool_size=29360128`
 (a 112 GiB GTT; the default is about half of the RAM) and `amd_iommu=off`; both are host settings the engine does not need to run,
 only to have the room.
 
@@ -52,7 +54,7 @@ llama.cpp's `ggml` sources are pinned by this repository: CMake fetches the revi
 `STRATA_GGML_DIR` at a checkout of exactly that revision.
 
 ```sh
-git clone https://github.com/Niko1221/Strata.git && cd PolyStrata
+git clone https://github.com/theacidblack/HyperStrata.git && cd HyperStrata
 cmake -S . -B build-halo -G Ninja -DCMAKE_BUILD_TYPE=Release \
   -DSTRATA_ENABLE_HIP=ON -DSTRATA_ENABLE_CUDA=OFF -DSTRATA_PREFILL_MMQ=ON \
   -DCMAKE_HIP_ARCHITECTURES=gfx1151 \
@@ -84,7 +86,7 @@ settings of [DETAILS.md](DETAILS.md)); a pack of the Unsloth UD-IQ4_XS or UD-Q4_
 
 At start the engine looks at GPU 0; on a gfx1151 it sets the switches below unless you set them yourself
 (`STRATA_GFX1151_DEFAULTS=0` turns the whole table off, and the start-up line names what was set). **Every one of them gave
-byte-identical output on the maintainers' box** (the same token ids, 4K / 32K / 64K and four models, and a bitwise harness per kernel):
+byte-identical output on the upstream's box** (the same token ids, 4K / 32K / 64K and four models, and a bitwise harness per kernel):
 they change speed, not answers. Nothing here applies to CUDA or to another AMD architecture.
 
 | Switch | What it does |
@@ -100,8 +102,8 @@ they change speed, not answers. Nothing here applies to CUDA or to another AMD a
 ## 5. What is not on by default (it changes bits)
 
 These are faster on gfx1151 and **round differently** from the default path (a different summation order or a half-precision
-intermediate), so they are opt-in and the maintainers gate them with KL against the default (`STRATA_PF_SWITCH_MIN_T=4096` keeps
-the short prompts on the default numerics, since these pay on long ones). The maintainers' fast configuration sets all of
+intermediate), so they are opt-in and upstream gates them with KL against the default (`STRATA_PF_SWITCH_MIN_T=4096` keeps
+the short prompts on the default numerics, since these pay on long ones). The upstream's fast configuration sets all of
 them:
 
 ```sh
@@ -129,10 +131,10 @@ cells: 64K output +3.5%, 32K -0.4%) and `--spec`, `--lookup-chain`, `--mtp-q4` (
 
 ## 6. Measured
 
-Ryzen AI Max+ 395 (128 GB, gfx1151), the maintainers' fast configuration of section 5 on top of the defaults of section 4, `--spec 4`,
+Ryzen AI Max+ 395 (128 GB, gfx1151), the upstream's fast configuration of section 5 on top of the defaults of section 4, `--spec 4`,
 `--mtp`, `--lookup-chain 3`, `--mtp-q4 all`, `--prefill 16384`, int8 KV, all experts in the unified memory. Prompt tok/s is
 (prompt tokens - 1) / prompt time, output tok/s is the tokens / decode time; medians of 3 runs, one fresh process per run, the two
-engines interleaved. "Before" is the maintainers' earlier engine branch (the same switches set by hand), "now" is this release.
+engines interleaved. "Before" is the upstream's earlier engine branch (the same switches set by hand), "now" is this release.
 Every pair printed the same token ids.
 
 | Model | Context | Prompt before -> now | Output before -> now |

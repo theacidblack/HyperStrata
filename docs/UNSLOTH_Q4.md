@@ -1,5 +1,7 @@
 # Unsloth UD-Q4_K_XL
 
+> Upstream archive — untested in THIS fork, see COVERAGE §6.
+
 A regular size since MODEL-UPDATE Phase 2 (it was experimental): setup offers it from engine 0.1.32
 ([below](#setup)); the manual workflow after that section works with engine 0.1.31 or newer. First validated on
 Windows 10, an RTX 5070 (12 GB), 64 GB of RAM and an AVX-512 CPU (2026-10-01); since then on an R9700 (AMD, every
@@ -79,7 +81,7 @@ Hugging Face snapshot symlinks work if you pass the snapshot's file name, not th
 
 ## The pack (by hand)
 
-Build PolyStrata (or install 0.1.31+), then, from the repository root, with gguf-py from the pinned llama.cpp
+Build HyperStrata (or install 0.1.31+), then, from the repository root, with gguf-py from the pinned llama.cpp
 (setup installs it; `STRATA_GGUF_PY` can point to its `gguf-py` folder):
 
 ```sh
@@ -108,8 +110,8 @@ not the original BF16 checkpoint. The output matches llama.cpp's on the same fil
 
 ## The MTP draft layer
 
-The draft layer is the base model's, the same one the other packs use. If setup installed PolyStrata, you have it
-(`mtp/rt` in `PolyStrata-data`). Otherwise build it as [docs/ORCA.md](ORCA.md#preparation) shows (`tools/mtp_fetch.py`,
+The draft layer is the base model's, the same one the other packs use. If setup installed HyperStrata, you have it
+(`mtp/rt` in `HyperStrata-data`). Otherwise build it as [docs/ORCA.md](ORCA.md#preparation) shows (`tools/mtp_fetch.py`,
 `tools/mtp_pack.py`, `tools/mtp_rt.py`, then copy `data/draft_vocab.bin` to `mtp/rt/`).
 
 ## The server

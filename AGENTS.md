@@ -7,10 +7,10 @@ engine (`src/`, `include/`), a Python server with an OpenAI- and
 Anthropic-compatible API and a web app (`serve/`), and a one-click installer
 (`setup.py`, started by `START-HERE.bat`).
 
-The model runs on the `strata-poly` engine (`src/poly/`), architecture
+The model runs on the `hyper` engine (`src/poly/`), architecture
 `qwen35moe`, from its GGUF files: [docs/BACKENDS.md](docs/BACKENDS.md),
-[docs/MODELS.md](docs/MODELS.md). Pictures go through the `strata-vision`
-helper: [docs/IMAGES.md](docs/IMAGES.md). HyperStrata is a fork of
+[docs/MODELS.md](docs/MODELS.md). Pictures go through the `hyper-vision`
+helper: [docs/DETAILS.md](docs/DETAILS.md). HyperStrata is a fork of
 [PolyStrata](https://github.com/VecSzn/PolyStrata), which builds on
 [Strata](https://github.com/Niko1221/Strata); the engine, installer, server and
 web app come from there. Their licenses apply; nothing here claims their
@@ -18,8 +18,8 @@ endorsement.
 
 ## Installing HyperStrata for a user
 
-Follow **[docs/HOW-TO-INSTALL.md](docs/HOW-TO-INSTALL.md)** (the entry;
-[docs/INSTALL.md](docs/INSTALL.md) holds detail): check the PC, pick the model by
+Follow **[docs/HOW-TO-INSTALL.md](docs/HOW-TO-INSTALL.md)** (the one install
+page): check the PC, pick the model by
 VRAM and RAM ([docs/MODELS.md](docs/MODELS.md)), run setup, start and verify
 the server, and connect the user's apps. Never expose the server beyond
 `127.0.0.1` without `--api-key`.
@@ -29,7 +29,7 @@ the server, and connect the user's apps. Never expose the server beyond
 - How the engine works, every measured number, the API and all settings:
   [docs/DETAILS.md](docs/DETAILS.md) and the [paper](docs/paper/Strata-Paper.pdf).
 - Which weight files load and which paths are still slow:
-  [docs/COVERAGE.md](docs/COVERAGE.md).
+  [docs/MODELS.md](docs/MODELS.md).
 - Full doc map: [docs/INDEX.md](docs/INDEX.md).
 - Experiment-first, no guarantees: house rig measured only; rest untested/PENDING.
 - Setup's own tests run without a GPU or downloads:
@@ -45,9 +45,9 @@ the server, and connect the user's apps. Never expose the server beyond
 
 - Pull requests are not accepted right now. Owner reviews reports and implements what covers many users.
 - Reports welcome: rig + server log. Bench reports follow
-  [docs/COMMUNITY_BENCHMARKS.md](docs/COMMUNITY_BENCHMARKS.md) with logs, compare against a same-day run of the build
+  [docs/BENCHMARKS.md](docs/BENCHMARKS.md) with logs, compare against a same-day run of the build
   testing, and say what you did not test.
 - A new feature is opt-in, and the default path stays byte-identical to the last release. Say how you checked.
 - Change a default only where you measured it faster, and show the numbers with what they were measured on.
 - A report from hardware the owner does not have is unverified here. Fake numbers close the report.
-- Open test requests and the hardware that is wanted are listed in [docs/TEST_REQUESTS.md](docs/TEST_REQUESTS.md).
+- Open test requests and the hardware that is wanted are listed in [docs/BENCHMARKS.md](docs/BENCHMARKS.md).

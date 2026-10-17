@@ -1,181 +1,143 @@
-← [Prev](AI_SETUP.md) · [Index](INDEX.md) · [Next](COVERAGE.md) →
-
-*Needs: installed engine, model choice pending · Gives: right Unsloth UD quant for your RAM · Next: COVERAGE.md*
-*Start 4/4*
+← [Prev](HOW-TO-INSTALL.md) · [Index](INDEX.md) · [Next](KV_CACHE.md) →
 
 # Which model fits 8 GB VRAM + 32 GB RAM (Qwen3.6-35B-A3B Unsloth UD quants)
 
-This page is upstream's Qwen3.8-first guide, kept as archive. This fork measures Qwen3.6-35B-A3B only — see COVERAGE.md for the ladder.
+*Needs: installed engine, model choice pending · Gives: right Unsloth UD quant for your RAM · Next: [KV_CACHE.md](KV_CACHE.md)*
+*Start 4/4*
 
-> **On this page:** [Pick by RAM](#pick-by-ram) · [Speed](#how-fast-is-each-size) · [The sizes](#the-sizes) ·
-> [Will it fit?](#will-it-fit) · [The versions](#the-versions) · [Adding another model](#adding-or-switching-models)
+Reference rig and fixed config for every number on this page: see [BENCHMARKS.md](BENCHMARKS.md).
 
-> Upstream Qwen3.8-first tables (upstream rigs — NOT the 8+32 tier, NOT HyperStrata runs). Kept as archive; current fork numbers: docs/BENCHMARKS.md only.
+## House file
 
-## Pick by RAM (upstream reference — untested in this fork except 32 GB on the reference rig)
+| File | Download | Setup RAM beside 8 GB card | Status |
+| --- | ---: | ---: | --- |
+| `unsloth/Qwen3.6-35B-A3B-MTP-GGUF` · `UD-Q4_K_M.gguf` (753 tensors, MTP draft head in file) | 22.7 GB | about 27 GB | LOADS ([Coverage](#coverage)); live runs in [BENCHMARKS.md](BENCHMARKS.md) fp16-001, q8-001, q4-001 (q4-001 REPORTED, log PENDING) |
 
-| Your RAM | Take | Why |
+## Ladder rungs and VRAM
+
+VRAM holds dense weights + resident expert cache + KV/state + 256 MiB reserve. File size is disk, not VRAM.
+
+KV sizes: see [KV_CACHE.md](KV_CACHE.md) — q4_0 is the fit knob. Expert-cache shares on house-file runs: see [BENCHMARKS.md](BENCHMARKS.md).
+
+Setup rungs on the MTP page (LOADS per [Coverage](#coverage); per-rung resident-expert VRAM table PENDING):
+
+| File | Download | Setup RAM beside 8 GB card | Status |
+| --- | ---: | ---: | --- |
+| `UD-Q2_K_XL.gguf` | 12.6 GB | about 17 GB | LOADS; grouped kernels PENDING ([Coverage](#coverage)) |
+| `UD-Q3_K_M.gguf` | 17.1 GB | about 21 GB | LOADS; grouped kernels PENDING ([Coverage](#coverage)) |
+| `UD-Q4_K_M.gguf` (house) | 22.7 GB | about 27 GB | LOADS; live runs in [BENCHMARKS.md](BENCHMARKS.md) |
+| `UD-Q5_K_M.gguf` | PENDING | PENDING | LOADS; q5-001 MEASURED 2026-10-18, previous engine, hyper re-run PENDING ([Coverage](#coverage)) |
+| `UD-Q6_K.gguf` and larger | PENDING | PENDING | MTP page stops at Q5 (draft-head VRAM cost); Q6 on base page only ([Coverage](#coverage)) |
+
+Full ladder: 19 UD files on the MTP page + 21 on the base page, every file LOADS per header probe; per-file decode/expert/KV-oracle verdicts in [Coverage](#coverage). Measured gen/prefill rates only in [BENCHMARKS.md](BENCHMARKS.md); averages across rows are different trajectories, not rankings.
+
+Older upstream tables removed — see git history.
+
+## Coverage
+
+What loads, what runs, what stays PENDING. Architecture `qwen35moe`; the engine reads GGUF files in place. Numbers live in [BENCHMARKS.md](BENCHMARKS.md); KV sizes in [KV_CACHE.md](KV_CACHE.md).
+
+### Weight files
+
+A header probe of all 44 weight files, 2026-10-17, found every file LOADS: all tensors use already-supported type ids, no unsupported type id. Decode is complete; what is left is expert fast paths and the KV oracle (below).
+
+- 40 UD ladder files: 19 on the MTP page, 21 on the base page.
+- 4 stock files, not UD ladder files: `MXFP4_MOE` and `Q8_0`, one of each per page, all LOAD.
+- The MTP draft head adds 20 tensors over the base page (753 vs 733 per file): 7×F32, 8×Q8_0, 2–3×recipe, 2×BF16, all wired.
+
+The MTP draft head costs VRAM, so MTP coverage stops at Q5; without the draft head the weight budget stretches to Q6.
+
+"Support" per quant means: the loader accepts the file, a dequant/compute path exists, an oracle test pins it, and a VRAM budget row says it fits. A live speed run per quant is not required.
+
+#### MTP page — 19 UD files (`unsloth/Qwen3.6-35B-A3B-MTP-GGUF`, 753 tensors each, all LOAD)
+
+| File | Expert fast path | KV oracle |
 | --- | --- | --- |
-| **32 GB** | **Coder** | it fits 32 GB; code-focused, weaker at everything else ([why](#coder)). With a 24 GB card, Q2_0 and IQ2_XS run too ([low-RAM mode](#a-big-graphics-card-and-little-ram)) and are the upstream pick for general use — untested here |
-| **48 GB** | **IQ2_XS** (or Q2_0, the smallest file) | the larger sizes do not fit |
-| **64 GB** | **IQ2_XS** (upstream pick, untested here), or IQ3_XXS / IQ3_S | every size fits (IQ3_S with little else open) |
-| **96 GB or more** | **IQ3_S**, or [Unsloth's UD-IQ4_XS or UD-Q4_K_XL](#unsloths-files-ud-iq4_xs-to-q8_0) (~4-bit) | room for the largest sizes |
-| **128-192 GB** | [Unsloth's UD-Q5_K_XL, UD-Q6_K_XL or Q8_0](#unsloths-files-ud-iq4_xs-to-q8_0) | every expert of the 5-8-bit files in RAM |
+| `UD-IQ1_M.gguf` | IQ asymmetric pair; correct, slower than symmetric — PENDING 228-cell oracle; prefill falls back to chunked native where hit | PENDING |
+| `UD-IQ2_M.gguf` | IQ asymmetric pair; correct, slower than symmetric — PENDING 228-cell oracle | PENDING |
+| `UD-IQ2_XXS.gguf` | IQ2_XXS asymmetric pair — PENDING 228-cell oracle | PENDING |
+| `UD-IQ3_S.gguf` | IQ3_S asymmetric pair — PENDING 228-cell oracle | PENDING |
+| `UD-IQ3_XXS.gguf` | IQ3_XXS asymmetric pair — PENDING 228-cell oracle | PENDING |
+| `UD-IQ4_NL.gguf` | IQ4_NL asymmetric pair — PENDING 228-cell oracle | PENDING |
+| `UD-IQ4_XS.gguf` | IQ asymmetric pair — PENDING 228-cell oracle | PENDING |
+| `UD-Q2_K_XL.gguf` | Q2_K/Q3_K grouped kernels missing, single-MMVQ only — PENDING | PENDING |
+| `UD-Q3_K_M.gguf` | Q2_K/Q3_K grouped kernels missing, single-MMVQ only — PENDING | PENDING |
+| `UD-Q3_K_XL.gguf` | Q2_K/Q3_K grouped kernels missing, single-MMVQ only — PENDING | PENDING |
+| `UD-Q4_K_M.gguf` | Q4_K asymmetric pair — PENDING 228-cell oracle; q4_0 KV pinned by `poly_kv_q4_test` (112,010 values) + q4-001 REPORTED run | q4_0 DONE (q4-001); rest PENDING |
+| `UD-Q4_K_S.gguf` | Q4_K asymmetric pair — PENDING 228-cell oracle | PENDING |
+| `UD-Q4_K_XL.gguf` | Q4_K asymmetric pair — PENDING 228-cell oracle | PENDING |
+| `UD-Q5_K_M.gguf` | Q5_K grouped present; Q5_1 asymmetric where hit — IN PROGRESS; live file q5-001, hyper re-run PENDING | PENDING |
+| `UD-Q5_K_S.gguf` | Q5_K grouped present; Q5_1 asymmetric where hit — IN PROGRESS | PENDING |
+| `UD-Q5_K_XL.gguf` | Q5_K grouped present; Q5_1 asymmetric where hit — IN PROGRESS | PENDING |
+| `UD-Q6_K.gguf` | Q6_K grouped via `STRATA_Q6K_EXPERTS=ON` (confirmed ON) | PENDING |
+| `UD-Q6_K_XL.gguf` | Q6_K grouped via `STRATA_Q6K_EXPERTS=ON` (confirmed ON) | PENDING |
+| `UD-Q8_K_XL.gguf` | Q8_0 path present (oracle-only, no live run planned) | PENDING |
 
-Upstream guidance, untested here except 32 GB on the reference rig — not sure? Upstream takes **IQ2_XS**. The **Coder** is the one that fits a 32 GB PC, but it keeps only 256 of the 512 experts,
-chosen on code data, so it is weaker outside code and in languages other than English. For general use, or whenever
-your RAM allows, take a full model (Q2_0, IQ2_XS or IQ3_S).
+#### Base page — 21 UD files (`unsloth/Qwen3.6-35B-A3B-GGUF`, 733 tensors each, all LOAD)
 
-## How fast is each size
+| File | Expert fast path | KV oracle |
+| --- | --- | --- |
+| `UD-IQ1_M.gguf` | IQ asymmetric pair; correct, slower than symmetric — PENDING 228-cell oracle; prefill falls back to chunked native where hit | PENDING |
+| `UD-IQ2_M.gguf` | IQ asymmetric pair — PENDING 228-cell oracle | PENDING |
+| `UD-IQ2_XXS.gguf` | IQ2_XXS asymmetric pair — PENDING 228-cell oracle | PENDING |
+| `UD-IQ3_S.gguf` | IQ3_S asymmetric pair — PENDING 228-cell oracle | PENDING |
+| `UD-IQ3_XXS.gguf` | IQ3_XXS asymmetric pair — PENDING 228-cell oracle | PENDING |
+| `UD-IQ4_NL.gguf` | IQ4_NL asymmetric pair — PENDING 228-cell oracle | PENDING |
+| `UD-IQ4_NL_XL.gguf` | IQ4_NL asymmetric pair — PENDING 228-cell oracle | PENDING |
+| `UD-IQ4_XS.gguf` | IQ asymmetric pair — PENDING 228-cell oracle | PENDING |
+| `UD-Q2_K_XL.gguf` | Q2_K/Q3_K grouped missing, single-MMVQ only — PENDING | PENDING |
+| `UD-Q3_K_M.gguf` | Q2_K/Q3_K grouped missing, single-MMVQ only — PENDING | PENDING |
+| `UD-Q3_K_S.gguf` | Q2_K/Q3_K grouped missing, single-MMVQ only — PENDING | PENDING |
+| `UD-Q3_K_XL.gguf` | Q2_K/Q3_K grouped missing, single-MMVQ only — PENDING | PENDING |
+| `UD-Q4_K_M.gguf` | Q4_K asymmetric pair — PENDING 228-cell oracle | PENDING |
+| `UD-Q4_K_S.gguf` | Q4_K asymmetric pair — PENDING 228-cell oracle | PENDING |
+| `UD-Q4_K_XL.gguf` | Q4_K asymmetric pair — PENDING 228-cell oracle | PENDING |
+| `UD-Q5_K_M.gguf` | Q5_K grouped present; Q5_1 asymmetric where hit — IN PROGRESS | PENDING |
+| `UD-Q5_K_S.gguf` | Q5_K grouped present; Q5_1 asymmetric where hit — IN PROGRESS | PENDING |
+| `UD-Q5_K_XL.gguf` | Q5_K grouped present; Q5_1 asymmetric where hit — IN PROGRESS | PENDING |
+| `UD-Q6_K.gguf` | Q6_K grouped via `STRATA_Q6K_EXPERTS=ON` (confirmed ON); engine live run MEASURED 2026-10-18, previous engine; hyper re-run PENDING | PENDING |
+| `UD-Q6_K_XL.gguf` | Q6_K grouped via `STRATA_Q6K_EXPERTS=ON` (confirmed ON) | PENDING |
+| `UD-Q8_K_XL.gguf` | Q8_0 path present (oracle-only, no live run planned) | PENDING |
 
-> Upstream reports below (RTX 5070/RX 9070 XT rigs, upstream commits — NOT HyperStrata runs on the RTX 3070 Ti Laptop reference rig; do not rank current builds; PENDING re-measure on reference rig).
+Stock files, not UD ladder files: MTP page `MXFP4_MOE.gguf` (753 tensors, LOAD; MXFP4 single only — grouped PENDING) and `Q8_0.gguf` (753 tensors, LOAD); base page `MXFP4_MOE.gguf` (733 tensors, LOAD; MXFP4 single only — grouped PENDING) and `Q8_0.gguf` (733 tensors, LOAD).
 
-Measured on an RTX 5070 (12 GB), a Ryzen 5 7600 and 64 GB of RAM:
+### Expert fast paths
 
-| Size | Writes answers (short chat) | Writes answers (128K context) | Reads your prompt |
-| --- | ---: | ---: | ---: |
-| **Q2_0** | 94 tokens/s | 76 tokens/s | 2,650 tokens/s |
-| **IQ2_XS** | 79 tokens/s | 63 tokens/s | 2,090 tokens/s |
-| **IQ3_XXS** | 62 tokens/s | 49 tokens/s | 1,750 tokens/s |
-| **IQ3_S** | 53 tokens/s | 46 tokens/s | 1,620 tokens/s |
-| **Coder** (IQ1_M) | 55 tokens/s | 43 tokens/s | 2,180 tokens/s |
+- Q2_K / Q3_K: grouped expert kernels missing; single-MMVQ only — PENDING.
+- Q4_1: CPU fallback; a stashed wiring change fixes it — PENDING. No UD file lists Q4_1 tensors today, so decode is unaffected.
+- Q6_K: grouped needs `STRATA_Q6K_EXPERTS=ON` — confirmed ON in this build.
+- MXFP4: single only; grouped PENDING.
+- Asymmetric pairs (grouped for gate/up, single for down, or the reverse): Q5_1, Q4_K, IQ4_NL, IQ2_XXS/XS, IQ3_XXS/S, IQ2_S, IQ1_M. Correct; relative speed unmeasured — PENDING.
+- Prefill: covers all but Q2_0 (42 tensors) and IQ1_M (29 tensors), which fall back to chunked native on the GPU; the prefill `moe_mmq` path lacks K-quants and falls back to FP16.
 
-Measured on an AMD RX 9070 XT (16 GB), a Ryzen 9 3900X and 47 GB of RAM (Linux, setup's own install; Q2_0 is
-above setup's RAM estimate for 47 GB and was installed with `--model Q2_0 --yes`):
+### KV oracle
 
-| Size | Writes answers (short chat) | Writes answers (128K context) | Reads your prompt |
-| --- | ---: | ---: | ---: |
-| **Q2_0** | 60 tokens/s | 48 tokens/s | 1,160 tokens/s |
-| **IQ2_XS** | 52 tokens/s | 36 tokens/s | 1,110 tokens/s |
-| **Coder** (IQ1_M) | 44 tokens/s | 33 tokens/s | 1,420 tokens/s |
+q4_0 is pinned only for UD-Q4_K_M: `poly_kv_q4_test`, 112,010 values (key and value readers against a ggml oracle, see [KV_CACHE.md](KV_CACHE.md)), plus the q4-001 run (REPORTED). Every other weight×KV cell is PENDING. The full 228-cell cross-product oracle — 19 weights × 3 KV × target/draft × decode/batch; integer tiers exact, IQ tiers epsilon; synthetic, no model file — is IN PROGRESS. Whether freed VRAM converts to resident experts at long context is PENDING (needs a frozen-fixture A/B; see [KV_CACHE.md](KV_CACHE.md)).
 
-- **Writes answers** = how fast the reply appears (tokens per second; a token is about ¾ of a word).
-- **Reads your prompt** = how fast it takes in what you send (long documents, code, chat history), measured on a
-  32K-token prompt; a 4K prompt reads at 910-1,580 tokens/s. A 32K prompt takes about 15 seconds with Q2_0.
+### GPU coverage
 
-A card with more VRAM holds more of the model on the GPU. Speed on other cards is PENDING — no run on file. All measurements, long-context numbers and estimates for other cards are in the
-[details](DETAILS.md#speed-measured). The AMD measurements per card (RX 9070 XT, Radeon AI PRO R9700, RX 7800 XT,
-RX 9060 XT, RX 6900 XT) are in [AMD_HIP.md](AMD_HIP.md#rdna4-gfx1201).
+Measured target: sm_86 (reference rig, see [BENCHMARKS.md](BENCHMARKS.md)). Turing to Blackwell via CUDA PTX is upstream design intent, untested in this fork. Integer quants use DP4A/integer math by design (upstream); verified on sm_86 only. NVFP4/MXFP4 paths exist in-tree; no Blackwell run on this tree — PENDING. Pre-RTX/GTX is best-effort PTX at most, never the test matrix.
 
-Every PC is different: `START-HERE.bat --calibrate` measures a few engine settings on yours and keeps the setting only when it measures >3% faster on your PC (about 15-30 minutes; in one upstream run on RTX 5070/Ryzen 5 7600 the Coder measured ~7% faster — that rig only, no gain promised; NVIDIA cards for now). Measured HyperStrata on your own
-PC? See [Community benchmark results](COMMUNITY_BENCHMARKS.md) for a report template and how to share your results
-in a pull request.
+### Runs
 
-> Upstream Qwen3.8-first tables (upstream rigs — NOT the 8+32 tier, NOT HyperStrata runs). Kept as archive; current fork numbers: docs/BENCHMARKS.md only.
+- q4-001: UD-Q4_K_M, `--kv q4_0 --draft-kv q4_0` — REPORTED (not log-verified); numbers in [BENCHMARKS.md](BENCHMARKS.md).
+- q4-002: formal UD-Q4_K_M MTP run on `hyper` — PENDING.
+- q5-001: UD-Q5_K_M with MTP — MEASURED 2026-10-18 on the previous engine; re-run on `hyper` PENDING.
+- q6-001: UD-Q6_K without MTP — MEASURED 2026-10-18 on the previous engine; re-run on `hyper` PENDING.
+- Vision: functional on Q6_K (base) and Q4_K_M (MTP) through the mmproj-Q8_0 CPU encoder; cross-quant function is inferred from the shared encoder path, per-quant vision runs PENDING (low priority).
+- Reference: about 30 tok/s (llama.cpp, same file and context) is not our run; never presented as an engine result.
+- A per-model VRAM budget table (weights in RAM, hot set in VRAM, measured tok/s) is PENDING.
 
-## The sizes (upstream reference — untested in this fork; fork numbers: docs/BENCHMARKS.md only)
+### Out of scope
 
-| Model | RAM+VRAM Requirements | Speed | Quality (upstream label, untested here) |
-| --- | ---: | --- | --- |
-| **Q2_0** | 37.6 GB | smallest file | upstream: good |
-| **IQ2_XS** | 39.2 GB | larger file | upstream: better (their pick, untested here) |
-| **IQ3_XXS** | 47.0 GB | larger file | upstream: great |
-| **IQ3_S** | 54.8 GB | larger file | upstream: matches the full model on the published tests |
-
-Order is file size, not a measured speed ranking — untested in this fork, speed PENDING on your rig.
-
-The download is 66-76 GB for the three smaller sizes ([details](DETAILS.md#which-model)); the first start also
-fetches the MTP draft layer (~6 GB, +1 GB with images).
-
-> Upstream Qwen3.8-first tables (upstream rigs — NOT the 8+32 tier, NOT HyperStrata runs). Kept as archive; current fork numbers: docs/BENCHMARKS.md only.
-
-## Will it fit?
-
-Shard 1 is the part of the model that gets loaded when it starts: its experts go into your **RAM**, the rest onto
-your graphics card (the second shard, a 29 GB lookup table, stays on the SSD). So it fits when your **RAM is at least
-the experts + about 10 GB** for Windows and your other programs - the experts are most of shard 1: 34 GB for Q2_0,
-35.5 for IQ2_XS, 43 for IQ3_XXS, 50 for IQ3_S, 23 for the Coder (the dense weights in shard 1 go to the graphics
-card). With 64 GB of RAM every size fits (IQ3_S with little else open); with 48 GB, Q2_0 and IQ2_XS. A bigger graphics card makes it faster, but it doesn't lower the RAM needed
-- except in the low-RAM mode below.
-
-### A big graphics card and little RAM
-
-On a PC whose RAM cannot hold the experts beside the system, setup maps them from the model's files instead and keeps
-in RAM only what the graphics card does not hold (the [low-RAM mode](DETAILS.md#speed-measured), chosen by setup). For
-example, a 32 GB PC with a 24 GB GPU runs Q2_0, IQ2_XS and the Coder this way, and a 32 GB PC with a 12-16 GB GPU the
-Coder. With a small card most experts then come from the SSD and it runs from SSD and measured slower on upstream rigs; speed on your rig PENDING — setup reports what it observes.
-`START-HERE.bat --setup --low-ram on|off` overrides the choice.
-
-> Upstream Qwen3.8-first tables (upstream rigs — NOT the 8+32 tier, NOT HyperStrata runs). Kept as archive; current fork numbers: docs/BENCHMARKS.md only.
-
-## The versions
-
-### Qwen3.8-Flash-Next
-
-The original, in all four sizes. With images, and with the
-[experimental speed projection](DETAILS.md#experimental-speed-projection-experimental-off-by-default) as an option.
-
-### Coder
-
-**[Coder](https://huggingface.co/ISTA-DASLab/Qwen3.8-Flash-Next-GSQ-RCO-Coder-GGUF)** - ISTA-DASLab's coding version:
-it keeps 256 of each layer's 512 experts, chosen on code (with agentic and image) data, and drops the rest (91% of
-the full model's SWE-bench Verified score, 99% of LiveCodeBench, by its authors). One size (IQ1_M: its experts stored
-like IQ3_S): shard 1 is **29.6 GB**, so it fits a PC with **32 GB of RAM**, runs 262K context on 64 GB, and In the upstream table above it read fastest on that rig; NOT a HyperStrata run — PENDING on reference rig. With half the experts gone it is weaker outside code and in languages other than
-English, Chinese and other CJK text included (#438: Chinese answers came out wrong or looping where English was
-fine). For general use, or whenever your RAM allows, take a size that keeps every expert: Q2_0, IQ2_XS or IQ3_S.
-More: [details](DETAILS.md#or-the-coder-half-the-experts-for-code).
-
-```
-START-HERE.bat --setup --family coder
-```
-
-### Swift 1.5
-
-**[Swift 1.5](https://huggingface.co/ukisai/Swift-1.5-Qwen3.8-Flash-Next-GSQ-RCO-GGUF)** - a fine-tune by UkisAI that
-Upstream report: shorter thinking trace, so shorter time-to-answer on that rig; per-token rate not compared here — PENDING,
-and about the same RAM as the same size of the original. Its own license applies (see its page).
-More: [details](DETAILS.md#or-swift-15-a-fine-tune-that-thinks-shorter).
-
-```
-START-HERE.bat --setup --family swift --model IQ2_XS
-```
-
-<a id="unsloth-ud-iq4_xs"></a><a id="unsloth-ud-q4_k_xl-experimental"></a>
-
-### Unsloth's files: UD-IQ4_XS to Q8_0
-
-The fourth version in setup's menu (`--family unsloth`) is **Unsloth's quantizations** of the same model, from ~4 to 8
-bits. They keep the original's experts at more bits than the 2-3-bit sizes above, so they need more RAM. Setup keeps
-every expert in RAM where they and 16 GB more fit (setup's default placement; speed PENDING on your rig); with less RAM it keeps as many as fit and reads
-the rest from the SSD while it answers (much slower), and for the bigger files it asks first. Images are on by default
-on an NVIDIA card of 16 GB or more (and on AMD with the CPU encoder where the experts fit in RAM).
-
-| Size | Download | Experts | RAM for all of them in RAM | Same top token as Q8_0 | AMD R9700 (32 GB): story / code / 32K prompt |
-| --- | ---: | ---: | ---: | ---: | --- |
-| **UD-IQ4_XS** (setup's first) | 94 GB | 55 GiB | ~72 GB | 88.9% | - |
-| **UD-Q4_K_XL** | 111 GB | 72 GiB | ~88 GB | 93.1% | 63 / 87 tok/s / 1,110-1,320 tok/s |
-| **UD-Q5_K_XL** | 158 GB | 92 GiB | ~108 GB | 94.6% | 57-60 / 82 / 810-1,260 |
-| **UD-Q6_K_XL** | 169 GB | 102 GiB | ~118 GB | 94.6% | 54 / 76 / 1,020 |
-| **Q8_0** | 188 GB | 120 GiB | ~136 GB | 100% (the reference) | 53-57 / 66-74 / 1,230-1,300 |
-
-Upstream AMD R9700 report, NOT a HyperStrata run; AMD path untested in this fork — do not use for ranking.
-
-For comparison, IQ3_S on the same card: 75 / 95 tok/s, 87.7% the same top token as Q8_0. The quality numbers, the
-speed bound and NVIDIA/AMD/Intel details: [QUANTS.md](QUANTS.md); the files: [UD-Q4_K_XL](UNSLOTH_Q4.md),
-[UD-Q6_K_XL](UNSLOTH_Q6.md).
-
-```
-START-HERE.bat --setup --family unsloth --model UD-Q5_K_XL
-```
-
-### OrcaRouter Uncensored IQ3_XXS
-
-For **OrcaRouter's Flash-Next Uncensored IQ3_XXS**, see the [manual compatibility setup](ORCA.md). It needs an
-explicit packing conversion and is not an installer menu option.
+- Weight formats AWQ / GPTQ / safetensors. This page covers GGUF UD-ladder files only.
+- GPUs: AMD/HIP, Intel, Apple/Metal. The measured rig is Windows + NVIDIA only.
+- Pre-RTX/GTX cards.
+- Live speed runs per quant: the untested ladder ships oracle-only; later community numbers are unverified extras, not promised.
+- GLM / vision work: a separate job.
 
 ## Adding or switching models
 
-You can add another model any time with `SETUP.bat` (the same as `START-HERE.bat --setup`; on Linux
-`./setup.sh --setup`). Files another model shares are not downloaded again (the Coder uses the original's shard 2 and
-vision encoder). With more than one model installed, `START-HERE.bat` asks which one to start; `run-<model>.bat`
-(Linux: `run-<model>.sh`) starts one directly.
+One model in memory at a time; switch unloads the engine first ([BACKENDS.md](BACKENDS.md) registry/switch). Files another model shares are not downloaded again. With more than one installed, the start script asks which to start.
 
-## Planned models
-
-Qwen family only — nothing outside it is considered yet.
-
-4B and below: not supported, no plans.
-
-Candidate, not committed, no timeline: Qwen 9B lineup, MTP and without.
-
-← [Prev](AI_SETUP.md) · [Index](INDEX.md) · [Next](COVERAGE.md) →
+← [Prev](HOW-TO-INSTALL.md) · [Index](INDEX.md) · [Next](KV_CACHE.md) →

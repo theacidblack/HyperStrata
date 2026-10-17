@@ -1,6 +1,9 @@
-← [Prev](--help.md) · [Index](docs/INDEX.md) · [Next](CONTRIBUTING.md) →
+← [Prev](--help.md) · [Index](docs/INDEX.md) · [Next](UPSTREAM_DIVERGENCE.md) →
 
 # Changelog — HyperStrata
+
+*Needs: the launcher flags reference (--help) · Gives: what changed in each release · Next: Upstream divergence*
+
 Keywords: Qwen3.6-35B-A3B MoE GGUF, Unsloth UD quantization, q4_0 KV cache, 8 GB VRAM Windows CUDA local inference.
 
 HyperStrata runs Qwen3.6-35B-A3B (MoE) on one hardware tier: 8 GB VRAM + 32 GB RAM PCs.
@@ -24,28 +27,26 @@ read it as "aligned to upstream `0.1.44.1`, serial 0".
 
 ### Changed
 
-- Project identity moves from PolyStrata-fork wording to Hyper-identity
-  (Wave A1). Fork history and upstream URLs preserved. No functional change
-  in this wave.
+- Project identity moves from PolyStrata-fork wording to Hyper-identity.
+  Fork history and upstream URLs preserved. No functional change.
 
-### Fixed (honesty/claim audit wave, 2026-10-18 — no engine change)
+### Fixed (claim audit, 2026-10-18 — no engine change)
 
-- README q6-001 row was stale ("no run yet") — now MEASURED (55.8/13.5/~35.5,
-  159 turns, chat-paste provenance, console archive PENDING); llama ref kept
+- README q6-001 row was stale ("no run yet") — now MEASURED, rates as in BENCHMARKS.md at the time (chat-paste provenance, console archive PENDING); llama ref kept
   labeled NOT-our-run. README states current stage: interactive learning of
   repo structure, needs first — no optimization, no new models yet.
 - q4-001 retagged REPORTED (not measured) in `docs/KV_CACHE.md`,
   `docs/BENCHMARKS.md`, and here; cap-hit/zero-error claims UNVERIFIED
-  (no log on file); at-run-context GiB figures (≈1.8/1.9/≈6.7/≈3.6)
-  withdrawn to PENDING — full-context 2.75/1.46/0.77 GiB arithmetic verifies.
+  (no log on file); at-run-context GiB figures withdrawn to PENDING — sizes live in `docs/KV_CACHE.md`.
 - `docs/BENCHMARKS.md` sections repaired (measured rows to Results,
   Not-yet-run holds Q4-MTP+Vision / Cyber-Tiel / other-Vision PENDING).
-- `docs/COVERAGE.md` sterile refs rewritten to committed paths or tagged
+- Coverage reference notes rewritten to committed paths or tagged
   workspace-only/unverifiable.
 - Inherited upstream promises narrowed to house stance (8 GB VRAM + 32 GB
-  RAM tested/supported; wider RTX = goal not promise): `docs/AI_SETUP.md`,
-  `docs/MODELS.md`, `docs/BACKENDS.md`, `docs/FAQ.md`,
-  `docs/COMMUNITY_BENCHMARKS.md` (llama numbers now qualified
+  RAM tested/supported; wider RTX = goal not promise):
+  `docs/HOW-TO-INSTALL.md`, `docs/MODELS.md`, `docs/BACKENDS.md`,
+  `docs/TROUBLESHOOTING.md`,
+  `docs/BENCHMARKS.md` (llama numbers now qualified
   reported-NOT-re-verified), `tools/make_poly_release.py` docstring.
 - Consistency: v1.0.0 documented as first-public flag-plant; `v0.1.45.87`
   example rebased off non-PARKED `v0.1.44.1.N`; issue templates follow
@@ -75,14 +76,12 @@ read it as "aligned to upstream `0.1.44.1`, serial 0".
 
 ### Docs
 
-- `docs/KV_CACHE.md` figures corrected 2026-10-18: full-context arithmetic
-  fp16 ≈2.75 / q8_0 ≈1.46 / q4_0 ≈0.77 GiB kept; rig reservation ≈0.91 GiB
-  measured, 0.91-vs-0.77 delta unexplained. At-run-context GiB figures
+- `docs/KV_CACHE.md` figures corrected 2026-10-18: sizes live in `docs/KV_CACHE.md`. At-run-context GiB figures
   withdrawn to PENDING (no q4-001 log on file).
 
 ### Planned
 
-- Vision Phase 6 (after the text ladder is green): 9-step scoped job covering
+- Vision support (after the text ladder is green): a nine-step job covering
   the KV-quant × vision matrix for Qwen3.6 (`mmproj-F16.gguf`); GLM/DeepSeek
   stay text-only by design. Status: planned, no numbers yet.
 
@@ -90,14 +89,16 @@ read it as "aligned to upstream `0.1.44.1`, serial 0".
 
 Same engine, tests, numbers, and docs as `v0.1.45` below, plus the version
 scheme itself (`v<upstream>.<serial>`, serial never resets).
+Built from: f262e222, 259a690e, f7a8d229, a95fe7cf (+ tests/docs to 825e621c);
+all in-tag, verified by ancestry check 2026-10-17. Exact build-time HEAD unrecorded.
 
 ### Added
 
 - q4_0 KV cache for the `strata-poly` / qwen35moe engine, plus an independent
-  `--draft-kv` knob for the draft block. Each knob takes `fp16 | q8_0 | q4_0`,
+  `--draft-kv` knob for the draft block. Each knob takes `fp16` (upstream) | `q8_0` (upstream, qwen35moe) | `q4_0` (new),
   mixable (e.g. `--kv q8_0 --draft-kv q4_0`); a knob left out is `fp16`;
-     the default (both omitted) is byte-identical to before per poly_kv_q8_test 12/12 short-prompt check + review trace post-f72a15e9; re-run poly_kv_q8_test + poly_attend_test after any engine edit. Upstream strata-poly
-  has neither; see `UPSTREAM_DIVERGENCE.md` (DIV-002) and `docs/KV_CACHE.md`.
+     the default (both omitted) is byte-identical to before per poly_kv_q8_test 12/12 short-prompt check + review trace post-f72a15e9; re-run poly_kv_q8_test + poly_attend_test after any engine edit. Added here: q4_0 + `--draft-kv` only;
+  see `UPSTREAM_DIVERGENCE.md` (DIV-002) and `docs/KV_CACHE.md`.
 - `docs/KV_CACHE.md`: formats, knobs, gates, measured numbers.
 - `examples/qwen36-q4_0/`: placeholder config + launcher showing the q4_0 run
   shape with no hardcoded paths, and a weights note.
@@ -110,17 +111,13 @@ scheme itself (`v<upstream>.<serial>`, serial never resets).
   oracle, byte layout, ring, attend/attend_batch).
 - `poly_kv_q8_test`: PASS (91,530 values). `poly_attend_test`: all passed.
 - `poly_draft_race_test`: PASS (7 repeated runs match, 5/5 knob pairs,
-  save/load rows bit-exact 6/6, no acceptance drop over 5pp on any pair) on post-f72a15e9 rebuild sm_86. Full suite not green: ple_parity needs 20 GB Q2_0 fixture by design.
+  save/load rows bit-exact 6/6, no acceptance drop over 5pp on any pair) on post-f72a15e9 rebuild sm_86. Full suite ctest status: see `docs/BENCHMARKS.md`.
 
 ### Reported (not log-verified)
 
-- q4-001 (live, `--kv q4_0 --draft-kv q4_0`): 90.9 max / 46.3 low / ~55.6 avg
-  tok/s over 48 turns; prefill 17,277 tokens in ~13 s — all REPORTED, no log
-  on file. Thinking-cap and zero-error claims UNVERIFIED. Reference rig:
-  RTX 3070 Ti Laptop 8 GB + 32 GB DDR5, ctx 131072, temp 0.6, thinking cap
-  4096. No speed claim — capacity result (288 B/row: 9/32 of fp16, 9/17 of
-  q8_0; at-run-context GiB figures PENDING recomputation, no log — the
-  ≈1.9 / ≈6.7 / ≈3.6 GiB figures are withdrawn 2026-10-18).
+- q4-001 (live, `--kv q4_0 --draft-kv q4_0`): rates as in BENCHMARKS.md at the time — all REPORTED, no log
+  on file. Thinking-cap and zero-error claims UNVERIFIED. Reference rig and fixed config: see `docs/BENCHMARKS.md`.
+  No speed claim — at-run-context GiB figures PENDING recomputation, no log (sizes: `docs/KV_CACHE.md`).
   Full-context A/B against fp16/q8_0: PENDING.
 
 ### Fixed (audit findings, pre-release)
@@ -133,7 +130,7 @@ scheme itself (`v<upstream>.<serial>`, serial never resets).
 ## [v0.1.45] — 2026-10-17 (superseded pre-scheme first push)
 
 First public push, aligned to upstream `0.1.44.1`; superseded by `v0.1.44.1.1`
-above, which is the canonical q4_0 tag.
+above, which is the canonical q4_0 tag (older, superseded — listed below because newest goes first; serial 45 predates the scheme and is NOT newer than 44.1.1).
 
 ## Versus upstream `0.1.44.1`
 
@@ -154,6 +151,6 @@ above, which is the canonical q4_0 tag.
   arch file, MXFP4 for DeepSeek-V4 only, docs). Default solo path
   byte-identical per poly_kv_q8_test 12/12 short-prompt check + review trace post-f72a15e9; re-run poly_kv_q8_test + poly_attend_test after any engine edit; `--kv` / prompt-batch handling unchanged.
 - Frozen baseline kept at upstream commit 51dc2427 (baseline lives in git history); no further syncs,
-  clean break per the 8 GB plan.
+  clean break per the 8 GB target.
 
-← [Prev](--help.md) · [Index](docs/INDEX.md) · [Next](CONTRIBUTING.md) →
+← [Prev](--help.md) · [Index](docs/INDEX.md) · [Next](UPSTREAM_DIVERGENCE.md) →

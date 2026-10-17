@@ -1,4 +1,8 @@
+← [Index](docs/INDEX.md) →
+
 # Third-party attributions
+
+*Needs: nothing (reference page) · Gives: every third-party piece, where it is pinned, and its license · Next: none*
 
 One record for every third-party piece in this tree: what it is, where it is pinned, and under what license.
 
@@ -21,3 +25,5 @@ Weights: user-supplied Unsloth UD GGUFs, never committed or redistributed (`READ
 Python: every package above installs into `.venv` and is never committed (`/.venv/` in `.gitignore:30`). No `.venv` exists on this disk, so each package license is UNCONFIRMED until read from installed dist-info `METADATA` `License:`/`Classifier` fields. Nothing here is stated from memory.
 
 Fetch policy: `/third_party/llama.cpp*` is git-ignored (`.gitignore:32`) and fetched reproducibly at build/setup time from the pinned ZIPs. Deliberate policy: the repo stays small and the build stays reproducible. Not a hole. `third_party/ggml/VERSION.txt` carries the same pin as `LLAMA_CPP_COMMIT`.
+
+← [Index](docs/INDEX.md) →

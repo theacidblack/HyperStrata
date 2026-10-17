@@ -1,11 +1,11 @@
-← [Prev](Q8_KV.md) · [Index](INDEX.md) · [Next](DETAILS.md) →
+← [Prev](KV_CACHE.md) · [Index](INDEX.md) · [Next](DETAILS.md) →
+
+# Models and backends
 
 *Needs: KV setup chosen, engine running · Gives: engine layout, model recognition, switching models · Next: DETAILS.md*
 *Run 4/13*
 
-# Models and backends
-
-Upstream strata-poly runs several families. This fork measures Qwen3.6-35B-A3B only. This page says which, how the engine is put together so that it can,
+The older upstream binary `strata-poly` runs several families. This fork measures Qwen3.6-35B-A3B only. This page says which, how the engine is put together so that it can,
 how a model is recognized, how to add one, and how to change the model that answers.
 
 One model is in memory at a time. Upstream measurements (RTX 5090/Linux), NOT this fork's rig. On that card the three new models fit in VRAM whole.
@@ -16,18 +16,17 @@ a second machine, a Windows laptop whose card has 8 GB.
 
 | Model | Architecture | Engine | File it was checked with | Guesses ahead |
 | --- | --- | --- | --- | --- |
-| Qwen3.6-35B-A3B | `qwen35moe` | `strata-poly` | Unsloth UD-Q3_K_M, UD-Q2_K_XL and UD-Q4_K_M, 12.6 to 22.7 GB (LOADS-only) | draft block in the file |
+| Qwen3.6-35B-A3B | `qwen35moe` | `hyper` | Unsloth UD-Q3_K_M, UD-Q2_K_XL and UD-Q4_K_M, 12.6 to 22.7 GB (LOADS-only) | draft block in the file |
 | Other upstream families | — | — | upstream families, untested here. | — |
 
-`strata` is the first engine and runs Qwen3.8 only; nothing in it changed. `strata-poly` is the engine that reads a
-GGUF in place, and it now has four architectures. It was called `strata-glm`, after its first model; an install
+`strata` is the older upstream engine and runs Qwen3.8 only; nothing in it changed. `hyper` is the engine that reads a
+GGUF in place (the older upstream binary `strata-poly`), and it now has five architectures. It was called `strata-glm`, after its first model; an install
 from then keeps its engine and moves to the new name the next time setup updates it.
 
 ## Install
 
 Upstream setup installs all eight — in this fork only Qwen3.6-35B-A3B is measured (LOADS-only, see table above); the rest are untested here. The four new models are in its list of models, and each has a family name that goes
-straight to it. GLM 5.3 Flash and DeepSeek V4 Flash, the two large ones, have pages of their own,
-[GLM.md](GLM.md) and [DEEPSEEK.md](DEEPSEEK.md). Below is upstream install reference; only `qwen36` has fork coverage:
+straight to it. GLM 5.3 Flash and DeepSeek V4 Flash, the two large ones, have their own archived notes, unmaintained. Below is upstream install reference; only `qwen36` has fork coverage:
 
 ```bash
 ./setup.sh --family qwen36
@@ -77,7 +76,7 @@ routed experts as IQ3_XXS with IQ4_XS where they write, UD-IQ3_XXS as IQ2_S with
 with Q5_K. The i-quants are slower on the CPU than the K-quants, which shows when the card is small: held to
 8 GB, Ornith's I-Mini writes more slowly than its I-Compact with more of its experts on the card. Estimates from upstream laptop, not THIS 8+32 rig. Replace with PENDING VRAM_BUDGET pointer.
 
-The steps are GLM's ([GLM.md](GLM.md#install)). Setup asks the context and whether to keep several conversations in
+The steps are GLM's. Setup asks the context and whether to keep several conversations in
 RAM, compiles `hyper`, downloads the model's file from a pinned revision (for Gemma 4 also its draft model,
 0.46 GB), checks the SHA-256, writes the tokenizer directory, the run config and a start script, and starts the
 model. `--gguf-dir /folder/with/the/file` takes a file you already have; a draft model that is not in that folder is
@@ -105,7 +104,7 @@ The five new models read pictures. Say yes to setup's question about images, or 
 ./setup.sh --family gemma4 --vision yes
 ```
 
-Setup then downloads the model's image encoder too (0.9 GB, Gemma 4's 1.2 GB), compiles `strata-vision` beside
+Setup then downloads the model's image encoder too (0.9 GB, Gemma 4's 1.2 GB), compiles `hyper-vision` beside
 the engine and writes both into the run config. On the GPU the encoder holds 1.6 GB of VRAM (Gemma 4's 2.4 GB),
 which a small card needs for the model, so on a card with less than 16 GB it runs on the CPU and a picture takes
 a few seconds. `--vision gpu` and `--vision cpu` choose the place. GLM 5.3 Flash reads no pictures.
@@ -117,6 +116,27 @@ and 31.4 with Ornith's and 22.6, 24.6 and 28.6 with Gemma 4's, of its 31.8. Tiel
 with the engine of 1212621baadf, took it to 21.8, 24.9 and 29.9 GiB. Setup does not stop a PC below the 32 GB that
 Qwen3.8 needs when one of these families is named.
 
+## How it works
+
+A model of this kind is a team of many small specialists ("experts"), and each word it writes needs only a few of
+them. So it does not have to have all of them on the graphics card at once.
+
+- **Your graphics card** does the part of the work needed for every word, and keeps the experts that are asked most
+  often. It keeps learning which ones those are while you use it.
+- **Your RAM** holds every expert. When a word needs one the card does not have, **your processor** works on it, at
+  the same time as the graphics card, so neither waits for the other.
+- **Your SSD** holds a big lookup table; the model only reads a few small rows of it per word.
+
+The same in technical terms:
+
+- **GPU (VRAM):** attention and the DeltaNet mixers, the gated-residual weights, the routers, the shared experts,
+  the output head, the MTP draft layer, the KV cache, and an **expert cache** that fills the rest of VRAM with the
+  most-used experts (it adapts to the conversation while you chat). More VRAM matters more than a faster GPU: every
+  expert on the GPU is one the CPU does not have to compute.
+- **RAM:** all the experts, pinned. The CPU computes the experts that are not on the GPU **in place**, at the same
+  time as the GPU works on the cached ones (AVX-512 / AVX2 kernels, ggml's for the i-quants).
+- **SSD:** the lookup table, read a few rows per token through the operating system's cache.
+
 ## How a backend works
 
 There are two levels.
@@ -127,7 +147,7 @@ lines is a backend to the server. Changing the model stops the child and starts 
 memory and its file mappings are given back by the operating system when the process ends, not by cleanup code
 that could miss something.
 
-A picture goes through a second child, `strata-vision`: llama.cpp's image code with the model's encoder file. It
+A picture goes through a second child, `hyper-vision`: llama.cpp's image code with the model's encoder file. It
 turns the picture into rows as wide as a token's embedding. The server puts one placeholder token a row into the
 prompt and sends `GENI` with the rows' file and `image_pad=`, the placeholder's id; the engine reads a row where
 a placeholder stands. The template says where a picture goes: Qwen's writes the tokens around it, Gemma 4's
@@ -537,8 +557,8 @@ from hand-written configs, as for the last table below.
 | DeepSeek V4 Flash UD-IQ2_XXS | 32 GB | 29,750 | 28.7 to 28.8 | 1,038 to 1,040 | 56 | 39 to 44 | 73% |
 
 DeepSeek V4 Flash's row is of 2026-10-15, as setup installs the model, with the build that added it
-([DEEPSEEK.md](DEEPSEEK.md)). LFM2.5-24B-A2B's five sizes ran the same test on this machine and on the laptop
-below; their tables are in [LFM.md](LFM.md#how-fast).
+(the archived notes). LFM2.5-24B-A2B's five sizes ran the same test on this machine and on the laptop
+below; their tables are in the archived notes.
 
 Tiel Coder's three sizes ran again that day with the same build, whose prompt batches route on the card and skip
 cuBLAS for small products. The documents had grown to 32,165 tokens. UD-Q3_K_XL read them at 8,083 to 8,114
@@ -1132,7 +1152,7 @@ The tokenizers give llama.cpp's ids on the same prompts (27 to 8001 tokens) for 
 Pictures were checked the same way, greedy and up to 64 tokens, on three prompts: one picture; two pictures of
 different shapes with text between and after them; a picture, an answer and a second question. HyperStrata's
 server code rendered each prompt. llama.cpp's server got it as text with its media marker where a picture goes
-and encoded the pictures itself; the engine got the ids and `strata-vision`'s rows. Both read the same number of
+and encoded the pictures itself; the engine got the ids and `hyper-vision`'s rows. Both read the same number of
 prompt tokens.
 
 | Model | Picture rows in the prompt | Same tokens as llama.cpp | Largest probability difference |
@@ -1744,7 +1764,7 @@ then wrote the story at 76 to 86 where 72 to 79 in the same hour, and gives the 
 The laptop's processor has cores of two kinds, and Windows may hold the threads of a process it takes for
 background work to the slower kind. The experts that are not in VRAM are computed on those threads. Since the
 merge of the Strata project's 0.1.41 the server takes the engines it starts out of that power throttling, and
-strata-poly does the same at its start, for an engine that anything else starts. In one hour, with the server
+`hyper` does the same at its start, for an engine that anything else starts. In one hour, with the server
 from before the merge, Qwen3.6 wrote the answer after a 31,000-token prompt at 39 tokens/s in four runs of
 four, with the server of the merge at 57 to 62, and with the old server and its engine taken out from outside
 at 58. Started from a shell, the engine wrote 300 tokens after 7,709 at 48 to 50 tokens/s in four runs of six
@@ -1759,7 +1779,7 @@ These eight were built and measured on Windows only, and GLM 5.3 Flash, whose at
 was not run with them.
 
 The Strata project's 0.1.42 leaves out an expert outside VRAM when every token of a verify window routes it
-among its last three of ten (`STRATA_ROUTE_TAIL_SKIP=7`). strata-poly does the same with `--tail-skip N`: an
+among its last three of ten (`STRATA_ROUTE_TAIL_SKIP=7`). `hyper` does the same with `--tail-skip N`: an
 expert outside VRAM that every token of a call ranks at place N+1 or later of its eight is not computed, and
 the others keep the weights the router gave them. A prompt's batches are not touched. It changes the answers,
 so it was measured on them, on the laptop with 1 GiB of VRAM left free: six prompts answered greedily for up
@@ -1891,15 +1911,15 @@ with either value, two rounds of each in turn. The new prompts of 300, 500 and 8
 Since its 0.1.44 the [Strata](https://github.com/Niko1221/Strata) project runs Qwen3.6-35B-A3B on an engine path of
 its own, strata-q36: setup installs it with `--family qwen36-strata` (UD-Q4_K_XL, UD-Q6_K_XL and Q8_0, 32 GB of RAM or more).
 That engine refuses files with Q3_K experts, which Qwen3.6's UD-Q2_K_XL and UD-Q3_K_M and every Tiel Coder size have
-(a few layers each), so those stay on strata-poly (`--family qwen36`, `--family tiel`).
+(a few layers each), so those stay on `hyper` (`--family qwen36`, `--family tiel`).
 
 Both engines on the same file, UD-Q4_K_XL, on the RTX 5090 with 25 cores of a Xeon Platinum 8470Q: greedy, the two
-in turn, two rounds each. strata-q36 ran with `--mtp 2`, as its setup writes it; strata-poly with its draft
-block and repeats. "3 GiB of experts" gives both the same expert budget (strata-q36's `--expert-vram 3.0`, strata-poly's
+in turn, two rounds each. strata-q36 ran with `--mtp 2`, as its setup writes it; `hyper` with its draft
+block and repeats. "3 GiB of experts" gives both the same expert budget (strata-q36's `--expert-vram 3.0`, `hyper`'s
 `--vram-reserve-mib 25000`, 1,684 experts). It is not an 8 GB card: strata-q36 keeps more beside the experts
 (its attention caches in fp32), so on a real 8 GB card it would hold fewer.
 
-| Tokens/s | strata-q36 | strata-poly |
+| Tokens/s | strata-q36 | hyper |
 | --- | ---: | ---: |
 | Writing, every expert on the card | 378.9, 379.5 | 402.1, 400.3 |
 | Writing, 3 GiB of experts | 195.5, 200.9 | 179.6, 183.2 |
@@ -1908,9 +1928,9 @@ block and repeats. "3 GiB of experts" gives both the same expert budget (strata-
 | Reading 31,167 tokens, every expert on the card | 6,621, 6,602 | 6,339, 6,402 |
 | Reading 31,167 tokens, 3 GiB of experts | 5,236, 5,232 | 5,650, 5,561 |
 
-Writing is a 256-token answer to a 45-token code prompt (strata-poly's answers ended at token 243); the prompts are
+Writing is a 256-token answer to a 45-token code prompt (`hyper`'s answers ended at token 243); the prompts are
 that one repeated. strata-q36 reads a short prompt 1.6 times as fast; at 31K the two are close, and with the
-smaller expert budget strata-poly is ahead. The time strata-poly loses on a short prompt is the next thing to look at.
+smaller expert budget `hyper` is ahead. The time `hyper` loses on a short prompt is the next thing to look at.
 
 ## Adding a model of an architecture that is there
 
@@ -1920,7 +1940,7 @@ Setup knows the files in the table above. Another file of one of these architect
 2. Write its tokenizer directory:
 
    ```bash
-   python tools/strata_tokenizer.py --gguf model.gguf --out packs/<name>
+   python tools/hyper_tokenizer.py --gguf model.gguf --out packs/<name>
    ```
 
    It writes `packs/<name>/tokenizer/` with the vocabulary, the merges and the model's chat template. Byte-level
@@ -1954,7 +1974,7 @@ Setup knows the files in the table above. Another file of one of these architect
 
 - NVIDIA cards only. Built and run on one Linux machine, and the three new models' nine sizes on one Windows
   laptop as well. GLM 5.3 Flash was not run on Windows. Two cards can share a model since 2026-10-11
-  ([MULTI_GPU.md](MULTI_GPU.md#the-hyper-models)); that ran with Qwen3.6 and Gemma 4 on two RTX 3080
+  (the archived notes); that ran with Qwen3.6 and Gemma 4 on two RTX 3080
   under Linux only.
 - The changes that came from the laptop were built on Windows first, and on Linux on 2026-10-10 (gcc 11.4,
   CUDA 12.8), where the first sizes were checked against llama.cpp and with and without guesses again, and the
@@ -2001,4 +2021,4 @@ Setup knows the files in the table above. Another file of one of these architect
   two machines.
 - The benchmark's VRAM and RAM figures are the machine's, not the engine's alone.
 
-← [Prev](Q8_KV.md) · [Index](INDEX.md) · [Next](DETAILS.md) →
+← [Prev](KV_CACHE.md) · [Index](INDEX.md) · [Next](DETAILS.md) →

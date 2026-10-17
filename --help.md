@@ -1,6 +1,8 @@
-← [Prev](docs/FAQ.md) · [Index](docs/INDEX.md) · [Next](CHANGELOG.md) →
+← [Prev](docs/TROUBLESHOOTING.md) · [Index](docs/INDEX.md) · [Next](CHANGELOG.md) →
 
 # Launcher flags reference (`--help.md`)
+
+*Needs: installed engine and server · Gives: every launcher flag and JSON key · Next: CHANGELOG.md*
 
 How to build a launcher JSON: the JSON carries engine flags in
 `args`, server behaviour in top-level keys, and text style in
@@ -36,7 +38,7 @@ Shape reference (placeholders only — put your own paths here):
   "sampling": { "temperature": 0.6 },
   "reasoning_budget_tokens": 4096,
   "vision": {
-    "exe": "<engine-folder>\\strata-vision.exe",
+    "exe": "<engine-folder>\\hyper-vision.exe",
     "mmproj": "<models-folder>\\mmproj-F16.gguf",
     "model": "<models-folder>\\Qwen3.6-35B-A3B-UD-Q4_K_M.gguf",
     "gpu": false
@@ -118,10 +120,10 @@ Checked against hyper.exe --help output captured 2026-10-17.
 | `--top-probs N` (`src/poly/main.cpp:1096`) | With `--tokens`: prints the N most likely ids of every step to stderr. | Diagnostics only. Usually never. |
 | `--follow ID,...` (`src/poly/main.cpp:1097-1098`) | With `--tokens`: writes these tokens in place of the ones picked, for `--top-probs` of the same answer under other settings. | Diagnostics only. Usually never. |
 | `--tail-skip N` (`src/poly/main.cpp:1099-1101`, default `0`; setup gives Qwen3.6 `6`) | Skips a rarely-used off-VRAM expert: faster, answers move a little. `STRATA_ROUTE_TAIL_SKIP=N` env does the same (`src/poly/main.cpp:1102`; `0` turns it off). | Usually never (setup sets the family value). |
-| `--expert-profile-save P` / `--expert-profile-save-every MIN` (`src/program/generate.cpp:869-872`, default every 10, `0` = at QUIT only) | Saves what the adaptive tier learned. JSON keys `expert_profile_save` / `expert_profile_save_every` (`serve/server.py:2687+`). | Opt-in. Usually never. |
-| `--vram-elastic` / `--vram-segment-mib N` (JSON `vram_elastic` / `vram_segment_mib`, `serve/server.py:2637-2643`, default segment `512`) | Expert cache in segments so `/v1/vram` can lend VRAM out and back. | Opt-in. Usually never. |
-| `--split-skip-if-fits` (JSON `split_skip_if_fits`, `serve/server.py:2634-2636`) | Auto multi-GPU split runs on one card when everything fits. | Multi-GPU opt-in. Usually never. |
-| `--vision` (auto-added for non-poly engines with a vision section, `serve/server.py:2611-2631`) | Lets the engine accept picture embeddings. Hyper (`hyper`/`strata-poly` binary) needs no flag — pictures work whenever a request has them. | Never hand-add; setup writes it. |
+| `--expert-profile-save P` / `--expert-profile-save-every MIN` — base `strata` engine only, the `hyper` engine rejects this flag (`src/program/generate.cpp:869-872`, default every 10, `0` = at QUIT only) | Saves what the adaptive tier learned. JSON keys `expert_profile_save` / `expert_profile_save_every` (`serve/server.py:2687+`). | Opt-in, base `strata` engine only. Usually never. |
+| `--vram-elastic` / `--vram-segment-mib N` — base `strata` engine only, the `hyper` engine rejects this flag (JSON `vram_elastic` / `vram_segment_mib`, `serve/server.py:2637-2643`, default segment `512`) | Expert cache in segments so `/v1/vram` can lend VRAM out and back. | Opt-in, base `strata` engine only. Usually never. |
+| `--split-skip-if-fits` — base `strata` engine only, the `hyper` engine rejects this flag (JSON `split_skip_if_fits`, `serve/server.py:2634-2636`) | Auto multi-GPU split runs on one card when everything fits. | Multi-GPU opt-in, base `strata` engine only. Usually never. |
+| `--vision` — base `strata` engine only, the `hyper` engine rejects this flag (auto-added for non-poly engines with a vision section, `serve/server.py:2611-2631`) | Lets the engine accept picture embeddings. Hyper (`hyper`/`strata-poly` binary) needs no flag — pictures work whenever a request has them. | Never hand-add; setup writes it. |
 
 ---
 
@@ -162,7 +164,7 @@ has a JSON twin — prefer the JSON key so restarts keep it.
 | `--idle-unload SEC` / `"idle_unload_s"` (`serve/server.py:7121-7124`; `serve/runconfig.py:36`) | Unloads the model after SEC idle seconds so games/other servers get VRAM; next request reloads. Default never. | Shared-GPU PCs. Usually never. |
 | `--min-free-vram-mib N` / `"min_free_vram_mib"` (`serve/server.py:7125-7127`) | Loads an unloaded model only with this much free VRAM, else 503. Default always loads. | With idle-unload on busy PCs. Usually never. |
 | `--before-load CMD` / `"before_load"` (+ `before_load_timeout_s`, `before_load_ignore_failure`, `before_load_strict`; `serve/server.py:7128-7129,7243-7250`) | Command run before reloading (e.g. unload another server). String or list. | Multi-server rigs. Usually never. |
-| `--slot-save-path DIR` / `"slot_save_path"` (`serve/server.py:7130-7132,7251-7260`) | Turns on `POST /slots/0?action=save\|restore` (llama-server API) into `DIR/NAME` (~1.2 GB per 63K-token chat). | Session hand-off. Usually never. |
+| `--slot-save-path DIR` / `"slot_save_path"` (`serve/server.py:7130-7132,7251-7260`) | Turns on `POST /slots/0?action=save\|restore` (llama-server API) into `DIR/NAME` (~1.2 GB per 63K-token chat — PENDING: no measured log on file). | Session hand-off. Usually never. |
 | `--replicas N` / `"replicas"` (`serve/server.py:7133-7136`) | Data-parallel replicas: N engines on equal GPU groups, requests spread over them. | Multi-GPU throughput. Usually never. |
 
 ---
@@ -203,9 +205,9 @@ Top-level launcher keys. Types: `str` = text, `int`/`num` = number,
 | `"backend"` (`serve/server.py:2811,2834,7304`) | `"cuda"` / `"hip"` | Which GPU stack's readings/visibility apply. |
 | `"vram_reserve_mib"` (`serve/runconfig.py:41-42`) | `int>=0`, engine default auto-sized (a thirty-second of the card, 256-768; or a sixteenth, 512-1024, when free RAM is within 4 GiB of the model files), min 256 | Same as `--vram-reserve-mib` but editable from Settings; stored into `args`. |
 | `"parallel"` (`serve/server.py:2651-2669`) | `int`, default off | Up to N requests decode together (`--batch N`, max `8`). `1`/absent = one at a time. |
-| `"vram_elastic"` / `"vram_segment_mib"` (`serve/server.py:2637-2643`) | `bool` / `int`, default off / `512` | Segmented expert cache for `/v1/vram` lending. |
-| `"split_skip_if_fits"` (`serve/server.py:2634-2636`) | `bool`, default off | One-card run when the split fits there. |
-| `"vram"`-related / `"expert_profile_save"` (+ `_every`) (`serve/server.py:2687+`) | `str` / `num` | Learned-profile save path/interval (opt-in). |
+| `"vram_elastic"` / `"vram_segment_mib"` (`serve/server.py:2637-2643`) | `bool` / `int`, default off / `512` | Segmented expert cache for `/v1/vram` lending. Base `strata` engine only: it adds `--vram-elastic`, which the `hyper` engine rejects. |
+| `"split_skip_if_fits"` (`serve/server.py:2634-2636`) | `bool`, default off | One-card run when the split fits there. Base `strata` engine only: it adds `--split-skip-if-fits`, which the `hyper` engine rejects. |
+| `"vram"`-related / `"expert_profile_save"` (+ `_every`) (`serve/server.py:2687+`) | `str` / `num` | Learned-profile save path/interval (opt-in). Base `strata` engine only: it adds `--expert-profile-save`, which the `hyper` engine rejects. |
 | `"engine_silence_s"` (`serve/server.py:2561-2569`; `serve/runconfig.py:38`, default `300`, `0` = wait forever) | `num>=0` | Ends a request whose engine prints nothing for this long. |
 | `"repeat_stop_tokens"` (`serve/server.py:7278-7281`, default `256`, `0` = off) | `int>=0` | Ends a reply repeating one token this many times. |
 | `"reasoning_loop_recovery"` (`serve/server.py:7292-7298`, default off) | `false` / `"stop"` / `"recover"` (`true` = recover) | What to do when thinking repeats whole passages. |
@@ -279,16 +281,11 @@ Request-only keys (never in the `sampling` block): `image_pad`,
 
 ## 5. Vision section (letting the model read images)
 
-Pictures go through the `strata-vision` helper plus the model's mmproj
-file — never engine flags (hyper reads a prompt's pictures whenever a
-request has them; `serve/server.py:2619-2620`). JPEG/PNG/BMP/GIF go
-straight in; WebP/TIFF/AVIF convert via Pillow
-(`serve/server.py:13-16`). Sources: `data:` URL, `http(s)` URL, or a
-local file path (`serve/server.py:2358-2378`).
+Pictures go through the `hyper-vision` helper + mmproj — see [BACKENDS.md](docs/BACKENDS.md).
 
 ```json
 "vision": {
-  "exe": "<engine-folder>\\strata-vision.exe",
+  "exe": "<engine-folder>\\hyper-vision.exe",
   "mmproj": "<models-folder>\\mmproj-F16.gguf",
   "model": "<models-folder>\\Qwen3.6-35B-A3B-UD-Q4_K_M.gguf",
   "gpu": false
@@ -379,7 +376,7 @@ $env:HYPER_ENGINE_READY_S = "900"
 ## 8. Setup / build flags (getting the engine + files — not launchers)
 
 Setup asks four questions (model, size, context, images) and remembers
-them; flags below pre-answer or override. Full help in
+them; flags below pre-answer or override. Install procedure: [HOW-TO-INSTALL.md](docs/HOW-TO-INSTALL.md). Full help in
 `setup.py:32-48,6908-7038`.
 
 ```powershell
@@ -437,4 +434,4 @@ timeouts `250-280`), `src/poly/main.cpp` (usage `1029-1102`), `setup.py`
 `serve/runconfig.py` (editable keys `19-43`), `CMakeLists.txt`
 (`12-92,153-204`).*
 
-← [Prev](docs/FAQ.md) · [Index](docs/INDEX.md) · [Next](CHANGELOG.md) →
+← [Prev](docs/TROUBLESHOOTING.md) · [Index](docs/INDEX.md) · [Next](CHANGELOG.md) →

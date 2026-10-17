@@ -410,6 +410,145 @@ void attend_value_check(int dim, int n_head, int kv_heads, int ctx_rows, int q_r
     }
 }
 
+// 5. store -> attend/attend_batch vs a ggml-grounded host attention, mirrored: the Q4 key path must
+// match an attention computed on the host over ggml-dequantized keys and stored fp16 values.  A
+// consecutive j/j+1 key pairing answers with other keys and misses by O(1), so this pins the key
+// reader's j/j+16 pairing the way §4 pins the value reader's.
+void attend_key_check(int dim, int n_head, int kv_heads, int ctx_rows, int q_rows, std::mt19937& rng,
+                      int& fails, long& values) {
+    using namespace strata::poly;
+    const int width = kv_heads * dim, nb = width / 32, per = n_head / kv_heads;
+    const float scale = 1.0f / std::sqrt((float) dim);
+    std::normal_distribution<float> nd(0.f, 1.f);
+
+    std::vector<float> kf((size_t) ctx_rows * width), vf((size_t) ctx_rows * width),
+        q((size_t) q_rows * n_head * dim);
+    for (float& v : kf) v = nd(rng);
+    for (float& v : vf) v = nd(rng);
+    for (float& v : q) v = 2.f * nd(rng);   // spread scores, so the softmax has a few large weights
+
+    Dev dq(q.size() * sizeof(float)), dkf(kf.size() * sizeof(float)), dvf(vf.size() * sizeof(float));
+    ck(cudaMemcpy(dq.as<float>(), q.data(), q.size() * sizeof(float), cudaMemcpyHostToDevice), "upload q");
+    ck(cudaMemcpy(dkf.as<float>(), kf.data(), kf.size() * sizeof(float), cudaMemcpyHostToDevice), "upload kf");
+    ck(cudaMemcpy(dvf.as<float>(), vf.data(), vf.size() * sizeof(float), cudaMemcpyHostToDevice), "upload vf");
+
+    Dev kq((size_t) ctx_rows * width / 2), kqs((size_t) ctx_rows * width / 32 * sizeof(uint16_t));
+    store_q4(dkf.as<float>(), kq.as<uint8_t>(), kqs.as<uint16_t>(), width, 0, ctx_rows, nullptr);
+    ck(cudaGetLastError(), "store_q4 k launch");
+    ck(cudaStreamSynchronize(nullptr), "store_q4 sync");
+
+    Dev vfp16((size_t) ctx_rows * width * sizeof(uint16_t));
+    store_f16(dvf.as<float>(), vfp16.as<uint16_t>(), width, 0, ctx_rows, nullptr);
+    ck(cudaGetLastError(), "store_f16 v launch");
+    ck(cudaStreamSynchronize(nullptr), "store_f16 sync");
+
+    const int chunk = 8;
+    Dev dscore((size_t) chunk * n_head * ctx_rows * 2 * sizeof(float)),
+        dout((size_t) q_rows * n_head * dim * sizeof(float));
+    // the same values in fp16, keys through the Q4 path: Kvq4 with the fp16 key cache null
+    attend(dq.as<float>(), nullptr, vfp16.as<uint16_t>(), 0, q_rows, dscore.as<float>(), chunk, dout.as<float>(),
+           dim, n_head, kv_heads, scale, nullptr, 0, 0, false, nullptr, 0, 0, Kvq8{}, Kvq8{},
+           Kvq4{kq.as<uint8_t>(), kqs.as<uint16_t>()}, Kvq4{nullptr, nullptr});
+    ck(cudaGetLastError(), "attend q4k launch");
+    ck(cudaStreamSynchronize(nullptr), "attend q4k sync");
+    std::vector<float> got((size_t) q_rows * n_head * dim);
+    ck(cudaMemcpy(got.data(), dout.p, got.size() * sizeof(float), cudaMemcpyDeviceToHost), "download q4k");
+
+    // attend_batch() reads Q4 through its fp16 workspace; same expectation below with room for the halves rounding.
+    void* blas = blas_create(nullptr);
+    const size_t score_floats = 4096;
+    Dev bscore(score_floats * sizeof(float));
+    const size_t work_floats = (size_t) q_rows * n_head * (dim + dim / 2 + 3) + 1;
+    Dev work(work_floats * sizeof(float));
+    const size_t work_halves = (size_t) width * 8;
+    Dev kwork(work_halves * sizeof(uint16_t)), vwork(work_halves * sizeof(uint16_t));
+    attend_batch(blas, dq.as<float>(), nullptr, vfp16.as<uint16_t>(), 0, q_rows, bscore.as<float>(), score_floats,
+                 work.as<float>(), dout.as<float>(), dim, n_head, kv_heads, scale, nullptr, 0, 0, false, Kvq8{},
+                 Kvq8{}, kwork.as<uint16_t>(), vwork.as<uint16_t>(), work_halves,
+                 Kvq4{kq.as<uint8_t>(), kqs.as<uint16_t>()}, Kvq4{nullptr, nullptr});
+    ck(cudaGetLastError(), "attend_batch q4k launch");
+    ck(cudaStreamSynchronize(nullptr), "attend_batch q4k sync");
+    std::vector<float> batched(got.size());
+    ck(cudaMemcpy(batched.data(), dout.p, batched.size() * sizeof(float), cudaMemcpyDeviceToHost),
+       "download batched");
+    blas_destroy(blas);
+
+    // What the device wrote, read back: the q4 keys through ggml's dequantizer — not through our
+    // writer's intent — and the fp16 values exactly as the kernels read them.
+    std::vector<uint8_t> kquant((size_t) ctx_rows * width / 2);
+    ck(cudaMemcpy(kquant.data(), kq.p, kquant.size(), cudaMemcpyDeviceToHost), "download kquants");
+    std::vector<uint16_t> kscale((size_t) ctx_rows * nb);
+    ck(cudaMemcpy(kscale.data(), kqs.p, kscale.size() * sizeof(uint16_t), cudaMemcpyDeviceToHost),
+       "download kscales");
+    std::vector<uint16_t> vhalf((size_t) ctx_rows * width);
+    ck(cudaMemcpy(vhalf.data(), vfp16.p, vhalf.size() * sizeof(uint16_t), cudaMemcpyDeviceToHost),
+       "download vfp16");
+    std::vector<float> kk((size_t) ctx_rows * width), vv(vhalf.size());
+    for (int r = 0; r < ctx_rows; ++r)
+        for (int b = 0; b < nb; ++b)
+            ggml_dequant_block(kquant.data() + (size_t) r * (width / 2) + (size_t) b * 16,
+                               kscale[(size_t) r * nb + b], kk.data() + (size_t) r * width + (size_t) b * 32);
+    for (size_t i = 0; i < vhalf.size(); ++i) vv[i] = half_value(vhalf[i]);
+
+    // The host's own attention, token t over rows 0..t like the kernels': softmax of scale * q.k over
+    // ggml-dequantized keys, then the stored fp16 values.  Head h reads key group h / per at g * dim.
+    std::vector<float> want(got.size());
+    std::vector<float> s(ctx_rows);
+    for (int t = 0; t < q_rows; ++t) {
+        for (int h = 0; h < n_head; ++h) {
+            const float* qt = q.data() + ((size_t) t * n_head + h) * dim;
+            const size_t g = (size_t) (h / per) * dim;
+            float mx = -INFINITY;
+            for (int i = 0; i <= t; ++i) {
+                const float* ki = kk.data() + (size_t) i * width + g;
+                float acc = 0.0f;
+                for (int d = 0; d < dim; ++d) acc += qt[d] * ki[d];
+                s[i] = acc * scale;
+                mx = std::fmax(mx, s[i]);
+            }
+            float sum = 0.0f;
+            for (int i = 0; i <= t; ++i) sum += s[i] = std::exp(s[i] - mx);
+            const float inv = 1.0f / sum;
+            float* out = want.data() + ((size_t) t * n_head + h) * dim;
+            for (int d = 0; d < dim; ++d) out[d] = 0.0f;
+            for (int i = 0; i <= t; ++i) {
+                const float* vi = vv.data() + (size_t) i * width + g;
+                const float w = s[i] * inv;
+                for (int d = 0; d < dim; ++d) out[d] += w * vi[d];
+            }
+        }
+    }
+
+    // Same last-bit room as the value arm: 1e-3 pins the nibble pairing, whose errors are O(1).
+    for (size_t i = 0; i < want.size(); ++i) {
+        const float tol = 1e-3f + 1e-4f * std::fabs(want[i]);
+        ++values;
+        if (!(std::fabs(got[i] - want[i]) <= tol)) {
+            std::fprintf(stderr,
+                         "poly_kv_q4_test: attend: dim=%d heads=%d kv=%d key [%zu] want=%.6g q4=%.6g "
+                         "err=%.6g tol=%.6g\n",
+                         dim, n_head, kv_heads, i, (double) want[i], (double) got[i],
+                         (double) std::fabs(got[i] - want[i]), (double) tol);
+            ++fails;
+            if (fails > 10) return;
+        }
+    }
+
+    for (size_t i = 0; i < want.size(); ++i) {
+        const float tol = 5e-3f + 5e-4f * std::fabs(want[i]);
+        ++values;
+        if (!(std::fabs(batched[i] - want[i]) <= tol)) {
+            std::fprintf(stderr,
+                         "poly_kv_q4_test: attend_batch: dim=%d heads=%d kv=%d key [%zu] want=%.6g q4=%.6g "
+                         "err=%.6g tol=%.6g\n",
+                         dim, n_head, kv_heads, i, (double) want[i], (double) batched[i],
+                         (double) std::fabs(batched[i] - want[i]), (double) tol);
+            ++fails;
+            if (fails > 20) return;
+        }
+    }
+}
+
 }  // namespace
 
 int main() {
@@ -435,6 +574,10 @@ int main() {
     // per < 4 takes attn_value_kernel (no wt), per >= 4 takes attn_value_t_kernel behind the scores
     attend_value_check(128, 2, 2, 8, 4, rng, fails, values);
     attend_value_check(128, 8, 2, 8, 4, rng, fails, values);
+
+    // the same geometries through the key reader: keys quantized, values fp16
+    attend_key_check(128, 2, 2, 8, 4, rng, fails, values);
+    attend_key_check(128, 8, 2, 8, 4, rng, fails, values);
 
     if (fails) {
         std::fprintf(stderr, "poly_kv_q4_test: FAIL: %d failed assertion(s)\n", fails);

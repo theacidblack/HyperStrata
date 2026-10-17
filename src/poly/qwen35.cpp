@@ -50,17 +50,24 @@ void Qwen35::load_geometry() {
     n_kv_ = shape_i("attention.head_count_kv");
     head_dim_ = shape_i("attention.key_length");
     // Per-knob guards: q8_0 and q4_0 both quantize in 32-value blocks, so both knobs need
-    // n_kv*head_dim a multiple of 32 (QK8_0/QK4_0).  The shape is shared by both knobs (target layers and
-    // the draft block share n_kv_/head_dim_).
+    // n_kv*head_dim a multiple of 32 (QK8_0/QK4_0), and the scales plane is (head_dim/32) per row,
+    // so head_dim itself must be a multiple of 32 too.  The shape is shared by both knobs (target
+    // layers and the draft block share n_kv_/head_dim_).
     const bool q8 = opt_.kv_format == KvFmt::kQ8_0 || opt_.draft_kv_format == KvFmt::kQ8_0;
     const bool q4 = opt_.kv_format == KvFmt::kQ4_0 || opt_.draft_kv_format == KvFmt::kQ4_0;
-    if ((q8 || q4) && (n_kv_ * head_dim_) % 32 != 0) {
-        const bool kv_knob = opt_.kv_format != KvFmt::kFp16;
-        const char* flag = kv_knob ? "--kv" : "--draft-kv";
-        const KvFmt fmt = kv_knob ? opt_.kv_format : opt_.draft_kv_format;
-        throw std::runtime_error(std::string(flag) + (fmt == KvFmt::kQ8_0 ? " q8_0" : " q4_0") +
-                                 " needs n_kv*head_dim to be a multiple of 32 (ggml QK8_0/QK4_0); this model has " +
-                                 std::to_string(n_kv_ * head_dim_));
+    if ((q8 || q4) && ((n_kv_ * head_dim_) % 32 != 0 || head_dim_ % 32 != 0)) {
+        std::string who;
+        if (opt_.kv_format != KvFmt::kFp16)
+            who += std::string("--kv ") + (opt_.kv_format == KvFmt::kQ8_0 ? "q8_0" : "q4_0");
+        if (opt_.draft_kv_format != KvFmt::kFp16) {
+            if (!who.empty()) who += " and ";
+            who += std::string("--draft-kv ") +
+                   (opt_.draft_kv_format == KvFmt::kQ8_0 ? "q8_0" : "q4_0");
+        }
+        throw std::runtime_error(who + " need n_kv*head_dim AND head_dim to be multiples of 32 "
+                                 "(ggml QK8_0/QK4_0 blocks, one scales row per 32 values); this model has " +
+                                 std::to_string(n_kv_ * head_dim_) + " values and head_dim " +
+                                 std::to_string(head_dim_));
     }
     const MetaValue* rot = find("rope.dimension_count");
     n_rot_ = rot ? (int) rot->u : head_dim_;

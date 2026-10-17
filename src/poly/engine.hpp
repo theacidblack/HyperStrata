@@ -37,7 +37,7 @@ class Shards;
 struct Likeliest;
 
 /// The attention caches' storing format: fp16 (default) or ggml Q8_0, each knob opt-in via --kv/--draft-kv.
-/// kQ4_0 selects but has no kernels yet (Phase 2); Engine::open() rejects it until they land.
+/// kQ4_0 selects the ggml Q4_0 kernels; Engine::open() validates the knob per architecture.
 enum class KvFmt { kFp16 = 0, kQ8_0 = 1, kQ4_0 = 2 };
 
 struct Options {
@@ -69,9 +69,9 @@ struct Options {
     bool kv_grow = true;          ///< the attention caches get VRAM as the sequence grows, where the card can map it
                                   ///< so; false: for the whole context at load, as the expert cache gets the rest
     KvFmt kv_format = KvFmt::kFp16;   ///< the target layers' K and V caches' format; fp16 by default
-    /// Phase 1a: the draft block's K and V caches' format, independent of kv_format (mixed pairs allowed).
+    /// The draft block's K and V caches' format, independent of kv_format (mixed pairs allowed).
     /// Each knob omitted = fp16, so both omitted is byte-identical to the old single-knob default path.
-    /// kQ4_0 on either knob is rejected until the Phase 2 kernels land (Engine::open(), Qwen35::load_geometry()).
+    /// kQ4_0 on either knob needs the Q4_0 kernels and a qwen35moe model (Engine::open(), Qwen35::load_geometry()).
     KvFmt draft_kv_format = KvFmt::kFp16;   ///< the draft block's K/V format; fp16 by default
     int window = 0;               ///< the most tokens window() takes: the known one and guesses after it; 1: none;
                                   ///< 0: 8, or 4 where every guess keeps a copy of the recurrent state

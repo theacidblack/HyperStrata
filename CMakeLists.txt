@@ -1917,6 +1917,15 @@ if(STRATA_NATIVE_EXPERTS AND (STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP) AND NOT S
     target_link_libraries(poly_kv_q8_test PRIVATE ${_strata_gpu_blas_target} ${_strata_gpu_runtime_target}
                                                   Threads::Threads)
     add_test(NAME poly_kv_q8_test COMMAND poly_kv_q8_test)
+    # the Q4_0 KV cache kernels (store_q4 / store_q4_at) against a host reference (GPU, synthetic, no model);
+    # the q4 kernels are CUDA-only in v1 like the q8 ones (the --kv/--draft-kv parsing rejects other backends),
+    # so HIP skips it under the same guard
+    add_executable(poly_kv_q4_test src/poly/kv_q4_test.cpp src/poly/kernels.cu)
+    target_include_directories(poly_kv_q4_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include
+                                                       ${_strata_gpu_include_directories})
+    target_link_libraries(poly_kv_q4_test PRIVATE ${_strata_gpu_blas_target} ${_strata_gpu_runtime_target}
+                                                  Threads::Threads)
+    add_test(NAME poly_kv_q4_test COMMAND poly_kv_q4_test)
   endif()
 endif()
 

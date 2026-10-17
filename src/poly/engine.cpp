@@ -907,14 +907,8 @@ void Engine::load_moe(int il, bool shared) {
 
 // The engine for a model file: its general.architecture says which.
 std::unique_ptr<Engine> Engine::open(const Options& o) {
-    // Phase 1a: kQ4_0 selects but has no kernels until Phase 2 — reject on either knob, before the model
-    // file is even mapped.  Phase 2 removes these two throws and adds the kernels; the gate strings below
-    // keep the plan §3 terse shape.  (The CUDA-only gate lives in main.cpp's --kv/--draft-kv parsing.)
-    if (o.kv_format == KvFmt::kQ4_0)
-        throw std::runtime_error("--kv q4_0 is not supported yet (q4_0 KV kernels land in Phase 2; use fp16 or q8_0)");
-    if (o.draft_kv_format == KvFmt::kQ4_0)
-        throw std::runtime_error("--draft-kv q4_0 is not supported yet (q4_0 KV kernels land in Phase 2; use fp16 "
-                                 "or q8_0)");
+    // Phase 2: q4_0 KV kernels have landed — q4_0 is selectable end-to-end.
+    // (The CUDA-only gate lives in main.cpp's --kv/--draft-kv parsing.)
     const Shards file(o.model);
     const MetaValue* arch = file.get("general.architecture");
     const std::string name = arch ? arch->s : std::string();

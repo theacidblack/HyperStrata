@@ -65,6 +65,15 @@ private:
         uint16_t* k_scales = nullptr;
         int8_t*   v_codes  = nullptr;
         uint16_t* v_scales = nullptr;
+        // q4_0 cache (opt-in per knob, Phase 2): quants packs two 4-bit codes a byte (n_kv*head_dim/2 a row:
+        // block b's values j, j+16, j < 16, are the low/high nibbles of byte b*16+j); scales are one fp16 per
+        // 32-value block (n_kv*(head_dim/32) a row) like q8_0's.  Used instead of keys/vals (or the q8 members,
+        // never beside them) for a block whose knob is kQ4_0.  The allocated pointer IS the block's format,
+        // as with q8_0.
+        uint8_t*  k_quants  = nullptr;
+        uint16_t* k_qscales = nullptr;
+        uint8_t*  v_quants  = nullptr;
+        uint16_t* v_qscales = nullptr;
         Dev sh_gate_inp;   ///< the shared expert's gate
     };
 
@@ -98,7 +107,7 @@ private:
     float *qg_ = nullptr, *q_ = nullptr, *kraw_ = nullptr, *k_ = nullptr, *v_ = nullptr, *att_ = nullptr,
           *score_ = nullptr, *sg_ = nullptr;
     float* awork_ = nullptr;   ///< a prompt batch's attention (attend_batch)
-    float* q8w_ = nullptr;             ///< a q8 prompt batch's K and V blocks, dequantized to fp16 (kwork | vwork)
+    float* q8w_ = nullptr;             ///< a q8/q4 prompt batch's K and V blocks, dequantized to fp16 (kwork | vwork)
     size_t work_halves_ = 0;           ///< the halves of each of q8w_'s two halves (kQ8WorkRows rows at most)
 
 };

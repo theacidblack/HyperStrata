@@ -74,6 +74,18 @@ void store_q8(const float* x, int8_t* codes, uint16_t* scales, int n, int64_t po
 /// The same from the row the card holds at `at` when the launch runs; with `ring`, a row is its number % ring.
 void store_q8_at(const float* x, int8_t* codes, uint16_t* scales, int n, const long long* at, int rows, int ring,
                  void* stream);
+/// Stores the tokens' rows as ggml Q4_0 (one fp16 scale and sixteen bytes of packed 4-bit codes a 32-value
+/// block) from row `pos`.  quants: n/2 bytes a row; scales: n/32 fp16 a row.  n must be a multiple of 32
+/// (QK4_0).  Block b's values j and j + 16 (j < 16) are the low and high nibbles of
+/// quants[row * (n / 2) + b * 16 + j].  The per-block math is llama.cpp's quantize_row_q4_0_ref
+/// (ggml/src/ggml-quants.c): the scale is d = max / -8 where max is the block value with the largest |v|,
+/// its sign kept, so d may be negative and is stored as is; a code is min(15, (int)(x / d + 8.5f)) with C
+/// truncation and no lower clamp, dequantizing as (c - 8) * scale.
+/// The fp16 and q8 paths are unchanged.
+void store_q4(const float* x, uint8_t* quants, uint16_t* scales, int n, int64_t pos, int rows, void* stream);
+/// The same from the row the card holds at `at` when the launch runs; with `ring`, a row is its number % ring.
+void store_q4_at(const float* x, uint8_t* quants, uint16_t* scales, int n, const long long* at, int rows, int ring,
+                 void* stream);
 /// Attention over cached latents for the tokens from position `pos`.  q: n_head * rank absorbed queries a token.
 /// The first dense_rows tokens attend to every cache row up to their own.  The others each have a list in sel
 /// (sel_stride apart): top_rows cache rows, then the rows of the pool their own position is still filling.
@@ -174,6 +186,16 @@ struct Kvq8 {
     const int8_t* codes = nullptr;
     const uint16_t* scales = nullptr;
 };
+/// An attention cache stored as ggml Q4_0: a row is `n / 2` bytes of packed 4-bit codes and `n / 32` fp16
+/// scales with `n = kv_heads * dim`, row-major (`quants[row * (n / 2) + blk * 16 + j]`,
+/// `scales[row * (n / 32) + blk]`).
+/// A q4 read is active wherever `quants` is not null.  Block b's values j and j + 16 (j < 16) are the low
+/// and high nibbles of its byte j, and a block dequantizes as
+/// `(float)((byte >> (j < 16 ? 0 : 4) & 0xF) - 8) * __half2float(scales[..])` with one scale a 32-value block.
+struct Kvq4 {
+    const uint8_t* quants = nullptr;
+    const uint16_t* scales = nullptr;
+};
 
 /// Causal attention for the tokens from position `pos`: token t attends the rows 0 to pos + t, or with `window`
 /// only the last `window` of them.  q: n_head * dim a token.  kcache and vcache: fp16, kv_heads * dim a row; the
@@ -194,10 +216,14 @@ struct Kvq8 {
 /// With `kq8` or `vq8` (codes not null) that cache is read as Q8_0 rather than fp16: its codes/scale pointers
 /// follow the same row and head index the fp16 cache would, and a block of 32 values dequantizes as
 /// `(float)codes[..] * __half2float(scales[..])`.  The fp16 path is unchanged where they are left null.
+/// With `kq4` or `vq4` (quants not null) that cache is read as Q4_0 rather than fp16 or Q8_0: its quant/scale
+/// pointers follow the same row and head index the fp16 cache would, and a value dequantizes as its nibble
+/// minus 8 times its block's scale (Kvq4).  A cache with both its q8 and q4 pointers set throws
+/// std::invalid_argument; the fp16 path (all null) is unchanged.
 void attend(const float* q, const uint16_t* kcache, const uint16_t* vcache, int64_t pos, int rows, float* score,
             int chunk, float* out, int dim, int n_head, int kv_heads, float scale, void* stream, int window = 0,
             int ring = 0, bool whole = false, const long long* at = nullptr, int room = 0, size_t score_floats = 0,
-            Kvq8 kq8 = {}, Kvq8 vq8 = {});
+            Kvq8 kq8 = {}, Kvq8 vq8 = {}, Kvq4 kq4 = {}, Kvq4 vq4 = {});
 /// The floats of score that attend()'s blocks of rows take for calls of up to chunk tokens attending up to max_rows
 /// rows (score_floats): with that much a model's every call takes them.
 size_t attend_split_floats(int chunk, int n_head, int max_rows, int dim);
@@ -216,10 +242,14 @@ size_t attend_split_floats(int chunk, int n_head, int max_rows, int dim);
 /// read that exactly as they read an fp16 cache, so the results match attend()'s q8 read.  Each workspace holds
 /// work_halves halves, `work_halves / (kv_heads * dim)` rows at most: a block of keys larger than that is split,
 /// taking more products.  The fp16 path (both null) is unchanged and reads the caches where they lie.
+/// With `kq4` or `vq4` (quants not null) that cache is read as Q4_0 the same way: its rows are dequantized by
+/// nibble-minus-8-times-scale into the same fp16 workspace, so one workspace sizing holds for both formats.
+/// A cache with both its q8 and q4 pointers set throws std::invalid_argument.
 void attend_batch(void* blas, const float* q, const uint16_t* kcache, const uint16_t* vcache, int64_t pos, int rows,
                   float* score, size_t score_floats, float* work, float* out, int dim, int n_head, int kv_heads,
                   float scale, void* stream, int window = 0, int ring = 0, bool whole = false, Kvq8 kq8 = {},
-                  Kvq8 vq8 = {}, uint16_t* kwork = nullptr, uint16_t* vwork = nullptr, size_t work_halves = 0);
+                  Kvq8 vq8 = {}, uint16_t* kwork = nullptr, uint16_t* vwork = nullptr, size_t work_halves = 0,
+                  Kvq4 kq4 = {}, Kvq4 vq4 = {});
 /// x = cap * tanh(x / cap).
 void softcap(float* x, size_t n, float cap, void* stream);
 /// The first of the largest of n logits and the softmax's probability of it, summed without the logits more than

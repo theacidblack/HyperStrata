@@ -147,6 +147,62 @@ class CarryOver(unittest.TestCase):
             same = {"args": ["--expert-profile", "/old/expert-profile.bin"]}
             self.assertEqual(setup.carry_over(same, new), [])
 
+    def test_hand_added_kv_flags_are_carried(self):
+        # A --kv / --draft-kv wired in by hand survives a setup run, as --expert-profile does; without
+        # this the regenerated config silently runs fp16 again.  Only a strata-poly config takes them.
+        poly = "/x/engine-poly/" + setup.POLY_EXE
+        old = {"exe": poly, "args": ["--model", "m.gguf", "--kv", "q8_0", "--draft-kv", "q4_0"]}
+        new = {"exe": poly, "args": ["--model", "m.gguf"]}
+        self.assertEqual(setup.carry_over(old, new), ["args --kv", "args --draft-kv"])
+        self.assertEqual(setup.flag_value(new["args"], "--kv"), "q8_0")
+        self.assertEqual(setup.flag_value(new["args"], "--draft-kv"), "q4_0")
+        # what setup writes itself wins: nothing is overwritten, and nothing is kept twice
+        new = {"exe": poly, "args": ["--model", "m.gguf", "--kv", "q8_0"]}
+        self.assertEqual(setup.carry_over(dict(old), new), ["args --draft-kv"])
+        self.assertEqual(new["args"].count("--kv"), 1)
+        # a value no engine spells is not kept (args_dropped names it on the .bak line instead)
+        old = {"exe": poly, "args": ["--model", "m.gguf", "--kv", "int8"]}
+        new = {"exe": poly, "args": ["--model", "m.gguf"]}
+        self.assertEqual(setup.carry_over(old, new), [])
+        self.assertNotIn("--kv", new["args"])
+        # Flash-Next's --kv is untouched by this: its configs never match a poly format
+        old = {"exe": "/x/engine/strata.exe", "args": ["--pack", "p", "--kv", "k8v4"]}
+        new = {"exe": "/x/engine/strata.exe", "args": ["--pack", "p2", "--kv", "int8"]}
+        self.assertEqual(setup.carry_over(old, new), [])
+        # a Flash-Next config gains nothing, not even --draft-kv: the new exe gates the carry
+        old = {"exe": poly, "args": ["--model", "m.gguf", "--kv", "q8_0", "--draft-kv", "q4_0"]}
+        new = {"exe": "/x/engine/strata.exe", "args": ["--pack", "p2"]}
+        self.assertEqual(setup.carry_over(old, new), [])
+        self.assertNotIn("--kv", new["args"])
+        self.assertNotIn("--draft-kv", new["args"])
+        # a non-fp16 knob kept onto a HIP backend warns and stays fp16
+        old = {"exe": poly, "args": ["--model", "m.gguf", "--kv", "q8_0"]}
+        new = {"exe": poly, "backend": "hip", "args": ["--model", "m.gguf"]}
+        _, out = quiet(setup.carry_over, old, new)
+        self.assertEqual(new["args"], ["--model", "m.gguf"])
+        self.assertIn("CUDA only", out)
+        # outside the qwen35moe families a kept knob warns and stays fp16
+        gemma = setup.FAMILIES["gemma4"]["name"] + "-ud-q3_k_m"
+        old = {"exe": poly, "args": ["--model", "m.gguf", "--kv", "q8_0", "--draft-kv", "q8_0"]}
+        new = {"exe": poly, "model_name": gemma, "args": ["--model", "m.gguf"]}
+        _, out = quiet(setup.carry_over, old, new)
+        self.assertEqual(new["args"], ["--model", "m.gguf"])
+        self.assertIn("qwen35moe", out)
+        # a size with no draft block keeps --kv but not --draft-kv
+        mini = setup.FAMILIES["minicpmv"]["name"] + "-q4_k_m"
+        old = {"exe": poly, "args": ["--model", "m.gguf", "--kv", "q8_0", "--draft-kv", "q8_0"]}
+        new = {"exe": poly, "model_name": mini, "args": ["--model", "m.gguf"]}
+        _, out = quiet(setup.carry_over, old, new)
+        self.assertEqual(setup.flag_value(new["args"], "--kv"), "q8_0")
+        self.assertNotIn("--draft-kv", new["args"])
+        self.assertIn("no draft block", out)
+        # beside a --no-draft a kept --draft-kv warns and stays fp16
+        old = {"exe": poly, "args": ["--model", "m.gguf", "--draft-kv", "q8_0", "--no-draft"]}
+        new = {"exe": poly, "args": ["--model", "m.gguf"]}
+        _, out = quiet(setup.carry_over, old, new)
+        self.assertNotIn("--draft-kv", new["args"])
+        self.assertIn("--no-draft", out)
+
     def test_a_missing_mmproj_is_not_carried(self):
         old = {"vision": {"mmproj": "/nowhere/mmproj-Q8_0.gguf", "gpu": True}}
         new = {"vision": {"mmproj": "/data/mmproj-BF16.gguf", "gpu": True}}

@@ -62,6 +62,21 @@ class Batch(unittest.TestCase):
         self.assertFalse(setup.poly_batch(setup.FAMILIES["gemma4"], setup.FAMILIES["gemma4"]["models"]["UD-Q2_K_XL"],
                                           96.0, 32768))
 
+    def test_batch_rows_scale_with_the_kv_format(self):
+        # Phase 1c: omitted is the measured fp16 figure itself (the default path is unchanged); a quantized cache
+        # only ever leaves more room beside the batch, never less
+        qwen = setup.FAMILIES["qwen36"]
+        for m, d in qwen["models"].items():
+            for vram, ctx in ((8.0, 32768), (23.6, 32768), (23.6, 131072), (31.8, 131072)):
+                with self.subTest(size=m, vram=vram, ctx=ctx):
+                    self.assertEqual(setup.poly_batch(qwen, d, vram, ctx),
+                                     setup.poly_batch(qwen, d, vram, ctx, "fp16", "fp16"))
+                    order = [setup.poly_batch(qwen, d, vram, ctx, kv, kv)
+                             for kv in ("fp16", "q8_0", "q4_0")]
+                    self.assertEqual(order, sorted(order))   # flips only towards the larger batch, never away
+        self.assertFalse(setup.poly_batch(setup.FAMILIES["gemma4"], setup.FAMILIES["gemma4"]["models"]["UD-Q2_K_XL"],
+                                          96.0, 32768, "q8_0", "q8_0"))
+
 
 class Main(unittest.TestCase):
     setUp, tearDown, main = glm_tests.Main.setUp, glm_tests.Main.tearDown, glm_tests.Main.main

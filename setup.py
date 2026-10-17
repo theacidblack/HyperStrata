@@ -36,7 +36,8 @@ answers, no questions), --setup (install another model / change settings instead
 (EXPERIMENTAL, off by default),
 --models-dir DIR, --gguf-dir DIR (use GGUF files you already have), --build (compile instead of the ready-made
 engine), --check (only check this PC), --resident-budget-gib N (UD-Q4_K_XL's or UD-IQ4_XS's experts in RAM),
---kv-streaming on|off|auto.
+--kv-streaming on|off|auto.  strata-poly's qwen35moe families take --kv fp16|q8_0|q4_0 and --draft-kv fp16|q8_0|q4_0
+(CUDA only; fp16 is the default when omitted).
 
 Setup recommends, it never forces: the recommended answers are the defaults (--yes, or Enter), and a bigger choice
 than it recommends - a longer context, more GPUs, a bigger RAM budget, a size it thinks will not fit - is kept, with
@@ -759,6 +760,17 @@ OLD_POLY_EXE = "strata-glm.exe" if WIN else "strata-glm"
 OLD_ENGINE_POLY_DIR = "engine-glm"
 POLY_CONTEXTS = [8192, 32768, 65536, 131072]
 GLM_ROW_BYTES = 28160           # VRAM per context token: a row in each of the 11 sparse attention layers' caches
+# Phase 1c (q4_0 KV plan): strata-poly's independent KV knobs, --kv (the target model) and --draft-kv (the draft
+# block), each fp16 | q8_0 | q4_0 (src/poly/main.cpp parses the same three; omitted is fp16).  Only the qwen35moe
+# families take a non-fp16 knob (docs/BACKENDS.md names the architecture per family; the engine refuses the others
+# per knob, src/poly/engine.cpp), and only on CUDA (src/poly/main.cpp refuses them on HIP).
+POLY_KV_FORMATS = ("fp16", "q8_0", "q4_0")
+POLY_KV_FAMILIES = frozenset({"qwen36", "ornith", "tiel", "minicpmv"})
+# Bytes per cached value beside fp16's 2, from the ggml block sizes (q8_0: 32 int8 + one fp16 scale = 34 B per 32
+# values; q4_0: 32 nibbles + one fp16 scale = 18 B per 32): the row_bytes scale of each knob.  An estimate.
+POLY_KV_SCALE = {"fp16": 1.0, "q8_0": 17 / 32, "q4_0": 9 / 32}
+POLY_KV_DRAFT_SHARE = 1 / 12    # the draft block is one of roughly a dozen attention caches (GLM_ROW_BYTES covers
+                                # 11 sparse layers beside it): the weight of --draft-kv in the scaled row
 GLM_VRAM_BESIDE_GB = 12         # what is not expert cache on a 32 GB card at 32K (weights, caches, buffers, reserve):
                                 # the 3.0BIT file's; a size with other dense weights has its own "vram_beside_gb"
 POLY_RAM_BESIDE_GB = 10          # RAM beside the experts in the file cache: the OS, the server, the engine's buffers
@@ -4795,6 +4807,7 @@ def carry_over(old: dict, cfg: dict) -> list[str]:
             nv["mmproj"] = mm
             kept.append("vision mmproj")
     kept += carry_profile_args(old, cfg)
+    kept += carry_poly_kv_args(old, cfg)
     return kept
 
 
@@ -4823,6 +4836,59 @@ def carry_profile_args(old: dict, cfg: dict) -> list[str]:
     if save and flag_value(nargs, "--expert-profile-save") is None:
         nargs += ["--expert-profile-save", save]
         kept.append("args --expert-profile-save")
+    return kept
+
+
+def carry_poly_kv_args(old: dict, cfg: dict) -> list[str]:
+    """A --kv / --draft-kv the user wired in by hand survives a setup run, as --expert-profile does: setup
+    writes the flags only when asked for them, so without this a regeneration drops a hand-added pair and the engine
+    silently runs fp16 again.  Each flag is kept only when the new config has none; a value outside POLY_KV_FORMATS
+    is not kept (args_dropped names it on the .bak line).  Only a strata-poly config takes them (poly_config):
+    a Flash-Next config never gains --draft-kv this way.  Flash-Next's --kv int8/k8v4 never match, but its q4_0
+    spells the same as strata-poly's and is carried.  A kept non-fp16 value the new install would refuse warns
+    like poly_kv_choice and stays fp16 instead: outside the qwen35moe families, on a HIP backend, a --draft-kv
+    for a size with no draft block, or beside a --no-draft.  The names kept are returned."""
+    oargs, nargs = old.get("args"), cfg.get("args")
+    if not isinstance(oargs, list) or not isinstance(nargs, list):
+        return []
+    if not poly_config(cfg):
+        return []
+    family, fam, d = None, None, None
+    model_name = str(cfg.get("model_name") or "")
+    for key, cand in FAMILIES.items():
+        if cand.get("engine") == "poly" and model_name.startswith(cand.get("name", "") + "-"):
+            family, fam = key, cand
+            break
+    if fam is not None:
+        try:
+            sizes = family_models(family)
+        except KeyError:
+            sizes = {}
+        rest = model_name[len(fam.get("name", "")) + 1:].lower()
+        match = next((m for m in sizes if m.lower() == rest), None)
+        if match is not None:
+            d = sizes[match]
+    kept = []
+    for flag in ("--kv", "--draft-kv"):
+        v = flag_value(oargs, flag)
+        if v is None or flag_value(nargs, flag) is not None or v not in POLY_KV_FORMATS:
+            continue
+        if v != "fp16" and fam is not None and family not in POLY_KV_FAMILIES:
+            warn(f"{flag} {v} is only supported for qwen35moe models in v1 (Qwen3.6, Ornith 1.5, Tiel Coder and "
+                 f"MiniCPM-V); {fam['title']} is not one, so it stays fp16")
+            continue
+        if v != "fp16" and cfg.get("backend") == "hip":
+            warn(f"{flag} {v} is not supported on this backend (CUDA only), so it stays fp16")
+            continue
+        if flag == "--draft-kv" and v != "fp16":
+            if "--no-draft" in [str(x) for x in oargs] or "--no-draft" in [str(x) for x in nargs]:
+                warn("--draft-kv is not used with --no-draft: the guessing block is off, so it stays fp16")
+                continue
+            if fam is not None and d is not None and not poly_has_draft(fam, d):
+                warn(f"{fam['title']} has no draft block (it answers one token at a time): --draft-kv is not used")
+                continue
+        nargs += [flag, v]
+        kept.append(f"args {flag}")
     return kept
 
 
@@ -4920,6 +4986,7 @@ def choices_from_config(cfg_path: Path) -> dict:
         a = cfg.get("args", [])
         ctx = a[a.index("--max-context") + 1] if "--max-context" in a and a.index("--max-context") + 1 < len(a) else None
         return {"family": own, "model": size, "context": int(ctx) if ctx and ctx.isdigit() else None, "kv": None,
+                "draft_kv": None,
                 "vision": "none", "esp": "off", "host": cfg.get("host"), "api_key": cfg.get("api_key"),
                 "port": cfg.get("port"), "gpu": cfg.get("gpu"), "layer_split": None,
                 "cuda": 12 if config_toolkit(cfg) == 12 else None, "vram_reserve_mib": None}
@@ -4933,9 +5000,12 @@ def choices_from_config(cfg_path: Path) -> dict:
     vis = cfg.get("vision")
     esp = val("--control-vector-scaled")
     esp_path = esp.rsplit(":", 1)[0] if esp else None
+    kv_vocab = POLY_KV_FORMATS if FAMILIES.get(family, {}).get("engine") == "poly" else ("int8", "q4_0")
     return {"family": family, "model": model if model in sizes else None,
             "context": int(val("--max-context")) if val("--max-context") else None,
-            "kv": val("--kv") if val("--kv") in ("int8", "q4_0") else None,
+            "kv": val("--kv") if val("--kv") in kv_vocab else None,
+            "draft_kv": val("--draft-kv") if val("--draft-kv") in POLY_KV_FORMATS and
+            FAMILIES.get(family, {}).get("engine") == "poly" else None,
             "vision": ("gpu" if vis.get("gpu") else "cpu") if isinstance(vis, dict) else "none",
             "esp": ("on" if Path(esp_path).name == ESP_VECTOR.name else esp_path) if esp_path else "off",
             "host": cfg.get("host"), "api_key": cfg.get("api_key"), "port": cfg.get("port"), "gpu": cfg.get("gpu"),
@@ -5841,17 +5911,68 @@ def poly_parallel_note(asked: int | None, d, vram_gb) -> list[str]:
     return lines
 
 
-def poly_batch(fam, d, vram_gb, ctx) -> bool:
+def poly_has_draft(fam, d) -> bool:
+    """Phase 1c: whether a size runs a draft block (its --draft-kv has something to set): the block in its own file
+    ("draft": "own"), fetched beside it (the family's "draft", GLM 5.3 Flash) or a draft model of its own
+    (Gemma 4's "draft_model").  DeepSeek, LFM2.5 and MiniCPM-V carry none: they answer one token at a time."""
+    return bool(d.get("draft") == "own" or fam.get("draft") or d.get("draft_model"))
+
+
+def poly_kv_row_bytes(fam, kv="fp16", draft_kv="fp16") -> float:
+    """Phase 1c: the VRAM a context token takes under --kv/--draft-kv: the family's row_bytes (measured fp16) scaled
+    by each knob, the draft knob weighing POLY_KV_DRAFT_SHARE of the rows.  fp16/fp16 is the family's figure itself,
+    so the default path is unchanged.  Unknown values fail (setup never writes them: poly_kv_choice)."""
+    kv, draft_kv = kv or "fp16", draft_kv or "fp16"
+    try:
+        f, df = POLY_KV_SCALE[kv], POLY_KV_SCALE[draft_kv]
+    except KeyError:
+        fail(f"--kv {kv} / --draft-kv {draft_kv}: strata-poly takes fp16, q8_0 or q4_0")
+    if kv == "fp16" and draft_kv == "fp16":
+        return fam.get("row_bytes", GLM_ROW_BYTES)
+    return fam.get("row_bytes", GLM_ROW_BYTES) * ((1 - POLY_KV_DRAFT_SHARE) * f + POLY_KV_DRAFT_SHARE * df)
+
+
+def poly_kv_choice(a, family, fam, d, hip, old_args=()) -> tuple:
+    """Phase 1c: the validated (kv, draft_kv) for this install, each fp16 | q8_0 | q4_0 (omitted is fp16).
+    A value of the Flash-Next engine (int8, k8v4) fails; a non-fp16 knob the strata-poly engine would
+    refuse warns and falls back to fp16: outside the qwen35moe families (the arch gate, src/poly/engine.cpp), on a
+    HIP engine (CUDA only, src/poly/main.cpp), a --draft-kv for a size with no draft block, or a --draft-kv beside a
+    --no-draft of an earlier config (setup never writes --no-draft itself)."""
+    kv, draft_kv = getattr(a, "kv", None) or "fp16", getattr(a, "draft_kv", None) or "fp16"
+    for flag, v in (("--kv", kv), ("--draft-kv", draft_kv)):
+        if v not in POLY_KV_FORMATS:
+            fail(f"{flag} {v}: strata-poly takes fp16 (the default, omitted), q8_0 or q4_0 (--family {family})")
+    title = fam["title"]
+    if family not in POLY_KV_FAMILIES:
+        for flag, v in (("--kv", kv), ("--draft-kv", draft_kv)):
+            if v != "fp16":
+                warn(f"{flag} {v} is only supported for qwen35moe models in v1 (Qwen3.6, Ornith 1.5, Tiel Coder and "
+                     f"MiniCPM-V); {title} is not one, so it stays fp16")
+        kv, draft_kv = "fp16", "fp16"
+    if hip and (kv != "fp16" or draft_kv != "fp16"):
+        warn(f"--kv {kv} / --draft-kv {draft_kv} is not supported on this backend (CUDA only): {title} stays fp16")
+        kv, draft_kv = "fp16", "fp16"
+    if draft_kv != "fp16" and not poly_has_draft(fam, d):
+        warn(f"{title} has no draft block (it answers one token at a time): --draft-kv is not used")
+        draft_kv = "fp16"
+    if draft_kv != "fp16" and "--no-draft" in list(old_args):
+        warn("--draft-kv is not used with --no-draft: the guessing block is off, so it stays fp16")
+        draft_kv = "fp16"
+    return kv, draft_kv
+
+
+def poly_batch(fam, d, vram_gb, ctx, kv="fp16", draft_kv="fp16") -> bool:
     """Whether setup's config reads a prompt 2,048 tokens at a time instead of the engine's 1,024: on a card that holds
     every expert of a size beside the larger batch and the context's rows past 32K, with a GiB to spare, llama.cpp's
     matrix kernels get twice the rows of each expert and a long prompt is read 14% (Qwen3.6) to 30% (LFM2.5) faster;
     on a smaller card the experts outside VRAM are copied to it half as often.  A family without "batch_gb" keeps
-    1,024, one with "batch_from_gb" takes 2,048 on any card from that size on."""
+    1,024, one with "batch_from_gb" takes 2,048 on any card from that size on.  The rows past 32K are the KV formats'
+    (poly_kv_row_bytes): a quantized cache leaves more room beside them."""
     if fam.get("batch_from_gb") and vram_gb >= fam["batch_from_gb"]:
         return True
     if not fam.get("batch_gb"):
         return False
-    rows = max(0, ctx - 32768) * fam.get("row_bytes", GLM_ROW_BYTES) / 2**30
+    rows = max(0, ctx - 32768) * poly_kv_row_bytes(fam, kv, draft_kv) / 2**30
     return d["arena_gb"] <= poly_held_gb(d, vram_gb - fam["batch_gb"] - rows - 1)
 
 
@@ -6186,7 +6307,7 @@ def poly_setup(a, family, gpu, hip, cuda_tk, multi, ram, data, elsewhere, port, 
     unused = [flag for flag, given in (
         ("--vision", not sees and a.vision not in (None, "no", "none")),
         ("--vision-tokens", not sees and a.vision_tokens is not None),
-        ("--kv", a.kv), ("--kv-streaming", a.kv_streaming != "auto"), ("--rope-scaling", a.rope_scaling),
+        ("--kv-streaming", a.kv_streaming != "auto"), ("--rope-scaling", a.rope_scaling),
         ("--rope-scale", a.rope_scale is not None), ("--low-ram", a.low_ram != "auto"),
         ("--resident-budget-gib", a.resident_budget_gib is not None),
         ("--draft-vocab", a.draft_vocab), ("--layer-split", a.layer_split and not multi), ("--calibrate", a.calibrate),
@@ -6212,6 +6333,17 @@ def poly_setup(a, family, gpu, hip, cuda_tk, multi, ram, data, elsewhere, port, 
         model = names[int(ask("Size?", [str(i) for i in range(1, len(names) + 1)], str(names.index(model) + 1),
                               a.yes)) - 1]
     d = sizes[model]
+    # the KV formats first: a refused one fails before anything is downloaded, and the context note below prices
+    # the rows they leave.  old_args: a --no-draft an earlier config carries (setup never writes one itself)
+    old_args = []
+    for p in [adopted, ROOT / f"strata-{fam['tag'] + model}.json".lower()]:
+        if p is not None and Path(p).is_file():
+            try:
+                a2 = json.loads(Path(p).read_text(encoding="utf-8-sig")).get("args")
+                old_args += [str(x) for x in a2] if isinstance(a2, list) else []
+            except (OSError, ValueError):
+                pass
+    kv, draft_kv = poly_kv_choice(a, family, fam, d, hip, old_args)
     # images: the encoder on the GPU takes VRAM the experts would have, so a small card gets it on the CPU
     vision = "none"
     if sees:
@@ -6270,7 +6402,7 @@ def poly_setup(a, family, gpu, hip, cuda_tk, multi, ram, data, elsewhere, port, 
         say()
         say("  Context length = how much text the model can see at once (your chat, files, tool output).")
         say("  Longer takes VRAM from the expert cache:")
-        row = fam.get("row_bytes", GLM_ROW_BYTES)
+        row = poly_kv_row_bytes(fam, kv, draft_kv)
         # writing after a prompt that fills the context, tokens/s, on the 8 GB laptop (docs/BACKENDS.md, docs/LFM.md)
         laptop = fam.get("laptop_tps") or ({32768: "52-58", 65536: "42-46", 131072: "28-30"}
                                            if fam.get("ran_on_gb") == 8 else {})
@@ -6412,7 +6544,18 @@ def poly_setup(a, family, gpu, hip, cuda_tk, multi, ram, data, elsewhere, port, 
            "that much less)")
     if fam.get("tail_skip"):
         args += ["--tail-skip", str(fam["tail_skip"])]
-    if not multi and poly_batch(fam, d, vram, ctx):
+    # Phase 1c: a knob setup is not given is omitted (fp16, the engine's default, unchanged); one it is given is
+    # written even as fp16, so a setup run again keeps the choice instead of carry_over bringing the earlier one back
+    if kv != "fp16" or getattr(a, "kv", None) == "fp16":
+        args += ["--kv", kv]
+        if kv != "fp16":
+            ok(f"KV cache: --kv {kv} (the attention caches take about {100 * POLY_KV_SCALE[kv]:.0f}% of their fp16 "
+               "VRAM)")
+    if draft_kv != "fp16" or getattr(a, "draft_kv", None) == "fp16":
+        args += ["--draft-kv", draft_kv]
+        if draft_kv != "fp16":
+            ok(f"draft KV cache: --draft-kv {draft_kv} (independent of --kv; omitted is fp16)")
+    if not multi and poly_batch(fam, d, vram, ctx, kv, draft_kv):
         args += ["--prompt-batch", "2048"]
         ok("prompts are read 2,048 tokens at a time (--prompt-batch in the config)")
     # The engine's own count is every logical CPU.  On a hybrid CPU that is the slowest: an efficiency core runs
@@ -6619,9 +6762,10 @@ def install_own_path(a, family, gpu, hip, amd, cuda_tk, multi, port, ram, adopte
     ok(f"context: {ctx} tokens")
     if a.vision not in (None, "no", "none"):
         warn(f"images are not available with {fam['title']} yet: off")
-    if a.rope_scaling or a.rope_scale or a.kv or a.resident_budget_gib is not None or a.low_ram not in (None, "auto"):
-        warn(f"--rope-scaling / --kv / --resident-budget-gib / --low-ram are Flash-Next settings: {fam['title']} "
-             "does not use them")
+    if a.rope_scaling or a.rope_scale or a.kv or getattr(a, "draft_kv", None) or a.resident_budget_gib is not None \
+            or a.low_ram not in (None, "auto"):
+        warn(f"--rope-scaling / --kv / --draft-kv / --resident-budget-gib / --low-ram are Flash-Next settings "
+             f"(--kv fp16|q8_0|q4_0 and --draft-kv are strata-poly's): {fam['title']} does not use them")
     folder = Path(a.gguf_dir) if a.gguf_dir else Path(a.models_dir) / tag
     gguf = folder / fam["file"].format(q=model)
     size = fam["sha256"][gguf.name][0]
@@ -6762,9 +6906,16 @@ def main() -> int:
     ap.add_argument("--rope-scale", type=float,
                     help="the extension factor (default: the final context over the trained 262144, at least 1 - "
                          "1.5 for 384K, 2 for 512K, 1 inside the trained range)")
-    ap.add_argument("--kv", choices=["int8", "q4_0", "k8v4"],
-                    help="KV cache precision above 8K context: int8 (default), q4_0 (half the memory, a little less "
-                         "precise) or k8v4 (hybrid: INT8 K + 4-bit V, 816 B/cell)")
+    ap.add_argument("--kv", choices=["int8", "q4_0", "k8v4", "fp16", "q8_0"],
+                    help="KV cache precision. Qwen3.8-Flash-Next above 8K context: int8 (default), q4_0 (half the "
+                         "memory, a little less precise) or k8v4 (hybrid: INT8 K + 4-bit V, 816 B/cell). "
+                         "strata-poly's qwen35moe families (--family qwen36, ornith, tiel, minicpmv): fp16 "
+                         "(default, omitted), q8_0 or q4_0, CUDA only (the other engine's values are refused there, "
+                         "and vice versa)")
+    ap.add_argument("--draft-kv", choices=list(POLY_KV_FORMATS), default=None,
+                    help="strata-poly: the draft block's KV cache format, independent of --kv: fp16 (default), "
+                         "q8_0 or q4_0. Only where the size runs a draft block (Qwen3.6, Ornith 1.5 and "
+                         "Tiel Coder), CUDA only; elsewhere it is warned about and left out")
     ap.add_argument("--vision", choices=["yes", "no", "none", "gpu", "cpu"],
                     help="let the model read images (yes = the encoder on the GPU)")
     ap.add_argument("--vision-tokens", type=int, metavar="N",
@@ -6914,6 +7065,7 @@ def main() -> int:
                 a.family, a.model, a.context = ch["family"], ch["model"], a.context or ch["context"]
                 adopted = prev
                 a.kv = a.kv or ch["kv"]
+                a.draft_kv = a.draft_kv or ch.get("draft_kv")
                 a.vision = a.vision or ch["vision"]
                 a.experimental_speed_projection = a.experimental_speed_projection or ch["esp"]
                 a.host, a.api_key = a.host or ch["host"], a.api_key or ch["api_key"]
@@ -7342,6 +7494,9 @@ def main() -> int:
         ok(f"rope scaling: {scaling}, factor {rope_scale:g} ({origin})")
     ok(f"context: {ctx} tokens")
     # the KV cache (the model's memory of the conversation): 8-bit, or 4-bit after a Hadamard rotation (PR #21)
+    if a.kv in ("fp16", "q8_0"):                         # strata-poly's formats, refused here as before
+        fail(f"--kv {a.kv}: this model takes int8, q4_0 or k8v4 (fp16, q8_0 and strata-poly's q4_0 are another "
+             "format for its qwen35moe families: --family qwen36, ornith, tiel or minicpmv)")
     kv = "fp16" if ctx <= 8192 else (a.kv or "int8")
     if ctx > 8192 and not a.kv and not a.yes:
         say()

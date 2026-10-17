@@ -6,6 +6,9 @@ expert profile, no draft block to fetch).  Mocked like tools/test_setup_glm.py, 
 """
 from __future__ import annotations
 
+import argparse
+import contextlib
+import io
 import json
 import sys
 import tempfile
@@ -116,6 +119,20 @@ class Config(unittest.TestCase):
                 p.write_text(json.dumps({"exe": "/x/engine-poly/" + setup.POLY_EXE, "args": ["--max-context", "8192"]}))
                 ch = setup.choices_from_config(p)
                 self.assertEqual((ch["family"], ch["model"], ch["context"]), (family, size, 8192))
+
+    def test_choices_read_kv_flags_back(self):
+        # Phase 1c: the reader for the writer below; a config from before the flags keeps reading (fp16)
+        with tempfile.TemporaryDirectory() as t:
+            p = Path(t) / "strata-qwen36-ud-q3_k_m.json"
+            p.write_text(json.dumps({"exe": "/x/engine-poly/" + setup.POLY_EXE,
+                                     "args": ["--max-context", "32768", "--kv", "q8_0", "--draft-kv", "q4_0"]}))
+            ch = setup.choices_from_config(p)
+            self.assertEqual((ch["family"], ch["model"], ch["kv"], ch["draft_kv"]),
+                             ("qwen36", "UD-Q3_K_M", "q8_0", "q4_0"))
+            p.write_text(json.dumps({"exe": "/x/engine-poly/" + setup.POLY_EXE,
+                                     "args": ["--max-context", "32768"]}))
+            ch = setup.choices_from_config(p)
+            self.assertEqual((ch["kv"], ch["draft_kv"]), (None, None))
 
 
 class Main(unittest.TestCase):
@@ -284,6 +301,127 @@ class Main(unittest.TestCase):
         self.assertEqual(code, 0, out)
         self.assertIn("0.9 GB more VRAM", out)                           # 65536: 32768 tokens of 28672 bytes more
         self.assertEqual(cfg["args"][cfg["args"].index("--max-context") + 1], "65536")
+
+    def test_kv_flags_written_when_asked(self):
+        # Phase 1c: --kv q8_0 --draft-kv fp16 and the inverse land in the config's args, verbatim for the engine;
+        # fp16 spelled out is written too, so a setup run again keeps the choice (carry_over brings back only what
+        # the new config has not)
+        code, out, cfg = self.main(["--kv", "q8_0", "--draft-kv", "fp16"], family="qwen36", ram=32.0, vram=8.0)
+        self.assertEqual(code, 0, out)
+        args = cfg["args"]
+        self.assertEqual(args[args.index("--kv") + 1], "q8_0")
+        self.assertEqual(args[args.index("--draft-kv") + 1], "fp16")
+        self.assertIn("KV cache: --kv q8_0", out)
+        code, out, cfg = self.main(["--kv", "fp16", "--draft-kv", "q8_0"], family="qwen36", ram=32.0, vram=8.0)
+        self.assertEqual(code, 0, out)
+        self.assertEqual(cfg["args"][cfg["args"].index("--kv") + 1], "fp16")
+        self.assertEqual(cfg["args"][cfg["args"].index("--draft-kv") + 1], "q8_0")
+        self.assertIn("draft KV cache: --draft-kv q8_0", out)
+
+    def test_explicit_fp16_beats_the_earlier_config(self):
+        # the regen keeps a hand-added --kv only when the new run is not given one: --kv fp16 undoes a --kv q8_0
+        code, out, cfg = self.main(["--kv", "q8_0"], family="qwen36", ram=32.0, vram=8.0)
+        self.assertEqual(code, 0, out)
+        self.assertEqual(cfg["args"][cfg["args"].index("--kv") + 1], "q8_0")
+        code, out, cfg = self.main(["--kv", "fp16"], family="qwen36", ram=32.0, vram=8.0)
+        self.assertEqual(code, 0, out)
+        self.assertEqual(cfg["args"][cfg["args"].index("--kv") + 1], "fp16")
+
+    def test_kv_flags_omitted_by_default(self):
+        code, out, cfg = self.main(family="qwen36", ram=32.0, vram=8.0)
+        self.assertEqual(code, 0, out)
+        self.assertNotIn("--kv", cfg["args"])
+        self.assertNotIn("--draft-kv", cfg["args"])
+
+    def test_kv_refused_off_arch_and_off_draft(self):
+        # Gemma 4's engine refuses a non-fp16 knob: warned about, nothing written
+        code, out, cfg = self.main(["--kv", "q8_0", "--draft-kv", "q8_0"], family="gemma4", ram=32.0, vram=8.0)
+        self.assertEqual(code, 0, out)
+        self.assertIn("--kv q8_0 is only supported for qwen35moe models in v1", out)
+        self.assertNotIn("--kv", cfg["args"])
+        self.assertNotIn("--draft-kv", cfg["args"])
+        # MiniCPM-V is qwen35moe but answers one token at a time: --kv stays, --draft-kv is warned away
+        code, out, cfg = self.main(["--kv", "q8_0", "--draft-kv", "q8_0"], family="minicpmv", ram=32.0, vram=8.0)
+        self.assertEqual(code, 0, out)
+        self.assertEqual(cfg["args"][cfg["args"].index("--kv") + 1], "q8_0")
+        self.assertNotIn("--draft-kv", cfg["args"])
+        self.assertIn("has no draft block", out)
+
+    def test_flash_kv_value_is_refused(self):
+        code, out, cfg = self.main(["--kv", "int8"], family="qwen36", ram=32.0, vram=8.0)
+        self.assertNotEqual(code, 0)
+        self.assertIn("--kv int8: strata-poly takes fp16", out)
+        self.assertIsNone(cfg)
+
+
+class KvChoice(unittest.TestCase):
+    """Phase 1c: poly_kv_choice validation without an install (no GPU, no downloads)."""
+
+    def choice(self, family, size=None, **kw):
+        fam = setup.FAMILIES[family]
+        d = fam["models"][size or next(iter(fam["models"]))]
+        a = argparse.Namespace(kv=kw.get("kv"), draft_kv=kw.get("draft_kv"))
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            try:
+                got = setup.poly_kv_choice(a, family, fam, d, kw.get("hip", False), kw.get("old", ()))
+            except SystemExit as e:
+                return ("exit", e.code), out.getvalue()
+        return got, out.getvalue()
+
+    def test_omitted_is_fp16(self):
+        got, out = self.choice("qwen36")
+        self.assertEqual(got, ("fp16", "fp16"))
+        self.assertEqual(out, "")
+
+    def test_draft_presence(self):
+        qwen = setup.FAMILIES["qwen36"]
+        self.assertTrue(setup.poly_has_draft(qwen, qwen["models"]["UD-Q3_K_M"]))
+        gemma = setup.FAMILIES["gemma4"]
+        self.assertTrue(setup.poly_has_draft(gemma, gemma["models"]["UD-Q3_K_M"]))
+        glm = setup.FAMILIES["glm"]
+        self.assertTrue(setup.poly_has_draft(glm, setup.MODELS["3.0BIT"]))
+        for family in ("lfm25", "deepseek", "minicpmv"):
+            fam = setup.FAMILIES[family]
+            self.assertFalse(setup.poly_has_draft(fam, next(iter(fam["models"].values()))), family)
+
+    def test_row_bytes_default_unchanged(self):
+        for family in ("glm", "deepseek", "lfm25", "qwen36", "ornith", "gemma4", "tiel", "minicpmv"):
+            fam = setup.FAMILIES[family]
+            self.assertEqual(setup.poly_kv_row_bytes(fam), fam.get("row_bytes", setup.GLM_ROW_BYTES), family)
+
+    def test_row_bytes_scale(self):
+        base = setup.FAMILIES["qwen36"]["row_bytes"]
+        self.assertAlmostEqual(setup.poly_kv_row_bytes(setup.FAMILIES["qwen36"], "q8_0", "q8_0"), base * 17 / 32)
+        self.assertAlmostEqual(setup.poly_kv_row_bytes(setup.FAMILIES["qwen36"], "q4_0", "q4_0"), base * 9 / 32)
+        mixed = setup.poly_kv_row_bytes(setup.FAMILIES["qwen36"], "q8_0", "fp16")
+        self.assertLess(mixed, base)
+        self.assertGreater(mixed, base * 17 / 32)        # the fp16 draft block costs more than a q8_0 one
+        with self.assertRaises(SystemExit):             # unknown values exit, as the engine's parser does
+            setup.poly_kv_row_bytes(setup.FAMILIES["qwen36"], "int8", "fp16")
+
+    def test_mixed_knobs_stay_independent(self):
+        got, _ = self.choice("qwen36", kv="q8_0", draft_kv="q4_0")
+        self.assertEqual(got, ("q8_0", "q4_0"))
+
+    def test_unknown_and_flash_values_exit(self):
+        for kv in ("int8", "k8v4", "bogus"):
+            (what, _code), out = self.choice("qwen36", kv=kv)
+            self.assertEqual(what, "exit")
+            self.assertIn(f"--kv {kv}", out)
+        (what, _code), out = self.choice("qwen36", draft_kv="int8")
+        self.assertEqual(what, "exit")
+        self.assertIn("--draft-kv int8", out)
+
+    def test_hip_is_cuda_only(self):
+        got, out = self.choice("qwen36", kv="q8_0", draft_kv="q8_0", hip=True)
+        self.assertEqual(got, ("fp16", "fp16"))
+        self.assertIn("CUDA only", out)
+
+    def test_no_draft_beside_draft_kv(self):
+        got, out = self.choice("qwen36", kv="q8_0", draft_kv="q8_0", old=["--model", "m.gguf", "--no-draft"])
+        self.assertEqual(got, ("q8_0", "fp16"))
+        self.assertIn("--draft-kv is not used with --no-draft", out)
 
 
 if __name__ == "__main__":

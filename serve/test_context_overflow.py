@@ -83,7 +83,8 @@ class ContextOverflow(unittest.TestCase):
                             self.assertEqual(error["code"], "context_length_exceeded")
                             self.assertEqual(error["param"], "input")
                         else:
-                            self.assertEqual(set(error), {"type", "message"})
+                            self.assertEqual(error["code"], "context_length_exceeded")
+                            self.assertEqual(set(error), {"type", "code", "message"})
 
     def test_one_token_of_room_still_answers_but_zero_is_rejected(self):
         for path, key in APIS:

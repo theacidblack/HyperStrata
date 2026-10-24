@@ -5466,8 +5466,8 @@ def make_handler(svc: Service):
             return False
 
         def _foreign_page(self) -> bool:
-            """Without an API key, a /v1 POST from a browser page of another site (any site can POST text/plain
-            there without a CORS preflight) would burn GPU time: an Origin header must name an allowed page, and
+            """Without an API key, an inference-API POST from a browser page of another site (any site can POST
+            text/plain there without a CORS preflight) would burn GPU time: an Origin header must name an allowed page, and
             then the body must be JSON.  No Origin (curl, the SDKs, other servers): any content type, as before."""
             origin = self.headers.get("Origin")
             if svc.api_key or not origin:
@@ -5766,7 +5766,7 @@ def make_handler(svc: Service):
             if not self._authorized():
                 return
             path = self.path.split("?")[0].rstrip("/")   # issue #55: Claude Code posts /v1/messages?beta=true
-            if path.startswith("/v1/") and self._foreign_page():
+            if (path.startswith("/v1/") or path == "/chat/completions") and self._foreign_page():
                 return
             if path == "/settings":
                 self._settings()
@@ -5849,7 +5849,7 @@ def make_handler(svc: Service):
                     except EngineDied as e:
                         self._json(503, {"error": {"type": "server_error", "message": str(e)}})
                     return
-                if path in ("/v1/chat/completions", "/v1/messages", "/v1/responses"):
+                if path in ("/v1/chat/completions", "/chat/completions", "/v1/messages", "/v1/responses"):
                     self.record = svc.begin_request(path, req)
                 if path == "/v1/responses":
                     self._responses(req)
@@ -5862,7 +5862,7 @@ def make_handler(svc: Service):
                         code, body = 500, {"error": {"code": 500, "message": str(e) + "; the next request starts "
                                                      "the engine again", "type": "server_error"}}
                     self._json(code, body)
-                elif path == "/v1/chat/completions":
+                elif path in ("/v1/chat/completions", "/chat/completions"):
                     self._openai(req)
                 elif path == "/v1/messages":
                     self._anthropic(req)
@@ -5880,6 +5880,9 @@ def make_handler(svc: Service):
                 print(f"[hyper] 400 invalid request: {e}", flush=True)
                 if path == "/v1/responses":
                     self._json(400, responses_error_body(str(e)))
+                elif "exceeds the context" in str(e):
+                    self._json(400, {"error": {"type": "invalid_request_error", "code": "context_length_exceeded",
+                                               "message": str(e)}})
                 else:
                     self._json(400, {"error": {"type": "invalid_request_error", "message": str(e)}})
             except ModelBusy as e:

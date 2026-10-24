@@ -24,11 +24,12 @@ Phase 0. Engine-side companion to the Exit-OS integration contract. Plain words,
   - `tool_calls` — one or more COMPLETE calls with fully streamed arguments.
   - `length` — output budget hit; arguments may be partial and must never be executed.
 - Known gap #211: a call cut off inside its output can report `stop` with partial streamed args and no final `tool_call` (`serve/server.py:5118-5120`). Until fixed, clients must treat `stop` + calls as suspect. The fix belongs here, not in every client.
-- `tool_choice`: unknown or named-missing values currently degrade to `auto` (`serve/frontend.py:793-809`). Target: implement the requested mode or return 400.
+- `tool_choice`: unknown shapes are a 400 (`serve/frontend.py:793-811`); known-but-unhonourable (bad name, `required` with no tools) still degrades to `auto`. `none` drops tools before the engine.
+- Chat route accepts `POST /chat/completions` as well as `/v1/chat/completions` (trailing slash and query tolerated); foreign-page guard covers both.
 
 ## Errors
 
-- `400 invalid_request_error` — schema problems, context overflow (prompt + `max_tokens` over context). Bodies carry what did not fit.
+- `400 invalid_request_error` — schema problems, context overflow (prompt + `max_tokens` over context, with `code: context_length_exceeded`), unsupported `tool_choice`. Bodies carry what did not fit.
 - `401 authentication_error` — bad or blank key (`serve/server.py:5582`).
 - `404` — unknown route or response id.
 - `409 model_busy` — another sequence holds the single FIFO lane.

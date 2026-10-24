@@ -4262,16 +4262,27 @@ class ForcedToolChoice(unittest.TestCase):
         self.assertEqual((finish, calls), ("length", []))
 
     def test_values_it_cannot_honour_act_as_auto(self):
-        """Not a 400: an odd tool_choice is logged and the model decides."""
+        """A known shape the request cannot honour is logged and the model decides; an unknown shape is a 400."""
         named = lambda n: {"type": "function", "function": {"name": n}}  # noqa: E731
-        for choice, tools in ((named("nope"), self.TOOLS), ({"type": "function"}, self.TOOLS),
-                              ("required", None), ({"type": "banana"}, self.TOOLS), ("sometimes", self.TOOLS)):
+        for choice, tools in ((named("nope"), self.TOOLS), ("required", None)):
             with self.subTest(choice=choice, tools=bool(tools)):
                 self.engine.prompts = []
                 code, b = self.openai(tool_choice=choice, tools=tools)
                 self.assertEqual(code, 200, b)
                 self.assertEqual(b["choices"][0]["message"]["content"], CallingEngine.ANSWER)
                 self.assertEqual(len(self.engine.prompts), 1)
+
+    def test_unknown_tool_choice_shape_is_a_400(self):
+        """Unknown tool_choice shapes are rejected explicitly, never silently degraded to auto."""
+        named = lambda n: {"type": "function", "function": {"name": n}}  # noqa: E731
+        for choice in ({"type": "function"}, {"type": "banana"}, "sometimes"):
+            with self.subTest(choice=choice):
+                self.engine.prompts = []
+                code, b = self.openai(tool_choice=choice, tools=self.TOOLS)
+                self.assertEqual(code, 400, b)
+                self.assertEqual(b["error"]["type"], "invalid_request_error")
+                self.assertIn("unsupported tool_choice", b["error"]["message"])
+                self.assertEqual(self.engine.prompts, [])
 
     def test_the_flat_shape_names_a_function(self):
         code, b = self.openai(tool_choice={"type": "function", "name": "search"})
@@ -4302,6 +4313,38 @@ class ForcedToolChoice(unittest.TestCase):
                     self.assertEqual(stop, want)
                     offered = "search the web" in self.tok.decode(self.engine.prompts[0])
                     self.assertEqual(offered, choice["type"] != "none")
+
+    def test_anthropic_unknown_tool_choice_shape_is_a_400(self):
+        """Unknown tool_choice shapes on /v1/messages are rejected explicitly, like the OpenAI route."""
+        for choice in ({"type": "banana"}, {"type": "tool"}):
+            with self.subTest(choice=choice):
+                self.engine.prompts = []
+                body = {"model": "m", "max_tokens": 400, "tools": [{"name": "search", "input_schema": {
+                    "type": "object"}}], "tool_choice": choice, "messages": [{"role": "user", "content": "2+2?"}]}
+                req = urllib.request.Request(self.base + "/v1/messages", data=json.dumps(body).encode(), headers={
+                    "Content-Type": "application/json", "anthropic-version": "2023-06-01"})
+                try:
+                    with urllib.request.urlopen(req, timeout=30) as r:
+                        code, raw = r.status, r.read().decode()
+                except urllib.error.HTTPError as e:
+                    code, raw = e.code, e.read().decode()
+                self.assertEqual(code, 400, raw)
+                self.assertIn("unsupported tool_choice", json.loads(raw)["error"]["message"])
+                self.assertEqual(self.engine.prompts, [])
+
+    def test_chat_completions_without_v1_prefix(self):
+        """POST /chat/completions (plus trailing slash / query) answers like /v1/chat/completions."""
+        for path in ("/chat/completions", "/chat/completions/", "/chat/completions?x=1"):
+            with self.subTest(path=path):
+                self.engine.prompts = []
+                body = {"model": "m", "messages": [{"role": "user", "content": "2+2?"}], **self.NO_THINKING}
+                req = urllib.request.Request(self.base + path, data=json.dumps(body).encode(),
+                                             headers={"Content-Type": "application/json"})
+                with urllib.request.urlopen(req, timeout=30) as r:
+                    code, b = r.status, json.loads(r.read())
+                self.assertEqual(code, 200, b)
+                self.assertEqual(b["object"], "chat.completion")
+                self.assertEqual(len(self.engine.prompts), 1)
 
 
 class StatusHandover(unittest.TestCase):

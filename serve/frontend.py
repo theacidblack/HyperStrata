@@ -793,13 +793,16 @@ def tool_choice_of(tool_choice) -> tuple[str, str | None]:
 def forced_call(tool_choice, tools: list[dict] | None) -> str | None:
     """`tool_choice` -> the text that opens the call the reply must make, or None (the model decides).
     There is no grammar here: the server writes this opening itself, so the model can only go on with a call.
-    "required" / Anthropic "any": any of the tools; a named function: that one.  A value it cannot honour (an
-    unknown shape, a name that is not one of the tools, "required" with no tools) is logged and acts as "auto",
-    not a 400: a client's odd choice must not stop its request.  "none" is handled by the caller (no tools)."""
+    "required" / Anthropic "any": any of the tools; a named function: that one.  An unknown shape is a 400 (the
+    caller turns the ValueError into one); a known shape the request cannot honour (a name that is not one of the
+    tools, "required" with no tools) is logged and acts as "auto".  "none" is handled by the caller (no tools)."""
     kind, name = tool_choice_of(tool_choice)
     names = {t.get("name") for t in tools or [] if isinstance(t, dict)}
     if kind in ("auto", "none"):
         return None
+    if kind == "unknown":
+        raise ValueError(f"unsupported tool_choice {json.dumps(tool_choice)[:200]}: use \"auto\", \"none\", "
+                         "\"required\", or name one of the request's tools")
     if kind == "required" and len(names) == 1:     # one tool to call: name it, the model cannot invent another
         kind, name = "named", next(iter(names))
     if kind == "required" and names:

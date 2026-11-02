@@ -1182,6 +1182,9 @@ std::unique_ptr<Engine> Engine::open(const Options& o) {
     if (o.kv_format == KvFmt::kQ8_0 && !qwen35 && name != "kolibri1")
         throw std::runtime_error("--kv q8_0 is supported for qwen35moe and kolibri1 models in v1; this is a '" + name +
                                  "' model");
+    // q4_0 is qwen35moe's: its weight is dequantized by the same kernels as Q8_0's, and no other family has one.
+    if (o.kv_format == KvFmt::kQ4_0 && !qwen35)
+        throw std::runtime_error("--kv q4_0 is supported for qwen35moe models in v1; this is a '" + name + "' model");
     // int8 and int8k are Gemma 4's: their readers are not the arithmetic q8_0's are, so a model takes one
     // family or the other rather than a choice between them.
     if (name != "gemma4" && (o.kv_format == KvFmt::kInt8 || o.kv_format == KvFmt::kInt8K))

@@ -44,6 +44,10 @@ bool fdec_fits(int dim, int n_head, int kv_heads, int rows, size_t scratch_float
 bool fdec_q8(const float* q, Kvq8 kq8, Kvq8 vq8, int64_t pos, int n, const long long* at, int room, float* out,
              int dim, int n_head, int kv_heads, float scale, float* scratch, size_t scratch_floats, void* stream);
 
+/// fdec_q8() over a q4_0 cache (Kvq4: n / 2 bytes of nibbles and n / 32 scales a row), converted in registers.
+bool fdec_q4(const float* q, Kvq4 kq4, Kvq4 vq4, int64_t pos, int n, const long long* at, int room, float* out,
+             int dim, int n_head, int kv_heads, float scale, float* scratch, size_t scratch_floats, void* stream);
+
 /// fdec_q8() over an fp16 cache (keys and vals, kv_heads * dim halves a row), read where it lies.
 bool fdec_f16(const float* q, const uint16_t* keys, const uint16_t* vals, int64_t pos, int n, const long long* at,
               int room, float* out, int dim, int n_head, int kv_heads, float scale, float* scratch,

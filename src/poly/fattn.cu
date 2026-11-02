@@ -254,6 +254,18 @@ __device__ __forceinline__ uint32_t mul2(uint32_t x, half2 s) {
     return *reinterpret_cast<uint32_t*>(&h);
 }
 
+// A q4_0 block's 4 bytes as four nibbles: 0x0F0F0F0F and `high` picks the values 16 on (ggml's order).
+__device__ __forceinline__ uint32_t q4nib(uint32_t w, bool high) {
+    return (high ? (w >> 4) : w) & 0x0F0F0F0Fu;
+}
+
+// Two nibbles of a 4-nibble word as the half2 the MMA takes: (n - 8) exactly, no float round trip.
+__device__ __forceinline__ uint32_t q4_h2(uint32_t n, int shift) {
+    const int a = (int) ((n >> shift) & 0xFu) - 8, b = (int) ((n >> (shift + 8)) & 0xFu) - 8;
+    const half2 h = __floats2half2_rn((float) a, (float) b);
+    return *reinterpret_cast<const uint32_t*>(&h);
+}
+
 __device__ __forceinline__ uint4 widen(uint2 v) { return make_uint4(v.x, v.y, 0u, 0u); }
 
 __device__ __forceinline__ uint32_t word(const uint4& v, int i) {
@@ -274,7 +286,7 @@ __device__ __forceinline__ float scale_of(const uint4& v, int b) {   // half b o
 // token comes out the same to the bit whatever tokens the launch has beside it.  The dimensions are numbered as
 // suits the reads (a thread's 8 values of a block of K, its 8 dimensions of V), which the sums don't see.  F16: an
 // fp16 cache (kc and vc are halves, no scales), read as it is.
-template <int MT, bool F16, int Group>
+template <int MT, bool F16, bool Q4, int Group>
 __global__ void __launch_bounds__(kDecWarps * WARP_SIZE)
 fdec_kernel(const float* __restrict__ q, const void* __restrict__ kc, const uint16_t* __restrict__ ks,
             const void* __restrict__ vc, const uint16_t* __restrict__ vs, long long pos,
@@ -295,10 +307,12 @@ fdec_kernel(const float* __restrict__ q, const void* __restrict__ kc, const uint
         Qs[row * QS + d] = __float2half(x);
     }
     constexpr int E = F16 ? 2 : 1;                         // bytes a value
-    constexpr uint32_t kZero = F16 ? 0u : 0x80808080u;     // a zero (a q8 code's once flipped)
+    constexpr uint32_t kZero = F16 ? 0u : Q4 ? 0x88888888u : 0x80808080u;   // a zero (q8 flipped, q4's 8)
     const size_t width = (size_t) kv_heads * kD, swidth = width / 32;
-    const char* kg = (const char*) kc + (size_t) grp * kD * E;
-    const char* vg = (const char*) vc + ((size_t) grp * kD + 64 * w + 8 * g8) * E;
+    const char* kg = Q4 ? (const char*) kc + (size_t) grp * (kD / 2)
+                       : (const char*) kc + (size_t) grp * kD * E;
+    const char* vg = Q4 ? (const char*) vc + (size_t) (grp * kD / 32 + 2 * w + g8 / 4) * 16 + 8 * ((g8 & 3) & 1)
+                       : (const char*) vc + ((size_t) grp * kD + 64 * w + 8 * g8) * E;
     const uint16_t* ksg = F16 ? nullptr : ks + (size_t) grp * (kD / 32);
     const uint16_t* vsg = F16 ? nullptr : vs + (size_t) grp * (kD / 32) + (64 * w + 8 * g8) / 32;
     float m[MT][2], l[MT][2], o[MT][8][4];
@@ -324,6 +338,7 @@ fdec_kernel(const float* __restrict__ q, const void* __restrict__ kc, const uint
 #pragma unroll
             for (int b = 0; b < 8; ++b)
                 kx[nt][b] = key > last ? make_uint4(kZero, kZero, kZero, kZero)
+                          : Q4 ? widen(*reinterpret_cast<const uint2*>(kg + key * (width / 2) + 16 * b + 8 * (t & 1)))
                           : F16 ? *reinterpret_cast<const uint4*>(kg + (key * width + 32 * b + 8 * t) * E)
                                 : widen(*reinterpret_cast<const uint2*>(kg + key * width + 32 * b + 8 * t));
 #pragma unroll
@@ -338,6 +353,7 @@ fdec_kernel(const float* __restrict__ q, const void* __restrict__ kc, const uint
             for (int i = 0; i < 4; ++i) {
                 const long long key = tb + 16 * kk + 2 * t + (i & 1) + 8 * (i >> 1);
                 vx[kk][i] = key > last ? make_uint4(kZero, kZero, kZero, kZero)
+                          : Q4 ? widen(*reinterpret_cast<const uint2*>(vg + key * (width / 2)))
                           : F16 ? *reinterpret_cast<const uint4*>(vg + key * width * E)
                                 : widen(*reinterpret_cast<const uint2*>(vg + key * width));
                 if (!F16 && key <= last) vsc[kk][i] = vsg[key * swidth];
@@ -364,6 +380,10 @@ fdec_kernel(const float* __restrict__ q, const void* __restrict__ kc, const uint
                     if constexpr (F16) {
                         bk[nt][0] = h ? kx[nt][b].z : kx[nt][b].x;
                         bk[nt][1] = h ? kx[nt][b].w : kx[nt][b].y;
+                    } else if constexpr (Q4) {
+                        const uint32_t n = q4nib(h ? kx[nt][b].y : kx[nt][b].x, t >= 2);
+                        bk[nt][0] = q4_h2(n, 0);
+                        bk[nt][1] = q4_h2(n, 16);
                     } else {
                         const uint32_t word = (h ? kx[nt][b].y : kx[nt][b].x) ^ 0x80808080u;
                         bk[nt][0] = i8pair(word, 0x4140);
@@ -478,6 +498,28 @@ fdec_kernel(const float* __restrict__ q, const void* __restrict__ kc, const uint
             }
             const half2 s01 = __halves2half2(__ushort_as_half(vsc[kk][0]), __ushort_as_half(vsc[kk][1]));
             const half2 s89 = __halves2half2(__ushort_as_half(vsc[kk][2]), __ushort_as_half(vsc[kk][3]));
+            if constexpr (Q4) {
+                const bool high = (g8 & 3) >= 2;
+#pragma unroll
+                for (int wd = 0; wd < 2; ++wd) {
+                    const uint32_t n0 = q4nib(wd ? vx[kk][0].y : vx[kk][0].x, high);
+                    const uint32_t n1 = q4nib(wd ? vx[kk][1].y : vx[kk][1].x, high);
+                    const uint32_t n2 = q4nib(wd ? vx[kk][2].y : vx[kk][2].x, high);
+                    const uint32_t n3 = q4nib(wd ? vx[kk][3].y : vx[kk][3].x, high);
+                    const uint32_t lo01 = __byte_perm(n0, n1, 0x5140), hi01 = __byte_perm(n0, n1, 0x7362);
+                    const uint32_t lo89 = __byte_perm(n2, n3, 0x5140), hi89 = __byte_perm(n2, n3, 0x7362);
+#pragma unroll
+                    for (int jj = 0; jj < 4; ++jj) {
+                        const uint32_t a0 = jj < 2 ? lo01 : hi01, a89 = jj < 2 ? lo89 : hi89;
+                        const int sh = jj & 1 ? 16 : 0;
+                        const uint32_t b0 = mul2(q4_h2(a0, sh), s01);
+                        const uint32_t b1 = mul2(q4_h2(a89, sh), s89);
+#pragma unroll
+                        for (int mt = 0; mt < MT; ++mt) mma16816(o[mt][4 * wd + jj], a[mt], b0, b1);
+                    }
+                }
+                continue;
+            }
 #pragma unroll
             for (int wd = 0; wd < 2; ++wd) {
                 const uint32_t x0 = (wd ? vx[kk][0].y : vx[kk][0].x) ^ 0x80808080u;
@@ -584,7 +626,7 @@ bool fdec_fits(int dim, int n_head, int kv_heads, int rows, size_t scratch_float
 
 namespace {
 
-template <bool F16, int Group>
+template <bool F16, bool Q4, int Group>
 bool run_dec(const float* q, const void* kc, const uint16_t* ks, const void* vc, const uint16_t* vs, int64_t pos, int n,
              const long long* at, int room, float* out, int dim, int n_head, int kv_heads, float scale, float* scratch,
              size_t scratch_floats, void* stream) {
@@ -597,7 +639,7 @@ bool run_dec(const float* q, const void* kc, const uint16_t* ks, const void* vc,
     for (int first = 0; first < n; first += kDecTokens) {
         const int c = std::min(kDecTokens, n - first);
         const dim3 blocks(splits, kv_heads);
-        const auto kernel = c * Group <= 16 ? fdec_kernel<1, F16, Group> : fdec_kernel<2, F16, Group>;
+        const auto kernel = c * Group <= 16 ? fdec_kernel<1, F16, Q4, Group> : fdec_kernel<2, F16, Q4, Group>;
         kernel<<<blocks, kDecWarps * WARP_SIZE, 0, s>>>(q, kc, ks, vc, vs, (long long) pos, at, first, c, n_head, kv_heads,
                                                         scale, scratch, ml);
         fdec_merge_kernel<Group><<<dim3(n_head, c), kD, 0, s>>>(scratch, ml, out, (long long) pos, at, first, n_head,
@@ -613,19 +655,29 @@ bool fdec_q8(const float* q, Kvq8 kq8, Kvq8 vq8, int64_t pos, int n, const long 
              int dim, int n_head, int kv_heads, float scale, float* scratch, size_t scratch_floats, void* stream) {
     return kq8.scales && vq8.scales &&
            (n_head == 16 * kv_heads
-                ? run_dec<false, 16>(q, kq8.codes, kq8.scales, vq8.codes, vq8.scales, pos, n, at, room, out, dim,
+                ? run_dec<false, false, 16>(q, kq8.codes, kq8.scales, vq8.codes, vq8.scales, pos, n, at, room, out, dim,
                                      n_head, kv_heads, scale, scratch, scratch_floats, stream)
-                : run_dec<false, 8>(q, kq8.codes, kq8.scales, vq8.codes, vq8.scales, pos, n, at, room, out, dim,
+                : run_dec<false, false, 8>(q, kq8.codes, kq8.scales, vq8.codes, vq8.scales, pos, n, at, room, out, dim,
                                     n_head, kv_heads, scale, scratch, scratch_floats, stream));
+}
+
+bool fdec_q4(const float* q, Kvq4 kq4, Kvq4 vq4, int64_t pos, int n, const long long* at, int room, float* out,
+             int dim, int n_head, int kv_heads, float scale, float* scratch, size_t scratch_floats, void* stream) {
+    return kq4.quants && kq4.scales && vq4.quants && vq4.scales &&
+           (n_head == 16 * kv_heads
+                ? run_dec<false, true, 16>(q, kq4.quants, kq4.scales, vq4.quants, vq4.scales, pos, n, at, room, out,
+                                           dim, n_head, kv_heads, scale, scratch, scratch_floats, stream)
+                : run_dec<false, true, 8>(q, kq4.quants, kq4.scales, vq4.quants, vq4.scales, pos, n, at, room, out,
+                                          dim, n_head, kv_heads, scale, scratch, scratch_floats, stream));
 }
 
 bool fdec_f16(const float* q, const uint16_t* keys, const uint16_t* vals, int64_t pos, int n, const long long* at,
               int room, float* out, int dim, int n_head, int kv_heads, float scale, float* scratch,
               size_t scratch_floats, void* stream) {
     return n_head == 16 * kv_heads
-               ? run_dec<true, 16>(q, keys, nullptr, vals, nullptr, pos, n, at, room, out, dim, n_head, kv_heads,
+               ? run_dec<true, false, 16>(q, keys, nullptr, vals, nullptr, pos, n, at, room, out, dim, n_head, kv_heads,
                                   scale, scratch, scratch_floats, stream)
-               : run_dec<true, 8>(q, keys, nullptr, vals, nullptr, pos, n, at, room, out, dim, n_head, kv_heads,
+               : run_dec<true, false, 8>(q, keys, nullptr, vals, nullptr, pos, n, at, room, out, dim, n_head, kv_heads,
                                  scale, scratch, scratch_floats, stream);
 }
 
@@ -642,6 +694,11 @@ bool fdec_q8(const float*, Kvq8, Kvq8, int64_t, int, const long long*, int, floa
 
 bool fdec_f16(const float*, const uint16_t*, const uint16_t*, int64_t, int, const long long*, int, float*, int, int, int,
               float, float*, size_t, void*) {
+    return false;
+}
+
+bool fdec_q4(const float*, Kvq4, Kvq4, int64_t, int, const long long*, int, float*, int, int, int, float, float*, size_t,
+             void*) {
     return false;
 }
 

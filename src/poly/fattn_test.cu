@@ -68,7 +68,14 @@ struct Cache {
     std::vector<int8_t> codes;
     std::vector<uint16_t> scales;
     std::vector<uint16_t> halves;   // the same values in fp16 (fp16())
+    std::vector<uint8_t> quants;    // q4_0: 16 bytes a block, values i and i + 16 in byte i's nibbles
+    std::vector<uint16_t> qscales;
     float at(size_t row, int i) const {
+        if (!quants.empty()) {
+            const uint8_t b = quants[row * (kWidth / 2) + (i / 32) * 16 + (i % 16)];
+            const int nib = (i % 32) < 16 ? (b & 0xF) : (b >> 4);
+            return (float) (nib - 8) * __half2float(__ushort_as_half(qscales[row * (kWidth / 32) + i / 32]));
+        }
         if (!halves.empty()) return __half2float(__ushort_as_half(halves[row * kWidth + i]));
         return (float) codes[row * kWidth + i] * __half2float(__ushort_as_half(scales[row * (kWidth / 32) + i / 32]));
     }
@@ -85,6 +92,15 @@ Cache make(std::mt19937& rng, size_t rows = kMaxRows) {
     c.scales.resize(rows * (kWidth / 32));
     for (auto& x : c.codes) x = (int8_t) std::clamp(std::lround(40.f * draw(rng)), -127L, 127L);
     for (auto& x : c.scales) x = __half_as_ushort(__float2half((float) (0.5 + uniform(rng)) / 40.f));
+    return c;
+}
+
+Cache make_q4(std::mt19937& rng, size_t rows) {
+    Cache c;
+    c.quants.resize(rows * (kWidth / 2));
+    c.qscales.resize(rows * (kWidth / 32));
+    for (auto& x : c.quants) x = (uint8_t) (rng() & 0xFFu);
+    for (auto& x : c.qscales) x = __half_as_ushort(__float2half((float) (0.5 + uniform(rng)) / 40.f));
     return c;
 }
 
@@ -188,7 +204,11 @@ int decode_main() {
     std::vector<float> q(size_t(kMaxN) * kHeads * kDim);
     for (float& x : q) x = 2.f * nd(rng);
     const Cache K = make(rng, kRows), V = make(rng, kRows);
+    const Cache K4 = make_q4(rng, kRows), V4 = make_q4(rng, kRows);
     int8_t *kc = upload(K.codes), *vc = upload(V.codes);
+    uint8_t *kq4 = upload(K4.quants), *vq4 = upload(V4.quants);
+    uint16_t *kq4s = upload(K4.qscales), *vq4s = upload(V4.qscales);
+    const Kvq4 KQ4{kq4, kq4s}, VQ4{vq4, vq4s};
     uint16_t *ks = upload(K.scales), *vs = upload(V.scales);
     const Kvq8 kq{kc, ks}, vq{vc, vs};
     // the same values as an fp16 cache
@@ -198,7 +218,9 @@ int decode_main() {
         vf[i] = __half_as_ushort(__float2half(V.at(i / kWidth, int(i % kWidth))));
     }
     uint16_t *kh = upload(kf), *vh = upload(vf);
-    bool f16 = false;
+    bool f16 = false, q4 = false;
+    const Cache* KC = &K;
+    const Cache* VC = &V;
     float* dq = upload(q);
     float *score, *out;
     long long* at;
@@ -213,14 +235,17 @@ int decode_main() {
         // The reference writes chunk * heads * keys scores. Group 16 exceeds kScore at long context with 4.
         const int chunk = std::min<size_t>(4, kScore / (size_t(kHeads) * (pos + n)));
         attend(dq, f16 ? kh : nullptr, f16 ? vh : nullptr, pos, n, score, chunk, out, kDim, kHeads, kKvHeads, scale, nullptr,
-               0, 0, false, nullptr, 0, 0, f16 ? Kvq8{} : kq, f16 ? Kvq8{} : vq);
+               0, 0, false, nullptr, 0, 0, f16 || q4 ? Kvq8{} : kq, f16 || q4 ? Kvq8{} : vq, nullptr,
+               q4 ? KQ4 : Kvq4{}, q4 ? VQ4 : Kvq4{});
     };
     auto dec = [&](long long pos, int n, bool on_card) {
         int room = 1024;
         while (room < pos + n) room *= 2;
         if (on_card) cudaMemcpy(at, &pos, sizeof pos, cudaMemcpyHostToDevice);
         const long long* a = on_card ? at : nullptr;
-        return f16 ? fdec_f16(dq, kh, vh, pos, n, a, std::min(room, kRows), out, kDim, kHeads, kKvHeads, scale, score,
+        return q4 ? fdec_q4(dq, KQ4, VQ4, pos, n, a, std::min(room, kRows), out, kDim, kHeads, kKvHeads, scale, score,
+                            kScore, nullptr)
+             : f16 ? fdec_f16(dq, kh, vh, pos, n, a, std::min(room, kRows), out, kDim, kHeads, kKvHeads, scale, score,
                               kScore, nullptr)
                    : fdec_q8(dq, kq, vq, pos, n, a, std::min(room, kRows), out, kDim, kHeads, kKvHeads, scale, score,
                              kScore, nullptr);
@@ -239,15 +264,18 @@ int decode_main() {
     struct Case { long long pos; int n; };
     const Case cases[] = {{0, 1}, {5, 3}, {1022, 2}, {1023, 4}, {1024, 1}, {2047, 5}, {30000, 2},
                           {120000, 3}, {140000, 1}, {140000, 3}, {170000, 4}, {170000, 6}, {170000, 9}};
-    for (const bool half_cache : {false, true})
+    for (const int mode : {0, 1, 2})
     for (const Case& c : cases) {
-        f16 = half_cache;
+        f16 = mode == 1;
+        q4 = mode == 2;
+        KC = q4 ? &K4 : &K;
+        VC = q4 ? &V4 : &V;
         const size_t n_cells = size_t(c.n) * kHeads * kDim;
         old(c.pos, c.n);
         const std::vector<float> ref = download(out, n_cells);
         cudaMemset(out, 0, cells * sizeof(float));
         if (!dec(c.pos, c.n, false)) {
-            std::printf("FAIL %s pos %6lld rows %d: refused\n", f16 ? "f16" : "q8 ", c.pos, c.n);
+            std::printf("FAIL %s pos %6lld rows %d: refused\n", q4 ? "q4 " : f16 ? "f16" : "q8 ", c.pos, c.n);
             ++bad;
             continue;
         }
@@ -278,7 +306,7 @@ int decode_main() {
         for (int t : {0, c.n - 1})
             for (int h = 0; h < kHeads; h += c.pos > 50000 ? 5 : 1) {
                 const std::vector<double> o =
-                    exact(K, V, q.data() + (size_t(t) * kHeads + h) * kDim, h / (kHeads / kKvHeads), c.pos + t + 1, scale);
+                    exact(*KC, *VC, q.data() + (size_t(t) * kHeads + h) * kDim, h / (kHeads / kKvHeads), c.pos + t + 1, scale);
                 for (int i = 0; i < kDim; ++i) {
                     const size_t a = (size_t(t) * kHeads + h) * kDim + i;
                     most_fd = std::max(most_fd, (float) std::fabs(fd[a] - o[i]));
@@ -289,7 +317,7 @@ int decode_main() {
         const bool ok = same && most <= 1e-2f && most_fd <= 1e-2f;
         bad += !ok;
         std::printf("%s %s pos %6lld rows %d: %.2e from attend() (results up to %.2f); against doubles: fdec %.2e, "
-                    "attend %.2e; %s; %.3f ms against %.3f\n", ok ? "ok  " : "FAIL", f16 ? "f16" : "q8 ", c.pos, c.n,
+                    "attend %.2e; %s; %.3f ms against %.3f\n", ok ? "ok  " : "FAIL", q4 ? "q4 " : f16 ? "f16" : "q8 ", c.pos, c.n,
                     most, big, most_fd, most_ref, same ? "same bits alone and on the card" : "BITS DIFFER", ms_dec,
                     ms_old);
     }

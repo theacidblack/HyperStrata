@@ -70,6 +70,12 @@ private:
         uint16_t* k_scales = nullptr;
         int8_t*   v_codes  = nullptr;
         uint16_t* v_scales = nullptr;
+        // q4_0 cache (opt-in): quants are n_kv*head_dim/2 packed nibble bytes a row; qscales are one fp16 per
+        // 32-value block (n_kv*(head_dim/32) a row).  Used instead of keys/vals when Options::kv_format == kQ4_0.
+        uint8_t*  k_quants = nullptr;
+        uint16_t* k_qscales = nullptr;
+        uint8_t*  v_quants = nullptr;
+        uint16_t* v_qscales = nullptr;
         Dev sh_gate_inp;   ///< the shared expert's gate
     };
 

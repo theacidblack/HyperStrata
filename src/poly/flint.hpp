@@ -46,7 +46,9 @@ private:
         Dev wq, wk, wv, wo, q_norm, k_norm, sinks;
         uint16_t* keys = nullptr;   ///< rows of n_kv * head_dim, fp16: max_context of them, or ring_ in a window layer
         uint16_t* vals = nullptr;
-        int8_t* k_codes = nullptr;  ///< --kv q8_0: a row is n_kv * head_dim codes and n_kv * head_dim / 32 scales
+        int8_t* k_codes = nullptr;  ///< --kv q8_0 or q4_0: q8_0, a row is n_kv * head_dim codes and n_kv * head_dim / 32
+                                    ///< scales; q4_0, a row is n_kv * head_dim / 2 quants (two codes a byte) and the
+                                    ///< same scales.  The fields hold whichever form the model's --kv names.
         uint16_t* k_scales = nullptr;
         int8_t* v_codes = nullptr;
         uint16_t* v_scales = nullptr;
@@ -77,7 +79,7 @@ private:
           *score_ = nullptr;
     size_t score_n_ = 0;       ///< the floats of score_
     float* awork_ = nullptr;   ///< a prompt batch's attention (attend_batch)
-    float* q8w_ = nullptr;     ///< a --kv q8_0 prompt batch's K and V, dequantized to fp16 (kwork | vwork)
+    float* q8w_ = nullptr;     ///< a --kv q8_0 or q4_0 prompt batch's K and V, dequantized to fp16 (kwork | vwork)
     size_t work_halves_ = 0;   ///< the halves of each of q8w_'s two halves
 };
 

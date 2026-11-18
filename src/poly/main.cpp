@@ -1436,7 +1436,7 @@ void usage() {
                  "                         unchanged); q8_0 (ggml Q8_0 blocks: half the KV VRAM, slightly\n"
                  "                         different answers; qwen35moe's, kolibri1's and Flint's); q4_0 (ggml Q4_0\n"
                  "                         blocks: about a quarter of the fp16 VRAM, slightly different answers;\n"
-                 "                         qwen35moe's); int8 / int8k (Gemma 4's:\n"
+                 "                         qwen35moe's and Flint's); int8 / int8k (Gemma 4's:\n"
                  "                         the same Q8_0 rule with the codes and their deltas in two arrays, so a\n"
                  "                         reader takes four codes to a load; int8k keeps the keys' side\n"
                  "                         quantized and the values' in fp16)\n"

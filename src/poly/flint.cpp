@@ -113,20 +113,25 @@ void Flint::alloc_caches() {
     ring_ = std::min(opt_.max_context, window_ + rows_);
     keep_ = std::min(window_, ring_);
     const bool q8 = opt_.kv_format == KvFmt::kQ8_0;
+    const bool q4 = opt_.kv_format == KvFmt::kQ4_0;
     const size_t row = (size_t) n_kv_ * head_dim_;
-    const size_t scale_row = (size_t) n_kv_ * (head_dim_ / 32) * sizeof(uint16_t);   // a Q8_0 block's scale
+    if (q4 && (row % 32 != 0 || head_dim_ % 32 != 0))
+        throw std::runtime_error("--kv q4_0 needs n_kv*head_dim AND head_dim to be multiples of 32 (ggml QK4_0)");
+    const size_t code_row = q4 ? row / 2 : row;                     // a q4 row is two codes a byte
+    const size_t scale_row = (size_t) n_kv_ * (head_dim_ / 32) * sizeof(uint16_t);   // a block's scale
     if (q8) std::fprintf(stderr, "strata-poly: q8_0 KV cache: %zu bytes a row\n", row + scale_row);
+    if (q4) std::fprintf(stderr, "strata-poly: q4_0 KV cache: %zu bytes a row\n", code_row + scale_row);
     size_t rings = 0, codes = 0, scales = 0;   // a window layer's rows are a ring, whatever the sequence's length
     for (int il = 0; il < (int) blocks_.size(); ++il) {
         if (!runs(il) || !blocks_[(size_t) il].swa) continue;
-        if (q8) {
-            codes += 2 * (size_t) ring_ * row;
+        if (q8 || q4) {
+            codes += 2 * (size_t) ring_ * code_row;
             scales += 2 * (size_t) ring_ * scale_row;
         } else {
             rings += 2 * (size_t) ring_ * row;
         }
     }
-    // the q8 rings are two blocks (the codes, and the scales half a byte a code): a block is one sequence's own
+    // the quantized rings are two blocks (the codes, and the scales): a block is one sequence's own
     uint8_t* rc = codes ? (uint8_t*) seq_alloc(codes, "the attention cache") : nullptr;
     uint8_t* rs = scales ? (uint8_t*) seq_alloc(scales, "the attention cache") : nullptr;
     uint16_t* kv = rings ? (uint16_t*) seq_alloc(rings * sizeof(uint16_t), "the attention cache") : nullptr;
@@ -134,13 +139,13 @@ void Flint::alloc_caches() {
         Block& B = blocks_[(size_t) il];
         if (!runs(il)) continue;
         if (B.swa) {
-            if (q8) {
+            if (q8 || q4) {
                 B.k_codes = (int8_t*) rc;
-                rc += (size_t) ring_ * row;
+                rc += (size_t) ring_ * code_row;
                 B.k_scales = (uint16_t*) rs;
                 rs += (size_t) ring_ * scale_row;
                 B.v_codes = (int8_t*) rc;
-                rc += (size_t) ring_ * row;
+                rc += (size_t) ring_ * code_row;
                 B.v_scales = (uint16_t*) rs;
                 rs += (size_t) ring_ * scale_row;
             } else {
@@ -149,10 +154,11 @@ void Flint::alloc_caches() {
                 B.vals = kv;
                 kv += ring_ * row;
             }
-        } else if (q8) {
-            B.k_codes = (int8_t*) kv_alloc(row, 1);
+        } else if (q8 || q4) {
+            // a q4 row is its quants, and its scales in a second array; the fields hold either form
+            B.k_codes = (int8_t*) kv_alloc(code_row, 1);
             B.k_scales = (uint16_t*) kv_alloc(scale_row, 1);
-            B.v_codes = (int8_t*) kv_alloc(row, 1);
+            B.v_codes = (int8_t*) kv_alloc(code_row, 1);
             B.v_scales = (uint16_t*) kv_alloc(scale_row, 1);
         } else {
             B.keys = (uint16_t*) kv_alloc(row * sizeof(uint16_t), 1);
@@ -174,23 +180,25 @@ void Flint::assign_scratch() {
     score_n_ = (size_t) chunk_ * n_head_ * opt_.max_context;
     score_ = fbuf(score_n_);
     if (rows_ >= kStageRows) awork_ = fbuf(heads + heads / 2 + 1 + 3 * n * n_head_);   // a prompt batch's attention
-    if (rows_ >= kStageRows && opt_.kv_format == KvFmt::kQ8_0) {
-        // the K and V blocks a q8 prompt batch dequantizes, side by side; work_halves_ halves each
+    if (rows_ >= kStageRows && (opt_.kv_format == KvFmt::kQ8_0 || opt_.kv_format == KvFmt::kQ4_0)) {
+        // the K and V blocks a q8/q4 prompt batch dequantizes, side by side; work_halves_ halves each
         work_halves_ = kQ8WorkRows * (size_t) n_kv_ * head_dim_;
         q8w_ = fbuf((2 * work_halves_ + 1) / 2);
     }
 }
 
 // A sequence's rows are the full layers': a window layer's are part of its state (save_layer()).  Under --kv q8_0
-// a row is its codes and, in a second array, a scale every 32 of them; the two are saved one after the other, as
-// the layer's other side is.
+// or q4_0 a row is its codes or quants and, in a second array, a scale every 32 of them; the two are saved one after
+// the other, as the layer's other side is.
 size_t Flint::card_row_bytes() const {
     const bool q8 = opt_.kv_format == KvFmt::kQ8_0;
-    const size_t code_row = (size_t) n_kv_ * head_dim_ * (q8 ? 1 : sizeof(uint16_t));
-    const size_t scale_row = q8 ? (size_t) n_kv_ * (head_dim_ / 32) * sizeof(uint16_t) : 0;
+    const bool q4 = opt_.kv_format == KvFmt::kQ4_0;
+    const size_t values = (size_t) n_kv_ * head_dim_;
+    const size_t code_row = q4 ? values / 2 : values * (q8 ? 1 : sizeof(uint16_t));
+    const size_t scale_row = (q8 || q4) ? (size_t) n_kv_ * (head_dim_ / 32) * sizeof(uint16_t) : 0;
     size_t layers = 0;
     for (const Block& B : blocks_)
-        if ((q8 ? B.k_codes != nullptr : B.keys != nullptr) && !B.swa) ++layers;
+        if (((q8 || q4) ? B.k_codes != nullptr : B.keys != nullptr) && !B.swa) ++layers;
     return layers * 2 * (code_row + scale_row);
 }
 
@@ -199,13 +207,15 @@ void Flint::save_card_rows(int64_t first, int64_t n, uint8_t* dst) {
         throw std::logic_error("save_rows: the rows are outside the context");
     ck(cudaStreamSynchronize(cs(st_)), "save rows");
     const bool q8 = opt_.kv_format == KvFmt::kQ8_0;
-    const size_t code_row = (size_t) n_kv_ * head_dim_ * (q8 ? 1 : sizeof(uint16_t));
-    const size_t scale_row = q8 ? (size_t) n_kv_ * (head_dim_ / 32) * sizeof(uint16_t) : 0;
+    const bool q4 = opt_.kv_format == KvFmt::kQ4_0;
+    const size_t values = (size_t) n_kv_ * head_dim_;
+    const size_t code_row = q4 ? values / 2 : values * (q8 ? 1 : sizeof(uint16_t));
+    const size_t scale_row = (q8 || q4) ? (size_t) n_kv_ * (head_dim_ / 32) * sizeof(uint16_t) : 0;
     const size_t at_c = (size_t) first * code_row, at_s = (size_t) first * scale_row;
     const size_t n_c = (size_t) n * code_row, n_s = (size_t) n * scale_row;
     for (const Block& B : blocks_) {
-        if (B.swa || n == 0 || !(q8 ? B.k_codes != nullptr : B.keys != nullptr)) continue;
-        if (q8) {
+        if (B.swa || n == 0 || !((q8 || q4) ? B.k_codes != nullptr : B.keys != nullptr)) continue;
+        if (q8 || q4) {
             ck(cudaMemcpy(dst, (const uint8_t*) B.k_codes + at_c, n_c, cudaMemcpyDeviceToHost), "save rows");
             dst += n_c;
             ck(cudaMemcpy(dst, (const uint8_t*) B.k_scales + at_s, n_s, cudaMemcpyDeviceToHost), "save rows");
@@ -229,15 +239,17 @@ void Flint::load_card_rows(const uint8_t* src, int64_t from, int64_t count, int6
     cover(first + n);
     ck(cudaStreamSynchronize(cs(st_)), "load rows");
     const bool q8 = opt_.kv_format == KvFmt::kQ8_0;
-    const size_t code_row = (size_t) n_kv_ * head_dim_ * (q8 ? 1 : sizeof(uint16_t));
-    const size_t scale_row = q8 ? (size_t) n_kv_ * (head_dim_ / 32) * sizeof(uint16_t) : 0;
+    const bool q4 = opt_.kv_format == KvFmt::kQ4_0;
+    const size_t values = (size_t) n_kv_ * head_dim_;
+    const size_t code_row = q4 ? values / 2 : values * (q8 ? 1 : sizeof(uint16_t));
+    const size_t scale_row = (q8 || q4) ? (size_t) n_kv_ * (head_dim_ / 32) * sizeof(uint16_t) : 0;
     const size_t at_c = (size_t) first * code_row, at_s = (size_t) first * scale_row;
     const size_t n_c = (size_t) n * code_row, n_s = (size_t) n * scale_row;
     const size_t sk_c = (size_t) (first - from) * code_row, sk_s = (size_t) (first - from) * scale_row;
     const size_t all_c = (size_t) count * code_row, all_s = (size_t) count * scale_row;
     for (const Block& B : blocks_) {
-        if (B.swa || n == 0 || !(q8 ? B.k_codes != nullptr : B.keys != nullptr)) continue;
-        if (q8) {
+        if (B.swa || n == 0 || !((q8 || q4) ? B.k_codes != nullptr : B.keys != nullptr)) continue;
+        if (q8 || q4) {
             ck(cudaMemcpy((uint8_t*) B.k_codes + at_c, src + sk_c, n_c, cudaMemcpyHostToDevice), "load rows");
             src += all_c;
             ck(cudaMemcpy((uint8_t*) B.k_scales + at_s, src + sk_s, n_s, cudaMemcpyHostToDevice), "load rows");
@@ -266,13 +278,15 @@ void Flint::window_runs(int64_t pos, F&& f) const {
     }
 }
 
-// What a window layer has of the sequence: the rows the next token attends.  Under --kv q8_0 a row is its codes
-// plus a scale a block of 32 of them, in two arrays, so one layer's part is the codes and the scales one after the
-// other on each side.
+// What a window layer has of the sequence: the rows the next token attends.  Under --kv q8_0 or q4_0 a row is its
+// codes or quants plus a scale a block of 32 of them, in two arrays, so one layer's part is the codes and the scales
+// one after the other on each side.
 size_t Flint::extra_bytes() const {
     const bool q8 = opt_.kv_format == KvFmt::kQ8_0;
-    const size_t code_row = (size_t) n_kv_ * head_dim_ * (q8 ? 1 : sizeof(uint16_t));
-    const size_t scale_row = q8 ? (size_t) n_kv_ * (head_dim_ / 32) * sizeof(uint16_t) : 0;
+    const bool q4 = opt_.kv_format == KvFmt::kQ4_0;
+    const size_t values = (size_t) n_kv_ * head_dim_;
+    const size_t code_row = q4 ? values / 2 : values * (q8 ? 1 : sizeof(uint16_t));
+    const size_t scale_row = (q8 || q4) ? (size_t) n_kv_ * (head_dim_ / 32) * sizeof(uint16_t) : 0;
     size_t layers = 0;
     for (const Block& B : blocks_)
         if (B.swa) ++layers;
@@ -283,8 +297,10 @@ size_t Flint::extra_bytes() const {
 void Flint::save_layer(int il, int64_t pos, uint8_t* dst) {
     if (!blocks_[(size_t) il].swa) return;
     const bool q8 = opt_.kv_format == KvFmt::kQ8_0;
-    const size_t code_row = (size_t) n_kv_ * head_dim_ * (q8 ? 1 : sizeof(uint16_t));
-    const size_t scale_row = q8 ? (size_t) n_kv_ * (head_dim_ / 32) * sizeof(uint16_t) : 0;
+    const bool q4 = opt_.kv_format == KvFmt::kQ4_0;
+    const size_t values = (size_t) n_kv_ * head_dim_;
+    const size_t code_row = q4 ? values / 2 : values * (q8 ? 1 : sizeof(uint16_t));
+    const size_t scale_row = (q8 || q4) ? (size_t) n_kv_ * (head_dim_ / 32) * sizeof(uint16_t) : 0;
     const size_t whole = 2 * (size_t) keep_ * (code_row + scale_row);
     dst += state_n_ * sizeof(float);
     for (int j = 0; j < il; ++j)
@@ -298,7 +314,7 @@ void Flint::save_layer(int il, int64_t pos, uint8_t* dst) {
         });
         dst += (size_t) keep_ * one_row;
     };
-    if (q8) {
+    if (q8 || q4) {
         save_ring((const uint8_t*) B.k_codes, code_row);
         save_ring((const uint8_t*) B.k_scales, scale_row);
         save_ring((const uint8_t*) B.v_codes, code_row);
@@ -311,8 +327,10 @@ void Flint::save_layer(int il, int64_t pos, uint8_t* dst) {
 
 void Flint::load_extra(const uint8_t* src, int64_t pos) {
     const bool q8 = opt_.kv_format == KvFmt::kQ8_0;
-    const size_t code_row = (size_t) n_kv_ * head_dim_ * (q8 ? 1 : sizeof(uint16_t));
-    const size_t scale_row = q8 ? (size_t) n_kv_ * (head_dim_ / 32) * sizeof(uint16_t) : 0;
+    const bool q4 = opt_.kv_format == KvFmt::kQ4_0;
+    const size_t values = (size_t) n_kv_ * head_dim_;
+    const size_t code_row = q4 ? values / 2 : values * (q8 ? 1 : sizeof(uint16_t));
+    const size_t scale_row = (q8 || q4) ? (size_t) n_kv_ * (head_dim_ / 32) * sizeof(uint16_t) : 0;
     for (const Block& B : blocks_) {
         if (!B.swa) continue;
         auto load_ring = [&](uint8_t* cache, size_t one_row) {
@@ -322,7 +340,7 @@ void Flint::load_extra(const uint8_t* src, int64_t pos) {
             });
             src += (size_t) keep_ * one_row;
         };
-        if (q8) {
+        if (q8 || q4) {
             load_ring((uint8_t*) B.k_codes, code_row);
             load_ring((uint8_t*) B.k_scales, scale_row);
             load_ring((uint8_t*) B.v_codes, code_row);
@@ -351,6 +369,16 @@ void Flint::store(const float* x, const Block& B, int64_t pos, int n, bool value
         if (head < n) store_q8(x + (size_t) head * width, codes, scales, width, 0, n - head, st_);
         return;
     }
+    if (opt_.kv_format == KvFmt::kQ4_0) {
+        uint8_t* quants = value ? (uint8_t*) B.v_codes : (uint8_t*) B.k_codes;
+        uint16_t* scales = value ? B.v_scales : B.k_scales;
+        if (recording_) return store_q4_at(x, quants, scales, width, at_, n, B.swa ? ring_ : 0, st_);
+        if (!B.swa) return store_q4(x, quants, scales, width, pos, n, st_);
+        const int at = (int) (pos % ring_), head = std::min(n, ring_ - at);
+        store_q4(x, quants, scales, width, at, head, st_);
+        if (head < n) store_q4(x + (size_t) head * width, quants, scales, width, 0, n - head, st_);
+        return;
+    }
     uint16_t* cache = value ? B.vals : B.keys;
     if (recording_) return store_f16_at(x, cache, width, at_, n, B.swa ? ring_ : 0, st_);
     if (!B.swa) return store_f16(x, cache, width, pos, n, st_);
@@ -377,20 +405,25 @@ void Flint::attn(Block& B, int64_t pos, int n) {
     const float scale = 1.f / std::sqrt((float) head_dim_);
     const int window = B.swa ? window_ : 0, ring = B.swa ? ring_ : 0;
     const bool q8 = opt_.kv_format == KvFmt::kQ8_0;
+    const bool q4 = opt_.kv_format == KvFmt::kQ4_0;
+    const bool quant = q8 || q4;
     const Kvq8 kq = q8 ? Kvq8{B.k_codes, B.k_scales} : Kvq8{};
     const Kvq8 vq = q8 ? Kvq8{B.v_codes, B.v_scales} : Kvq8{};
+    const Kvq4 k4 = q4 ? Kvq4{(const uint8_t*) B.k_codes, B.k_scales} : Kvq4{};
+    const Kvq4 v4 = q4 ? Kvq4{(const uint8_t*) B.v_codes, B.v_scales} : Kvq4{};
     // a prompt batch with attend_batch()'s kernels; a few tokens with the ones that give a token the same bits in any
-    // company.  Under q8 a batch dequantizes each block of K and V the products read into q8w_ (kwork then vwork),
+    // company.  Under q8/q4 a batch dequantizes each block of K and V the products read into q8w_ (kwork then vwork),
     // and the fp16 caches are null.
     if (n >= kStageRows)
-        attend_batch(blas_, q_, q8 ? nullptr : B.keys, q8 ? nullptr : B.vals, pos, n, score_, score_n_, awork_,
+        attend_batch(blas_, q_, quant ? nullptr : B.keys, quant ? nullptr : B.vals, pos, n, score_, score_n_, awork_,
                      att_, head_dim_, n_head_, n_kv_, scale, st_, window, ring, false, kq, vq,
-                     q8 ? (uint16_t*) q8w_ : nullptr, q8 ? (uint16_t*) q8w_ + work_halves_ : nullptr,
-                     q8 ? work_halves_ : 0, fp(B.sinks));
+                     quant ? (uint16_t*) q8w_ : nullptr, quant ? (uint16_t*) q8w_ + work_halves_ : nullptr,
+                     quant ? work_halves_ : 0, fp(B.sinks), k4, v4);
     else
-        attend(q_, q8 ? nullptr : B.keys, q8 ? nullptr : B.vals, pos, n, score_, chunk_, att_, head_dim_, n_head_, n_kv_,
-               scale, st_, window, ring, false, at,
-               !at ? 0 : B.swa ? std::min(window_ + n - 1, opt_.max_context) : room(n), score_n_, kq, vq, fp(B.sinks));
+        attend(q_, quant ? nullptr : B.keys, quant ? nullptr : B.vals, pos, n, score_, chunk_, att_, head_dim_, n_head_,
+               n_kv_, scale, st_, window, ring, false, at,
+               !at ? 0 : B.swa ? std::min(window_ + n - 1, opt_.max_context) : room(n), score_n_, kq, vq, fp(B.sinks),
+               0, k4, v4);
     lin(B.wo, att_, ao_, n);
 }
 
@@ -405,6 +438,8 @@ void Flint::attn_rows(Block& B, int n) {
     const size_t kv = (size_t) n_kv_ * head_dim_, hq = (size_t) n_head_ * head_dim_;
     const int window = B.swa ? window_ : 0, ring = B.swa ? ring_ : 0;
     const bool q8 = opt_.kv_format == KvFmt::kQ8_0;
+    const bool q4 = opt_.kv_format == KvFmt::kQ4_0;
+    const bool quant = q8 || q4;
     for (int i = 0; i < n; ++i) {
         const Row& r = rows_of_[i];
         const long long* ai = at_ + 2 * i;
@@ -412,15 +447,22 @@ void Flint::attn_rows(Block& B, int n) {
                        1, rms_eps_, st_, nullptr, nullptr, 1, ai + 1);
         head_norm_rope(kraw_ + i * kv, head_dim_, fp(B.k_norm), k_ + i * kv, head_dim_, n_kv_, n_rot, theta_scale_, 0,
                        1, rms_eps_, st_, nullptr, nullptr, 1, ai + 1);
-        uint16_t* kch = q8 ? nullptr : (uint16_t*) seq_buf(r.seq, B.keys);
-        uint16_t* vch = q8 ? nullptr : (uint16_t*) seq_buf(r.seq, B.vals);
+        uint16_t* kch = quant ? nullptr : (uint16_t*) seq_buf(r.seq, B.keys);
+        uint16_t* vch = quant ? nullptr : (uint16_t*) seq_buf(r.seq, B.vals);
         const Kvq8 kq = q8 ? Kvq8{(int8_t*) seq_buf(r.seq, B.k_codes), (uint16_t*) seq_buf(r.seq, B.k_scales)}
                            : Kvq8{};
         const Kvq8 vq = q8 ? Kvq8{(int8_t*) seq_buf(r.seq, B.v_codes), (uint16_t*) seq_buf(r.seq, B.v_scales)}
                            : Kvq8{};
+        const Kvq4 k4 = q4 ? Kvq4{(const uint8_t*) seq_buf(r.seq, B.k_codes), (uint16_t*) seq_buf(r.seq, B.k_scales)}
+                           : Kvq4{};
+        const Kvq4 v4 = q4 ? Kvq4{(const uint8_t*) seq_buf(r.seq, B.v_codes), (uint16_t*) seq_buf(r.seq, B.v_scales)}
+                           : Kvq4{};
         if (q8) {
             store_q8_at(k_ + i * kv, (int8_t*) kq.codes, (uint16_t*) kq.scales, (int) kv, ai, 1, ring, st_);
             store_q8_at(v_ + i * kv, (int8_t*) vq.codes, (uint16_t*) vq.scales, (int) kv, ai, 1, ring, st_);
+        } else if (q4) {
+            store_q4_at(k_ + i * kv, (uint8_t*) k4.quants, (uint16_t*) k4.scales, (int) kv, ai, 1, ring, st_);
+            store_q4_at(v_ + i * kv, (uint8_t*) v4.quants, (uint16_t*) v4.scales, (int) kv, ai, 1, ring, st_);
         } else {
             store_f16_at(k_ + i * kv, kch, (int) kv, ai, 1, ring, st_);
             store_f16_at(v_ + i * kv, vch, (int) kv, ai, 1, ring, st_);
@@ -430,7 +472,7 @@ void Flint::attn_rows(Block& B, int n) {
         const int sized = B.swa ? std::min(window_, opt_.max_context) : room(1);
         pos_ = keep;
         attend(q_ + i * hq, kch, vch, r.pos, 1, score_, chunk_, att_ + i * hq, head_dim_, n_head_, n_kv_, scale, st_,
-               window, ring, false, ai, sized, score_n_, kq, vq, fp(B.sinks));
+               window, ring, false, ai, sized, score_n_, kq, vq, fp(B.sinks), 0, k4, v4);
     }
     lin(B.wo, att_, ao_, n);
 }

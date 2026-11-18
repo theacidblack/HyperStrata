@@ -236,6 +236,7 @@ int decode_main() {
         const int chunk = std::min<size_t>(4, kScore / (size_t(kHeads) * (pos + n)));
         attend(dq, f16 ? kh : nullptr, f16 ? vh : nullptr, pos, n, score, chunk, out, kDim, kHeads, kKvHeads, scale, nullptr,
                0, 0, false, nullptr, 0, 0, f16 || q4 ? Kvq8{} : kq, f16 || q4 ? Kvq8{} : vq, nullptr,
+               0,
                q4 ? KQ4 : Kvq4{}, q4 ? VQ4 : Kvq4{});
     };
     auto dec = [&](long long pos, int n, bool on_card) {

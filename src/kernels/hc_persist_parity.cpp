@@ -22,6 +22,14 @@
 
 namespace k = strata::kernels;
 
+#if defined(_WIN32)
+// MSVC has no setenv/unsetenv; _putenv_s with an empty value unsets.
+namespace {
+int setenv(const char* name, const char* value, int) { return _putenv_s(name, value); }
+int unsetenv(const char* name) { return _putenv_s(name, ""); }
+}  // namespace
+#endif
+
 namespace {
 constexpr int N = 2560, HC = 4, D = N * HC, LR = 320, TM = 8;
 void ck(cudaError_t e, const char* w) {

@@ -1640,7 +1640,9 @@ template <int DIM, int G>
 __global__ void __launch_bounds__(G * WARP)
 attn_split_kernel(const float* __restrict__ q, const half* __restrict__ kcache, const half* __restrict__ vcache,
                   float* __restrict__ part, int n_head, int kv_heads, long long pos, int first, int tokens, float scale,
-                  int blocks, const long long* __restrict__ at) {
+                  int blocks, const long long* __restrict__ at, const uint8_t* __restrict__ kq4 = nullptr,
+                  const uint16_t* __restrict__ kq4s = nullptr, const uint8_t* __restrict__ vq4 = nullptr,
+                  const uint16_t* __restrict__ vq4s = nullptr) {
     constexpr int ROW = DIM / SCORE_VALUES, ROWS = WARP / ROW, WARPS = G, VALS = DIM / WARP;
     static_assert(ROW * ROWS == WARP && ROW % G == 0 && VALS % 2 == 0, "a row is half a warp or a warp, a warp a head");
     __shared__ float e[G][SPLIT_KEYS];
@@ -1661,12 +1663,26 @@ attn_split_kernel(const float* __restrict__ q, const half* __restrict__ kcache, 
 #pragma unroll
         for (int i = 0; i < G; ++i) acc[i] = 0.0f;
         if (r < nk && key < own) {
-            const half* k = kcache + (size_t(key) * kv_heads + g) * DIM + SCORE_VALUES * rl;
-            const unsigned long long bits = *reinterpret_cast<const unsigned long long*>(k);
             float x[SCORE_VALUES];
+            if (kq4) {
+                // ggml Q4_0: values j and j + 16 share byte j as the low and high nibbles; a lane's SCORE_VALUES
+                // values are that many bytes of one half of a 32-value block
+                const int off = SCORE_VALUES * rl;
+                const uint8_t* kb =
+                    kq4 + (size_t(key) * kv_heads + g) * (DIM / 2) + (off >> 5) * 16 + ((off & 31) & 15);
+                const float sc = __half2float(
+                    __ushort_as_half(kq4s[(size_t(key) * kv_heads + g) * (DIM / 32) + off / 32]));
+                const bool hi = (off & 31) >= 16;
 #pragma unroll
-            for (int j = 0; j < SCORE_VALUES; ++j)
-                x[j] = __half2float(__ushort_as_half((unsigned short) (bits >> 16 * j)));
+                for (int j = 0; j < SCORE_VALUES; ++j)
+                    x[j] = (float(hi ? (kb[j] >> 4) : (kb[j] & 0xF)) - 8.f) * sc;
+            } else {
+                const half* k = kcache + (size_t(key) * kv_heads + g) * DIM + SCORE_VALUES * rl;
+                const unsigned long long bits = *reinterpret_cast<const unsigned long long*>(k);
+#pragma unroll
+                for (int j = 0; j < SCORE_VALUES; ++j)
+                    x[j] = __half2float(__ushort_as_half((unsigned short) (bits >> 16 * j)));
+            }
 #pragma unroll
             for (int i = 0; i < G; ++i) {
                 acc[i] += y[i].x * x[0];
@@ -1700,10 +1716,26 @@ attn_split_kernel(const float* __restrict__ q, const half* __restrict__ kcache, 
 #pragma unroll
         for (int u = 0; u < VALS; ++u) o[i][u] = 0.0f;
     const half* v = vcache + (size_t(k0) * kv_heads + g) * DIM + VALS * lane;
+    // a q4 value row's byte and scale of the lane's first value
+    const int voff = VALS * lane;
+    const int vbyte = (voff >> 5) * 16 + ((voff & 31) & 15);
+    const int vblk = voff / 32;
+    const bool vhi = (voff & 31) >= 16;
     for (int j = w; j < nk; j += WARPS) {
 #pragma unroll
         for (int u = 0; u < VALS; u += 2) {
-            const float2 x = __half22float2(*reinterpret_cast<const half2*>(v + size_t(j) * kv_heads * DIM + u));
+            float2 x;
+            if (vq4) {
+                const size_t rowq = size_t(k0 + j) * kv_heads + g;
+                const float sc = __half2float(__ushort_as_half(vq4s[rowq * (DIM / 32) + vblk]));
+                const uint8_t* pb = vq4 + rowq * (DIM / 2) + vbyte;
+                const int n0 = vhi ? (pb[u] >> 4) : (pb[u] & 0xF);
+                const int n1 = vhi ? (pb[u + 1] >> 4) : (pb[u + 1] & 0xF);
+                x.x = (float(n0) - 8.f) * sc;
+                x.y = (float(n1) - 8.f) * sc;
+            } else {
+                x = __half22float2(*reinterpret_cast<const half2*>(v + size_t(j) * kv_heads * DIM + u));
+            }
 #pragma unroll
             for (int i = 0; i < G; ++i) {
                 o[i][u] += e[i][j] * x.x;
@@ -3250,7 +3282,14 @@ void attend(const float* q, const uint16_t* kcache, const uint16_t* vcache, int6
         }
     }
 #endif
-    if ((split64 || split128) && window == 0 && ring == 0 && !whole && !kq && !vq && !k4 && !v4 && fit > 0) {
+    // a q4 cache takes the blocks of rows where heads are 128 values in groups of 8 (Flint's full layers).
+    // STRATA_Q4_SPLIT=0 keeps the plain kernel, the control arm of a same-binary measurement.
+    static const bool q4_split = [] {
+        const char* e = std::getenv("STRATA_Q4_SPLIT");
+        return !(e && std::atoi(e) == 0);
+    }();
+    if ((split64 || split128) && window == 0 && ring == 0 && !whole && !kq && !vq && fit > 0 && q4_split &&
+        (!(k4 || v4) || split128)) {
         for (int first = 0, c = 0; first < rows; first += c) {
             c = std::min(fit, rows - first);
             const int blocks = grid(size_t(at ? room : pos + first + c), SPLIT_KEYS);
@@ -3264,7 +3303,7 @@ void attend(const float* q, const uint16_t* kcache, const uint16_t* vcache, int6
             } else {
                 attn_split_kernel<128, 8><<<split, 8 * WARP, 0, cs(stream)>>>(
                     q, (const half*) kcache, (const half*) vcache, score, n_head, kv_heads, (long long) pos, first, c,
-                    scale, blocks, at);
+                    scale, blocks, at, kq4.quants, kq4.scales, vq4.quants, vq4.scales);
                 attn_join_kernel<128><<<join, JOIN_WARPS * WARP, 0, cs(stream)>>>(score, out, n_head, (long long) pos,
                                                                                   first, c, blocks, at, sinks);
             }
